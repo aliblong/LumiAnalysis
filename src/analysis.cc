@@ -10,12 +10,14 @@
 #include "branch_array_buffer_sizes.h"
 #include "json_reader.h"
 #include "plotter.h"
+#include "plot_options.h"
+
+using std::string;
+using std::vector;
 
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::string;
-using std::vector;
 
 namespace {
 
@@ -42,6 +44,7 @@ int GetNumLumiBlocks(TTree *tree) {
 } // Unnamed namespace
 
 Analysis::Analysis(string params_filepath) {
+  params_filepath_ = params_filepath;
   int err = PrepareAnalysis(params_filepath);
   if (err) {
     cerr << "ERROR: in PrepareAnalysis(string params_filepath)" << endl;
@@ -64,6 +67,7 @@ int Analysis::AnalyseTree(string run_name) {
     return 2;
   }
 
+  ClearVectors();
   int num_lumi_blocks = GetNumLumiBlocks(this_tree);
   int num_channels = used_channels_.size();
 
@@ -112,6 +116,11 @@ int Analysis::AnalyseTree(string run_name) {
   return 0;
 }
 
+void Analysis::ClearVectors() {
+  currents_.clear();
+  lumi_BCM_.clear();
+}
+
 int Analysis::CreateSingleRunPlots(string run_name) {
   if (plot_types_.size() == 0) {
     cerr << "ERROR: no plots types selected to plot" << endl;
@@ -120,16 +129,22 @@ int Analysis::CreateSingleRunPlots(string run_name) {
 
   Plotter plotter;
   for (auto plot_type: plot_types_) {
-    if (plot_type == "lc") {
+    if (plot_type == "lumi_current") {
+      PlotOptions plot_options(params_filepath_, plot_type);
       int num_channels = used_channels_.size();
       for (int iChannel=0; iChannel < num_channels; ++iChannel) {
-        auto *this_channel_current = &currents_.at(iChannel);
+        auto this_channel_current = currents_.at(iChannel);
+        //if (run_name == "203934")
+        //for (auto element: this_channel_current) {
+        //  cerr << element << endl;
+        //}
         auto this_channel_name = used_channels_.at(iChannel).channel_name;
         int err_plot = plotter.PlotLumiCurrent(lumi_BCM_,
-                                               *this_channel_current,
+                                               this_channel_current,
                                                run_name,
                                                this_channel_name,
-                                               output_dir_);
+                                               output_dir_,
+                                               plot_options);
         if (err_plot) {
           cerr << "ERROR: in Plotter::PlotLumiCurrent()" << endl;
           return 2;
@@ -143,7 +158,7 @@ int Analysis::CreateSingleRunPlots(string run_name) {
 int Analysis::PrepareAnalysis(string params_filepath) {
   ReadParams(params_filepath);
   for (auto plot_type: plot_types_) {
-    if (plot_type == "lc" ) {
+    if (plot_type == "lumi_current" ) {
       retrieve_currents_ = true;
       retrieve_lumi_BCM_ = true;
     }
@@ -239,17 +254,6 @@ int Analysis::RunAnalysis() {
       return 1;
     }
     int err_plots = CreateSingleRunPlots(run_name);
-    //int err_write = WriteVectorToFile(lumi_BCM_, "testout.dat");
-    /*
-    string out_filepath_lumi_BCM = out_dir_+"lumi_BCM/"+run_name+".dat";
-    int err_lumi_BCM_write = WriteVectorToFile(lumi_BCM,
-                                               out_filepath_lumi_BCM);
-    if (err_lumi_BCM_write) {
-      cerr << "ERROR: In WriteVectorToFile(lumi_BCM_, "
-           << run_name << ")" << endl;
-      return 1;
-    }
-    */
   }
   return 0;
 }

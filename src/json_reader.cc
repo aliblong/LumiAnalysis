@@ -9,6 +9,7 @@
 
 using std::string;
 using std::vector;
+
 using boost::property_tree::ptree;
 
 JSONReader::JSONReader(const string filename) {

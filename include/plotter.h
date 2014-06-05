@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "plot_options.h"
+
 using std::string;
 using std::vector;
 
@@ -11,11 +13,12 @@ class Plotter {
  public:
   Plotter(){};
   ~Plotter(){};
-  int PlotLumiCurrent(vector<float> lumi,
-                      vector<float> current,
+  int PlotLumiCurrent(const vector<float> &lumi,
+                      const vector<float> &current,
                       string run_name,
                       string channel_name,
-                      string output_dir);
+                      string output_dir,
+                      const PlotOptions &plot_options);
 };
 
 #endif

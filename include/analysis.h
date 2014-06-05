@@ -12,6 +12,7 @@ class Analysis {
   Analysis(string params_filepath);
   ~Analysis(){};
   int AnalyseTree(string tree_name);
+  void ClearVectors();
   int CreateSingleRunPlots(string run_name);
   int PrepareAnalysis(string params_filepath);
   int ReadChannelsCalibAndPed(string channels_filepath,
@@ -28,6 +29,7 @@ class Analysis {
   double corr_C_;
   double corr_Avg_;
   vector<string> plot_types_;
+  string params_filepath_;
   string calibrations_filepath_;
   string pedestals_filepath_;
   string trees_dir_;
