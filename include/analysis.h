@@ -12,11 +12,11 @@ class Analysis {
   Analysis(string params_filepath);
   ~Analysis(){};
   int AnalyseTree(string tree_name);
-  void ClearVectors();
+  void ClearSingleRunVectors();
   int CreateSingleRunPlots(string run_name);
   int PrepareAnalysis(string params_filepath);
-  int ReadChannelsCalibAndPed(string channels_filepath,
-                              string pedestals_filepath);
+  int ReadCalibrations(string channels_filepath);
+  int ReadPedestals(string pedestals_dir, string run_name);
   void ReadParams(string params_filepath);
   int RunAnalysis();
   int WriteCurrentsToFile(string run_name);
@@ -31,9 +31,8 @@ class Analysis {
   vector<string> plot_types_;
   string params_filepath_;
   string calibrations_filepath_;
-  string pedestals_filepath_;
+  string pedestals_dir_;
   string trees_dir_;
-  string baselines_dir_;
   string run_list_dir_;
   string output_dir_;
 

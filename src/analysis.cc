@@ -52,6 +52,7 @@ Analysis::Analysis(string params_filepath) {
 }
 
 int Analysis::AnalyseTree(string run_name) {
+  ClearSingleRunVectors();
   string filepath = trees_dir_+run_name+".root";
   TFile *this_file = TFile::Open(filepath.c_str());
   if (!this_file) {
@@ -67,7 +68,6 @@ int Analysis::AnalyseTree(string run_name) {
     return 2;
   }
 
-  ClearVectors();
   int num_lumi_blocks = GetNumLumiBlocks(this_tree);
   int num_channels = used_channels_.size();
 
@@ -104,7 +104,6 @@ int Analysis::AnalyseTree(string run_name) {
       }
     }
   }
-
   if (retrieve_lumi_BCM_) {
     for (int iLumiBlock=0; iLumiBlock < num_lumi_blocks; ++iLumiBlock) {
       if (quality[iLumiBlock] && beam_mode->at(iLumiBlock) == "STABLE BEAMS") {
@@ -116,7 +115,7 @@ int Analysis::AnalyseTree(string run_name) {
   return 0;
 }
 
-void Analysis::ClearVectors() {
+void Analysis::ClearSingleRunVectors() {
   currents_.clear();
   lumi_BCM_.clear();
 }
@@ -131,25 +130,28 @@ int Analysis::CreateSingleRunPlots(string run_name) {
   for (auto plot_type: plot_types_) {
     if (plot_type == "lumi_current") {
       PlotOptions plot_options(params_filepath_, plot_type);
+      vector<FitResults> fit_results;
       int num_channels = used_channels_.size();
       for (int iChannel=0; iChannel < num_channels; ++iChannel) {
         auto this_channel_current = currents_.at(iChannel);
-        //if (run_name == "203934")
-        //for (auto element: this_channel_current) {
-        //  cerr << element << endl;
-        //}
         auto this_channel_name = used_channels_.at(iChannel).channel_name;
+        FitResults this_channel_fit_results;
         int err_plot = plotter.PlotLumiCurrent(lumi_BCM_,
                                                this_channel_current,
                                                run_name,
                                                this_channel_name,
                                                output_dir_,
-                                               plot_options);
+                                               plot_options,
+                                               this_channel_fit_results);
         if (err_plot) {
           cerr << "ERROR: in Plotter::PlotLumiCurrent()" << endl;
           return 2;
         }
+        fit_results.push_back(this_channel_fit_results);
       }
+      int err_fit_results = plotter.SaveFitResults(fit_results,
+                                                   run_name,
+                                                   output_dir_);
     }
   }
   return 0;
@@ -163,19 +165,17 @@ int Analysis::PrepareAnalysis(string params_filepath) {
       retrieve_lumi_BCM_ = true;
     }
   }
-  int err_RCF = ReadChannelsCalibAndPed(calibrations_filepath_,
-                                        pedestals_filepath_);
+  int err_RCF = ReadCalibrations(calibrations_filepath_);
   if (err_RCF) {
-    cerr << "ERROR: in ReadChannelsCalibAndPed(string calibrations_filepath"
-         << ", string pedestals_filepath)" << endl;
+    cerr << "ERROR: in ReadCalibrations(string calibrations_filepath"
+         << ", string pedestals_dir)" << endl;
     return 1;
   }
 
   return 0;
 }
 
-int Analysis::ReadChannelsCalibAndPed(string calibrations_filepath,
-                                      string pedestals_filepath) {
+int Analysis::ReadCalibrations(string calibrations_filepath) {
   std::ifstream calibrations_file(calibrations_filepath);
   if (!calibrations_file) {
     cerr << "ERROR: Could not locate calibrations file \'"
@@ -191,24 +191,39 @@ int Analysis::ReadChannelsCalibAndPed(string calibrations_filepath,
   }
   calibrations_file.close();
 
-  std::ifstream pedestals_file(pedestals_filepath);
-  if (!pedestals_file) {
-    cerr << "ERROR: Could not locate pedestals file \'"
-         << calibrations_filepath << "\'" << endl;
-    return 1;
-  }
+  return 0;
+}
 
-  float pedestal;
-  while (pedestals_file >> channel_name >> pedestal) {
-    for (auto &channel: used_channels_) {
+int Analysis::ReadPedestals(string pedestals_dir, string run_name) {
+  for (auto &channel: used_channels_) {
+    auto pedestals_filepath = pedestals_dir + run_name + ".dat";
+    std::ifstream pedestals_file(pedestals_filepath);
+    if (!pedestals_file) {
+      cerr << "ERROR: Could not locate pedestals file \'"
+           << pedestals_filepath << "\'" << endl;
+      return 1;
+    }
+
+    string channel_name;
+    float pedestal;
+    float something;
+    bool found_channel = false;
+    while (pedestals_file >> channel_name >> pedestal >> something) {
       if (channel.channel_name == channel_name) {
         channel.pedestal = pedestal;
+        found_channel = true;
         break;
       }
     }
-  }
-  pedestals_file.close();
+    pedestals_file.close();
 
+    if (!found_channel) {
+      cerr << "ERROR: Could not locate pedestal for run " << run_name
+           << ", channel " << channel.channel_name << endl;
+      return 2;
+    }
+    found_channel = false;
+  } // Used channels loop
   return 0;
 }
 
@@ -232,9 +247,8 @@ void Analysis::ReadParams(string params_filepath) {
 
   // Relevant directories
   calibrations_filepath_ = parameter_file.get<string>("filepaths.calibrations");
-  pedestals_filepath_ = parameter_file.get<string>("filepaths.pedestals");
+  pedestals_dir_ = parameter_file.get<string>("filepaths.pedestals");
   trees_dir_ = parameter_file.get<string>("filepaths.trees");
-  baselines_dir_ = parameter_file.get<string>("filepaths.baselines");
   run_list_dir_ = parameter_file.get<string>("filepaths.run_list");
   output_dir_ = parameter_file.get<string>("filepaths.output");
 }
@@ -248,12 +262,26 @@ int Analysis::RunAnalysis() {
 
   string run_name;
   while (run_names_file >> run_name) {
+    if (run_name[0] == '#') {
+      cout << "Skipping run " << run_name << endl;
+      continue;
+    }
+    int err_pedestal = ReadPedestals(pedestals_dir_, run_name);
+    if (err_pedestal) {
+      cerr << "ERROR: In ReadPedestals(string pedestals_dir, string run_name)"
+           << endl;
+      return 1;
+    }
     int err_analyse = AnalyseTree(run_name);
     if (err_analyse) {
       cerr << "ERROR: In AnalyseTree(string run_name)" << endl;
       return 1;
     }
     int err_plots = CreateSingleRunPlots(run_name);
+    if (err_plots) {
+      cerr << "ERROR: In CreateSingleRunPlots(string run_name)" << endl;
+      return 1;
+    }
   }
   return 0;
 }

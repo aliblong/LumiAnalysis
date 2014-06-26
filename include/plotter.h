@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "plot_options.h"
+#include "fit_results.h"
 
 using std::string;
 using std::vector;
@@ -18,7 +19,11 @@ class Plotter {
                       string run_name,
                       string channel_name,
                       string output_dir,
-                      const PlotOptions &plot_options);
+                      const PlotOptions &plot_options,
+                      FitResults &fit_results);
+  int SaveFitResults(const vector<FitResults> &fit_results,
+                     string run_name,
+                     string output_name);
 };
 
 #endif

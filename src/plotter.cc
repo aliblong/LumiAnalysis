@@ -8,14 +8,17 @@
 #include <iomanip>
 
 #include "TAxis.h"
+#include "TBranch.h"
 #include "TCanvas.h"
 #include "TFile.h"
 #include "TF1.h"
 #include "TGraph.h"
 #include "TPaveText.h"
+#include "TTree.h"
 
 #include "plotter.h"
 #include "plot_options.h"
+#include "fit_results.h"
 
 using std::cout;
 using std::cerr;
@@ -35,6 +38,7 @@ bool MinNonZero(float i, float j) {
   } else {
     return i < j;
   }
+  return i < j;
 }
 
 void ScaleVector(vector<float> &vec, float factor) {
@@ -60,7 +64,8 @@ int Plotter::PlotLumiCurrent(const vector<float> &lumi_arg,
                              string run_name,
                              string channel_name,
                              string output_dir,
-                             const PlotOptions &plot_options) {
+                             const PlotOptions &plot_options,
+                             FitResults &fit_results) {
   TCanvas canvas;
   canvas.cd();
 
@@ -110,14 +115,14 @@ int Plotter::PlotLumiCurrent(const vector<float> &lumi_arg,
   //   oooookay, ROOT
   if (plot_options.x_auto_range) {
     auto lumi_max = *(std::max_element(lumi.begin(), lumi.end()));
-    auto lumi_min_nonzero = *(std::min_element(lumi.begin(), lumi.end(), MinNonZero));
+    auto lumi_min_nonzero = *(std::min_element(lumi.begin(), lumi.end()));//, MinNonZero));
     graph.GetXaxis()->SetRangeUser(0.8*lumi_min_nonzero, 1.2*lumi_max);
   } else {
     graph.GetXaxis()->SetLimits(plot_options.x_min, plot_options.x_max);
   }
   if (plot_options.y_auto_range) {
     auto current_max = *(std::max_element(current.begin(), current.end()));
-    auto current_min_nonzero = *(std::min_element(current.begin(), current.end(), MinNonZero));
+    auto current_min_nonzero = *(std::min_element(current.begin(), current.end()));//, MinNonZero));
     graph.GetYaxis()->SetRangeUser(0.8*current_min_nonzero, 1.2*current_max);
   } else {
     graph.GetYaxis()->SetRangeUser(plot_options.y_min, plot_options.y_max);
@@ -134,24 +139,34 @@ int Plotter::PlotLumiCurrent(const vector<float> &lumi_arg,
   if (plot_options.do_fit) {
     graph.Fit("pol1", plot_options.fit_options.c_str());
     TF1 *fit = graph.GetFunction("pol1");
+    fit_results.channel_name = channel_name;
+    fit_results.slope = fit->GetParameter(1);
+    fit_results.slope_err = fit->GetParError(1);
+    fit_results.intercept = fit->GetParameter(0);
+    fit_results.intercept_err = fit->GetParError(0);
+    fit_results.chi_squared = fit->GetChisquare();
+    fit_results.nDoF = fit->GetNDF();
+
     fit->SetLineColor(plot_options.fit_line_color);
     fit->SetLineWidth(plot_options.fit_line_width);
 
     if (plot_options.fit_show_legend) {
-      string chi2 = TruncateFloatToString(fit->GetChisquare(), 2);
-      string slope = TruncateFloatToString(fit->GetParameter(1), 2);
-      string slope_err = TruncateFloatToString(fit->GetParError(1), 2);
-      string intercept = TruncateFloatToString(fit->GetParameter(0), 2);
-      string intercept_err = TruncateFloatToString(fit->GetParError(0), 2);
-      fit_legend.AddText( ("#chi^{2} = "+chi2).c_str() );
+      string chi_squared = TruncateFloatToString(fit_results.chi_squared, 2);
+      string slope = TruncateFloatToString(fit_results.slope, 3);
+      string slope_err = TruncateFloatToString(fit_results.slope_err, 3);
+      string intercept = TruncateFloatToString(fit_results.intercept, 2);
+      string intercept_err = TruncateFloatToString(fit_results.intercept_err, 2);
+      fit_legend.AddText( ("#chi^{2} = "+chi_squared).c_str() );
       fit_legend.AddText( ("slope = "+slope+" #pm "+slope_err).c_str() );
       fit_legend.AddText( ("constant = "+intercept+" #pm "+intercept_err).c_str() );
       fit_legend.SetX1NDC(0.15);
       fit_legend.SetX2NDC(0.4);
       fit_legend.SetY1NDC(0.65);
-      fit_legend.SetY2NDC(0.9);
+      fit_legend.SetY2NDC(0.88);
       fit_legend.SetTextSize(0.035);
       fit_legend.SetOption("");
+      fit_legend.SetBorderSize(0);
+      fit_legend.SetFillColor(0);
     }
   }
 
@@ -165,9 +180,51 @@ int Plotter::PlotLumiCurrent(const vector<float> &lumi_arg,
   canvas.Print( (write_dir+channel_name+".png").c_str() );
   TFile *this_file = TFile::Open("graph_file.root", "RECREATE");
   graph.Write();
-  this_file->Close();
 
+  this_file->Close();
   delete [] lumi_arr;
   delete [] current_arr;
+
   return 0;
+}
+
+int Plotter::SaveFitResults(const vector<FitResults> &fit_results,
+                            string run_name,
+                            string output_dir) {
+
+  string write_dir = output_dir+"fit_results/";
+  int err = system( ("mkdir -p "+write_dir).c_str() );
+
+  TFile file((write_dir+run_name+".root").c_str(), "recreate");
+  TTree tree;
+
+  string channel_name;
+  float slope;
+  float slope_err;
+  float intercept;
+  float intercept_err;
+  float chi_squared;
+  int nDoF;
+
+  tree.Branch("channel_name", &channel_name);
+  tree.Branch("slope", &slope);
+  tree.Branch("slope_err", &slope_err);
+  tree.Branch("intercept", &intercept);
+  tree.Branch("intercept_err", &intercept_err);
+  tree.Branch("chi_squared", &chi_squared);
+  tree.Branch("nDoF", &nDoF);
+
+  for (const auto &result: fit_results) {
+    channel_name = result.channel_name;
+    slope = result.slope;
+    slope_err = result.slope_err;
+    intercept = result.intercept;
+    intercept_err = result.intercept_err;
+    chi_squared = result.chi_squared;
+    nDoF = result.nDoF;
+
+    tree.Fill();
+  }
+
+  tree.Write();
 }
