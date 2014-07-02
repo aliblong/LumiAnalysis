@@ -41,6 +41,18 @@ int GetNumLumiBlocks(TTree *tree) {
   return num_lumi_blocks;
 }
 
+void DumpVector(const vector<float> &vec) {
+  for (auto element: vec) cout << element << endl;
+}
+
+bool IsZeroes(const vector<float> &vec) {
+  float epsilon = 0.0000000001;
+  for (auto element: vec) {
+    if (element > epsilon) return false;
+  }
+  return true;
+}
+
 } // Unnamed namespace
 
 Analysis::Analysis(string params_filepath) {
@@ -52,6 +64,7 @@ Analysis::Analysis(string params_filepath) {
 }
 
 int Analysis::AnalyseTree(string run_name) {
+  cout << "Analysing sample " << run_name << endl;
   ClearSingleRunVectors();
   string filepath = trees_dir_+run_name+".root";
   TFile *this_file = TFile::Open(filepath.c_str());
@@ -121,6 +134,7 @@ void Analysis::ClearSingleRunVectors() {
 }
 
 int Analysis::CreateSingleRunPlots(string run_name) {
+  cout << "Creating plots for sample " << run_name << endl;
   if (plot_types_.size() == 0) {
     cerr << "ERROR: no plots types selected to plot" << endl;
     return 1;
@@ -129,12 +143,18 @@ int Analysis::CreateSingleRunPlots(string run_name) {
   Plotter plotter;
   for (auto plot_type: plot_types_) {
     if (plot_type == "lumi_current") {
+      cout << "    " << "Making lumi vs. current plots" << endl;
       PlotOptions plot_options(params_filepath_, plot_type);
       vector<FitResults> fit_results;
       int num_channels = used_channels_.size();
       for (int iChannel=0; iChannel < num_channels; ++iChannel) {
         auto this_channel_current = currents_.at(iChannel);
         auto this_channel_name = used_channels_.at(iChannel).channel_name;
+        if ( IsZeroes(this_channel_current) ) {
+          cout << "Skipping channel with zero current: " << this_channel_name
+               << endl;
+          continue;
+        }
         FitResults this_channel_fit_results;
         int err_plot = plotter.PlotLumiCurrent(lumi_BCM_,
                                                this_channel_current,
@@ -261,7 +281,7 @@ int Analysis::RunAnalysis() {
   }
 
   string run_name;
-  while (run_names_file >> run_name) {
+  while ( getline(run_names_file, run_name) ) {
     if (run_name[0] == '#') {
       cout << "Skipping run " << run_name << endl;
       continue;
