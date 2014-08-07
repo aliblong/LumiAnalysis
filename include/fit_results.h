@@ -4,6 +4,15 @@
 #include <string>
 
 struct FitResults {
+  std::string channel_name;
+  float slope;
+  float slope_err;
+  float intercept;
+  float intercept_err;
+  float chi_squared;
+  int nDoF;
+  bool is_short;
+};
   /*
   void Set(string CN, float m, float m_E, float b,
            float b_E, float X2, int ndof) {
@@ -16,13 +25,5 @@ struct FitResults {
     nDoF = ndof;
   }
   */
-  std::string channel_name;
-  float slope;
-  float slope_err;
-  float intercept;
-  float intercept_err;
-  float chi_squared;
-  int nDoF;
-};
 
 #endif

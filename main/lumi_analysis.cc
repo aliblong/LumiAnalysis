@@ -11,6 +11,8 @@ using std::cerr;
 using std::endl;
 
 int main(int argc, char *argv[]) {
+  // Accepts a command line argument for the parameters json file path.
+  // Otherwise, defaults to params/parameters.json
   string params_filepath;
   if (argc > 2) {
     cerr << "ERROR: invalid number of command line args. This program takes"
@@ -27,6 +29,6 @@ int main(int argc, char *argv[]) {
   if (!err) {
     cout << "Execution successful" << endl;
   } else {
-    cout << "Execution failed" << endl;
+    cout << "Execution produced one or more errors" << endl;
   }
 }

@@ -205,6 +205,7 @@ int Plotter::SaveFitResults(const vector<FitResults> &fit_results,
   float intercept_err;
   float chi_squared;
   int nDoF;
+  bool is_short;
 
   tree.Branch("channel_name", &channel_name);
   tree.Branch("slope", &slope);
@@ -213,6 +214,7 @@ int Plotter::SaveFitResults(const vector<FitResults> &fit_results,
   tree.Branch("intercept_err", &intercept_err);
   tree.Branch("chi_squared", &chi_squared);
   tree.Branch("nDoF", &nDoF);
+  tree.Branch("is_short", &is_short);
 
   for (const auto &result: fit_results) {
     channel_name = result.channel_name;
@@ -222,9 +224,12 @@ int Plotter::SaveFitResults(const vector<FitResults> &fit_results,
     intercept_err = result.intercept_err;
     chi_squared = result.chi_squared;
     nDoF = result.nDoF;
+    is_short = result.is_short;
 
     tree.Fill();
   }
 
   tree.Write();
+
+  return 0;
 }
