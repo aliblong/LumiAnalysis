@@ -1,11 +1,12 @@
+#include <algorithm>
+#include <cstdlib>
+#include <iomanip>
 #include <iostream>
+#include <map>
+#include <memory>
 #include <string>
 #include <sstream>
 #include <vector>
-#include <memory>
-#include <cstdlib>
-#include <algorithm>
-#include <iomanip>
 
 #include "TAxis.h"
 #include "TBranch.h"
@@ -139,7 +140,6 @@ int Plotter::PlotLumiCurrent(const vector<float> &lumi_arg,
   if (plot_options.do_fit) {
     graph.Fit("pol1", plot_options.fit_options.c_str());
     TF1 *fit = graph.GetFunction("pol1");
-    fit_results.channel_name = channel_name;
     fit_results.slope = fit->GetParameter(1);
     fit_results.slope_err = fit->GetParError(1);
     fit_results.intercept = fit->GetParameter(0);
@@ -188,7 +188,7 @@ int Plotter::PlotLumiCurrent(const vector<float> &lumi_arg,
   return 0;
 }
 
-int Plotter::SaveFitResults(const vector<FitResults> &fit_results,
+int Plotter::SaveFitResults(const std::map<string, FitResults> &fit_results,
                             string run_name,
                             string output_dir) {
 
@@ -216,8 +216,10 @@ int Plotter::SaveFitResults(const vector<FitResults> &fit_results,
   tree.Branch("nDoF", &nDoF);
   tree.Branch("is_short", &is_short);
 
-  for (const auto &result: fit_results) {
-    channel_name = result.channel_name;
+  for (const auto& mapping: fit_results) {
+    channel_name = mapping.first;
+
+    const auto& result = mapping.second;
     slope = result.slope;
     slope_err = result.slope_err;
     intercept = result.intercept;

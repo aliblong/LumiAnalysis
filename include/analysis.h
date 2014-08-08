@@ -3,9 +3,11 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 using std::string;
 using std::vector;
+using std::map;
 
 class Analysis {
  public:
@@ -46,20 +48,14 @@ class Analysis {
   bool retrieve_lumi_BCM_;
   bool retrieve_lumi_FCal_;
 
-  struct Channel {
-    Channel(string cn)
-      : channel_name(cn),
-        pedestal(0.),
-        slope(0.),
-        intercept(0.) {}
-    string channel_name;
+  struct ChannelCalibration {
     float pedestal;
     float slope;
     float intercept;
   };
 
-  vector<Channel> channels_list_;
-  vector< vector<float> > currents_;
+  map<string, ChannelCalibration> channels_list_;
+  map< string, vector<float> > currents_;
   vector<float> lumi_BCM_;
 };
 

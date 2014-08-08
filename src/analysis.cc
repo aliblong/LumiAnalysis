@@ -102,8 +102,8 @@ int Analysis::AnalyseTree(string run_name) {
     return 2;
   }
 
+  // The number of luminosity readings in the run
   int num_lumi_blocks = GetNumLumiBlocks(this_tree);
-  int num_channels = channels_list_.size();
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work)
@@ -114,9 +114,12 @@ int Analysis::AnalyseTree(string run_name) {
 
   // Set variables to retrieve based on which plot types are being produced
   if (retrieve_currents_) {
-    for (int iChannel=0; iChannel < num_channels; ++iChannel) {
-      string branch_name = "current_"+channels_list_[iChannel].channel_name;
+    //for (int iChannel=0; iChannel < num_channels; ++iChannel) {
+    unsigned iChannel = 0;
+    for (const auto &channel: channels_list_) {
+      string branch_name = "current_"+channel.first;
       this_tree->SetBranchAddress((branch_name).c_str(), &currents[iChannel]);
+      ++iChannel;
     }
   }
   if (retrieve_lumi_BCM_) {
@@ -131,17 +134,27 @@ int Analysis::AnalyseTree(string run_name) {
 
   // Save results to member variables
   if (retrieve_currents_) {
-    for (int iChannel=0; iChannel < num_channels; ++iChannel) {
-      currents_.emplace_back();
-      float this_channel_pedestal = channels_list_.at(iChannel).pedestal;
+    //for (int iChannel=0; iChannel < num_channels; ++iChannel) {
+    unsigned iChannel = 0;
+    for (const auto &channel: channels_list_) {
+      string this_channel_name = channel.first;
+
+      vector<float> current_vec;
+      currents_.insert(std::make_pair(this_channel_name, current_vec));
+
+      float this_channel_pedestal = channel.second.pedestal;
+      auto &this_channel_currents = currents_.at(this_channel_name);
 
       // If beam quality is good, save pedestal-subtracted current
       for (int iLumiBlock=0; iLumiBlock < num_lumi_blocks; ++iLumiBlock) {
         if (quality[iLumiBlock] && beam_mode->at(iLumiBlock) == "STABLE BEAMS") {
-          currents_.at(iChannel).push_back( currents[iChannel][iLumiBlock] -
-                                            this_channel_pedestal );
+          auto this_current = currents[iChannel][iLumiBlock] -
+                              this_channel_pedestal;
+          this_channel_currents.push_back(this_current);
         }
       }
+
+      ++iChannel;
     }
   }
   if (retrieve_lumi_BCM_) {
@@ -175,12 +188,12 @@ int Analysis::CreateSingleRunPlots(string run_name) {
       if (verbose_) cout << "    " << "Making lumi vs. current plots" << endl;
 
       PlotOptions plot_options(params_filepath_, plot_type);
-      vector<FitResults> fit_results;
-      int num_channels = channels_list_.size();
+      std::map<string, FitResults> fit_results;
+      //int num_channels = channels_list_.size();
 
-      for (int iChannel=0; iChannel < num_channels; ++iChannel) {
-        auto this_channel_current = currents_.at(iChannel);
-        auto this_channel_name = channels_list_.at(iChannel).channel_name;
+      for (const auto &channel: channels_list_) {
+        auto this_channel_name = channel.first;
+        auto this_channel_current = currents_.at(this_channel_name);
 
         if (IsZeroes(this_channel_current) && verbose_) {
           cout << "Skipping channel with zero current: " << this_channel_name
@@ -189,6 +202,12 @@ int Analysis::CreateSingleRunPlots(string run_name) {
         }
 
         FitResults this_channel_fit_results;
+        if (channels_list_.at(this_channel_name).pedestal > 20) {
+          this_channel_fit_results.is_short = true;
+        } else {
+          this_channel_fit_results.is_short = false;
+        }
+
         int err_plot = plotter.PlotLumiCurrent(lumi_BCM_,
                                                this_channel_current,
                                                run_name,
@@ -201,12 +220,17 @@ int Analysis::CreateSingleRunPlots(string run_name) {
           return 2;
         }
 
-        fit_results.push_back(this_channel_fit_results);
+        if (plot_options.do_fit) {
+          fit_results.insert(std::make_pair(this_channel_name,
+                                            this_channel_fit_results));
+        }
       }
 
-      int err_fit_results = plotter.SaveFitResults(fit_results,
-                                                   run_name,
-                                                   output_dir_);
+      if (plot_options.do_fit) {
+        int err_fit_results = plotter.SaveFitResults(fit_results,
+                                                     run_name,
+                                                     output_dir_);
+      }
     }
   }
 
@@ -261,9 +285,9 @@ int Analysis::ReadCalibrations(string calibrations_filepath) {
     float intercept;
     bool found_channel = false;
     while (calibrations_file >> channel_name >> slope >> intercept) {
-      if (channel.channel_name == channel_name) {
-        channel.slope = slope;
-        channel.intercept = intercept;
+      if (channel.first == channel_name) {
+        channel.second.slope = slope;
+        channel.second.intercept = intercept;
         found_channel = true;
         break;
       }
@@ -273,7 +297,7 @@ int Analysis::ReadCalibrations(string calibrations_filepath) {
 
     if (!found_channel) {
       cerr << "ERROR: Could not locate calibration for channel "
-           << channel.channel_name << endl;
+           << channel.first << endl;
       return 2;
     }
   } // Used channels loop
@@ -295,10 +319,11 @@ int Analysis::ReadChannelsList(string channels_list_filepath) {
   string channel_name;
   while ( getline(channels_list_file, channel_name) ) {
     if (channel_name[0] == '#') {
-      cout << "Skipping channel " << channel_name << endl;
+      if (verbose_) cout << "Skipping channel " << channel_name << endl;
       continue;
     }
-    channels_list_.emplace_back(channel_name);
+    Analysis::ChannelCalibration channel_calibration;
+    channels_list_.insert(std::make_pair(channel_name, channel_calibration));
   }
   channels_list_file.close();
 
@@ -323,8 +348,8 @@ int Analysis::ReadPedestals(string pedestals_dir, string run_name) {
     float something; // I'm not sure what this value is
     bool found_channel = false;
     while (pedestals_file >> channel_name >> pedestal >> something) {
-      if (channel.channel_name == channel_name) {
-        channel.pedestal = pedestal;
+      if (channel.first == channel_name) {
+        channel.second.pedestal = pedestal;
         found_channel = true;
         break;
       }
@@ -334,7 +359,7 @@ int Analysis::ReadPedestals(string pedestals_dir, string run_name) {
 
     if (!found_channel) {
       cerr << "ERROR: Could not locate pedestal for run " << run_name
-           << ", channel " << channel.channel_name << endl;
+           << ", channel " << channel.first << endl;
       return 2;
     }
   } // Used channels loop

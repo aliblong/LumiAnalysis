@@ -4,7 +4,6 @@
 #include <string>
 
 struct FitResults {
-  std::string channel_name;
   float slope;
   float slope_err;
   float intercept;
