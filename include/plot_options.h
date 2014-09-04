@@ -3,9 +3,8 @@
 
 #include <string>
 
-using std::string;
-
 class PlotOptions {
+  typedef typename std::string string;
  public:
   PlotOptions(string params_filepath, string plot_type);
   ~PlotOptions(){};

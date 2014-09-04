@@ -8,16 +8,14 @@
 #include "plot_options.h"
 #include "fit_results.h"
 
-using std::string;
-using std::vector;
-
 class Plotter {
+  typedef typename std::string string;
  public:
   Plotter(){};
   ~Plotter(){};
 
-  int PlotLumiCurrent(const vector<float> &lumi,
-                      const vector<float> &current,
+  int PlotLumiCurrent(const std::vector<float> &lumi,
+                      const std::vector<float> &current,
                       string run_name,
                       string channel_name,
                       string output_dir,

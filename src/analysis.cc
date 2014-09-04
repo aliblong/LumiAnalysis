@@ -1,7 +1,7 @@
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <fstream>
 
 #include "TFile.h"
 #include "TTree.h"
@@ -11,6 +11,7 @@
 #include "json_reader.h"
 #include "plotter.h"
 #include "plot_options.h"
+#include "single_run_data.h"
 
 using std::string;
 using std::vector;
@@ -41,11 +42,11 @@ int WriteVectorToFile(const vector<T> &vec, string filepath) {
 int GetNumLumiBlocks(TTree *tree) {
   // Retrieves the quantity stored in the NLB variable in a TTree.
 
-  int num_lumi_blocks = 0;
-  tree->SetBranchAddress("NLB", &num_lumi_blocks);
+  int nLB = 0;
+  tree->SetBranchAddress("NLB", &nLB);
   tree->GetEntry(0);
 
-  return num_lumi_blocks;
+  return nLB;
 }
 
 void DumpVector(const vector<float> &vec) {
@@ -75,17 +76,15 @@ Analysis::Analysis(string params_filepath) {
   }
 }
 
-int Analysis::AnalyseTree(string run_name) {
-  // Runs the analysis for a single sample.
-  // Saves relevant results to member variables of the analysis object.
+int Analysis::AnalyseTree(SingleRunData &this_run) {
+// Runs the analysis for a single sample.
+// Saves relevant results to member variables of the analysis object.
+
+  string run_name = this_run.run_name_;
 
   if (verbose_) {
     cout << "Analysing sample " << run_name << endl;
   }
-
-  // Clears data used in plots of single samples, which should have been used
-  //   already at this point
-  ClearSingleRunVectors();
 
   // Get tree object from the sample of choice
   string filepath = trees_dir_+run_name+".root";
@@ -103,7 +102,7 @@ int Analysis::AnalyseTree(string run_name) {
   }
 
   // The number of luminosity readings in the run
-  int num_lumi_blocks = GetNumLumiBlocks(this_tree);
+  this_run.nLB_ = GetNumLumiBlocks(this_tree);
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work)
@@ -114,7 +113,6 @@ int Analysis::AnalyseTree(string run_name) {
 
   // Set variables to retrieve based on which plot types are being produced
   if (retrieve_currents_) {
-    //for (int iChannel=0; iChannel < num_channels; ++iChannel) {
     unsigned iChannel = 0;
     for (const auto &channel: channels_list_) {
       string branch_name = "current_"+channel.first;
@@ -128,59 +126,167 @@ int Analysis::AnalyseTree(string run_name) {
 
   this_tree->SetBranchAddress("quality", &quality);
   this_tree->SetBranchAddress("mode", &beam_mode);
+  this_tree->SetBranchAddress("ncoll", &this_run.nCollisions_);
 
   // Populate those variables which have been set to branches
   this_tree->GetEntry(0);
 
   // Save results to member variables
-  if (retrieve_currents_) {
-    //for (int iChannel=0; iChannel < num_channels; ++iChannel) {
-    unsigned iChannel = 0;
-    for (const auto &channel: channels_list_) {
-      string this_channel_name = channel.first;
+  for (int iLB = 0; iLB < this_run.nLB_; ++iLB) {
+    if (quality[iLB] && beam_mode->at(iLB) == "STABLE BEAMS") {
+      if (!this_run.LB_stability_offset_has_been_set_) {
+        this_run.LB_stability_offset_ = iLB + 1; //LB numbers are 1-indexed, I think
+        this_run.LB_stability_offset_has_been_set_ = true;
+        cout << iLB << " " << currents[0][iLB]*x_sec_/this_run.nCollisions_/f_rev_ << endl;
+      }
+      if (retrieve_currents_) {
+        unsigned iChannel = 0;
+        for (const auto &channel: channels_list_) {
+          string this_channel_name = channel.first;
 
-      vector<float> current_vec;
-      currents_.insert(std::make_pair(this_channel_name, current_vec));
+          vector<float> current_vec;
+          this_run.currents_.insert(std::make_pair(this_channel_name,
+                                                   current_vec));
 
-      float this_channel_pedestal = channel.second.pedestal;
-      auto &this_channel_currents = currents_.at(this_channel_name);
+          float this_channel_pedestal = this_run.pedestals_.at(this_channel_name);
+          auto &this_channel_currents = this_run.currents_.at(this_channel_name);
 
-      // If beam quality is good, save pedestal-subtracted current
-      for (int iLumiBlock=0; iLumiBlock < num_lumi_blocks; ++iLumiBlock) {
-        if (quality[iLumiBlock] && beam_mode->at(iLumiBlock) == "STABLE BEAMS") {
-          auto this_current = currents[iChannel][iLumiBlock] -
+          auto this_current = currents[iChannel][iLB] -
                               this_channel_pedestal;
           this_channel_currents.push_back(this_current);
+          ++iChannel;
         }
       }
-
-      ++iChannel;
+      if (retrieve_lumi_BCM_) {
+        this_run.lumi_BCM_.push_back( lumi_BCM[iLB] );
+      }
     }
   }
-  if (retrieve_lumi_BCM_) {
-    for (int iLumiBlock=0; iLumiBlock < num_lumi_blocks; ++iLumiBlock) {
-      if (quality[iLumiBlock] && beam_mode->at(iLumiBlock) == "STABLE BEAMS") {
-        lumi_BCM_.push_back( lumi_BCM[iLumiBlock] );
+
+  for (const auto &channel: channels_list_) {
+    auto this_channel_name = channel.first;
+    auto &this_channel_currents = this_run.currents_.at(this_channel_name);
+    WriteVectorToFile<float>(this_channel_currents, "output/current_test/"+run_name+"_"+this_channel_name+".root");
+  }
+  return 0;
+}
+
+int Analysis::CalcFCalLumi(SingleRunData &this_run) {
+// Calculates FCal luminosity from currents data for a run
+  if (verbose_) cout << "Calculating FCal luminosity" << endl;
+
+  // Checks that these values were not previously calculated
+  if (this_run.lumi_FCal_A_.size() > 0 || this_run.lumi_FCal_C_.size() > 0) {
+    cerr << "ERROR: FCal lumi vector(s) already filled" << endl;
+    return 1;
+  }
+
+  // Checks that currents data exists
+  if (this_run.currents_.size() == 0) {
+    cerr << "ERROR: currents map empty" << endl;
+    return 2;
+  }
+  unsigned nLB_stable = this_run.currents_.begin()->second.size();
+  if (nLB_stable == 0) {
+    cerr << "ERROR: no stable lumi blocks" << endl;
+    return 3;
+  }
+
+  // Averages lumi measurement from all channels for each side and for each
+  //   lumi block
+  for (unsigned iLB = 0; iLB < nLB_stable; ++iLB) {
+    float lumi_A_temp = 0;
+    float lumi_C_temp = 0;
+    unsigned num_channels_A = 0;
+    unsigned num_channels_C = 0;
+
+    // Calculates lumi for a channel using its current and calibration and
+    //   adds to running total
+    for (const auto &this_module_currents: this_run.currents_) {
+      auto current = this_module_currents.second.at(iLB);
+
+      // Skip channel if current is too low
+      if (current < gCurrentCutoff) continue;
+
+      string module_name = this_module_currents.first;
+      auto intercept = channels_list_.at(module_name).intercept;
+      auto slope = channels_list_.at(module_name).slope;
+
+      if (module_name.at(1) == '1') { // module from C-side
+        lumi_C_temp += current*slope + intercept;
+        ++num_channels_C;
+      } else {
+        lumi_A_temp += current*slope + intercept;
+        ++num_channels_A;
       }
+    }
+
+    // Computes the average lumi for this lumi block and adds to lumi vector.
+    // Adds 0 if no channels had high enough current
+    if (num_channels_A == 0) {
+      this_run.lumi_FCal_A_.push_back(0.0);
+    } else {
+      this_run.lumi_FCal_A_.push_back(lumi_A_temp / num_channels_A);
+    }
+    if (num_channels_C == 0) {
+      this_run.lumi_FCal_C_.push_back(0.0);
+    } else {
+      this_run.lumi_FCal_C_.push_back(lumi_C_temp / num_channels_C);
     }
   }
 
   return 0;
 }
 
-void Analysis::ClearSingleRunVectors() {
-  currents_.clear();
-  lumi_BCM_.clear();
-}
+int Analysis::CalcFCalMu(SingleRunData &this_run) {
+// Calculates <mu> from FCal luminosity for a run
 
-int Analysis::CreateSingleRunPlots(string run_name) {
-// Create those plots which use data from only a single sample
+  if (verbose_) cout << "Calculating FCal <mu>" << endl;
 
-  if (verbose_) cout << "Creating plots for sample " << run_name << endl;
-  if (plot_types_.size() == 0) {
-    cerr << "ERROR: no plots types selected to plot" << endl;
+  // Checks that FCal lumi data exists
+  if (this_run.lumi_FCal_A_.size() == 0 && this_run.lumi_FCal_C_.size() == 0) {
+    cerr << "ERROR: FCal lumi vector(s) have not been filled" << endl;
     return 1;
   }
+  // Checks that mu data has not already been calculated
+  if (this_run.mu_FCal_A_.size() > 0 || this_run.mu_FCal_C_.size() > 0) {
+    cerr << "ERROR: FCal mu vector(s) already filled" << endl;
+    return 2;
+  }
+  // Checks that value for number of collisions is nonzero
+  if (this_run.nCollisions_ == 0) {
+    cerr << "ERROR: nCollisions = 0" << endl;
+    return 3;
+  }
+
+  float conversion_factor = x_sec_ / (this_run.nCollisions_ * f_rev_);
+  // Cross-section conversion factor from 7 -> 8 TeV
+  if (this_run.run_name_.at(0) == '2') conversion_factor /= 1.05;
+
+  // Calculates <mu> for each lumi block
+  for (const auto &lumi: this_run.lumi_FCal_A_) {
+    this_run.mu_FCal_A_.push_back(lumi*conversion_factor);
+  }
+  for (const auto &lumi: this_run.lumi_FCal_C_) {
+    this_run.mu_FCal_C_.push_back(lumi*conversion_factor);
+  }
+  return 0;
+}
+
+int Analysis::CreateBenedettoOutput(const SingleRunData &this_run) const {
+  int err = this_run.CreateBenedettoOutput(benedetto_output_dir_);
+  return err;
+}
+
+int Analysis::CreateSingleRunPlots(const SingleRunData &this_run) {
+// Create those plots which use data from only a single sample
+
+  string run_name = this_run.run_name_;
+
+  if (plot_types_.size() == 0) {
+    return 0;
+  }
+  if (verbose_) cout << "Creating plots for sample " << run_name << endl;
 
   Plotter plotter;
   for (auto plot_type: plot_types_) {
@@ -189,11 +295,10 @@ int Analysis::CreateSingleRunPlots(string run_name) {
 
       PlotOptions plot_options(params_filepath_, plot_type);
       std::map<string, FitResults> fit_results;
-      //int num_channels = channels_list_.size();
 
       for (const auto &channel: channels_list_) {
         auto this_channel_name = channel.first;
-        auto this_channel_current = currents_.at(this_channel_name);
+        auto this_channel_current = this_run.currents_.at(this_channel_name);
 
         if (IsZeroes(this_channel_current) && verbose_) {
           cout << "Skipping channel with zero current: " << this_channel_name
@@ -202,17 +307,17 @@ int Analysis::CreateSingleRunPlots(string run_name) {
         }
 
         FitResults this_channel_fit_results;
-        if (channels_list_.at(this_channel_name).pedestal > 20) {
+        if (this_run.pedestals_.at(this_channel_name) > 20) {
           this_channel_fit_results.is_short = true;
         } else {
           this_channel_fit_results.is_short = false;
         }
 
-        int err_plot = plotter.PlotLumiCurrent(lumi_BCM_,
+        int err_plot = plotter.PlotLumiCurrent(this_run.lumi_BCM_,
                                                this_channel_current,
                                                run_name,
                                                this_channel_name,
-                                               output_dir_,
+                                               plots_output_dir_,
                                                plot_options,
                                                this_channel_fit_results);
         if (err_plot) {
@@ -229,7 +334,7 @@ int Analysis::CreateSingleRunPlots(string run_name) {
       if (plot_options.do_fit) {
         int err_fit_results = plotter.SaveFitResults(fit_results,
                                                      run_name,
-                                                     output_dir_);
+                                                     plots_output_dir_);
       }
     }
   }
@@ -247,6 +352,10 @@ int Analysis::PrepareAnalysis(string params_filepath) {
       retrieve_currents_ = true;
       retrieve_lumi_BCM_ = true;
     }
+  }
+
+  if (do_Benedetto_) {
+    retrieve_currents_ = true;
   }
 
   int err_RCL = ReadChannelsList(channels_list_filepath_);
@@ -330,43 +439,6 @@ int Analysis::ReadChannelsList(string channels_list_filepath) {
   return 0;
 }
 
-int Analysis::ReadPedestals(string pedestals_dir, string run_name) {
-// Reads in pedestal values for each of the channels being used (those
-//   read in with ReadChannelsList)
-
-  for (auto &channel: channels_list_) {
-    auto pedestals_filepath = pedestals_dir + run_name + ".dat";
-    std::ifstream pedestals_file(pedestals_filepath);
-    if (!pedestals_file) {
-      cerr << "ERROR: Could not locate pedestals file \'"
-           << pedestals_filepath << "\'" << endl;
-      return 1;
-    }
-
-    string channel_name;
-    float pedestal;
-    float something; // I'm not sure what this value is
-    bool found_channel = false;
-    while (pedestals_file >> channel_name >> pedestal >> something) {
-      if (channel.first == channel_name) {
-        channel.second.pedestal = pedestal;
-        found_channel = true;
-        break;
-      }
-    }
-
-    pedestals_file.close();
-
-    if (!found_channel) {
-      cerr << "ERROR: Could not locate pedestal for run " << run_name
-           << ", channel " << channel.first << endl;
-      return 2;
-    }
-  } // Used channels loop
-
-  return 0;
-}
-
 void Analysis::ReadParams(string params_filepath) {
 // Reads in parameters from json file and assigns their values to member
 //   variables
@@ -375,8 +447,13 @@ void Analysis::ReadParams(string params_filepath) {
 
   verbose_ = parameter_file.get<bool>("verbose");
 
+  // Text output file for Benedetto
+  do_Benedetto_ = parameter_file.get<bool>("do_Benedetto");
+
   // Used to calculate FCal luminosity
+  //   Bunch crossing frequency
   f_rev_ = parameter_file.get<double>("lumi_calculation.f_rev");
+  //   Cross-section for pp interaction @ 7 TeV
   x_sec_ = parameter_file.get<double>("lumi_calculation.x_sec");
 
   // Value of 0 for reference run means set no corrections
@@ -386,7 +463,10 @@ void Analysis::ReadParams(string params_filepath) {
   corr_C_ = parameter_file.get<double>("corrections."+ref_run_str+".C");
   corr_Avg_ = parameter_file.get<double>("corrections."+ref_run_str+".Avg");
 
-  plot_types_ = parameter_file.get_vector<string>("plot_types");
+  auto plot_types_map = parameter_file.get_map<bool>("plot_types");
+  for (const auto &plot_type: plot_types_map) {
+    if (plot_type.second == true) plot_types_.push_back(plot_type.first);
+  }
 
   // Relevant directories
   calibrations_filepath_ = parameter_file.get<string>("filepaths.calibrations");
@@ -395,7 +475,11 @@ void Analysis::ReadParams(string params_filepath) {
   pedestals_dir_ = parameter_file.get<string>("filepaths.pedestals");
   trees_dir_ = parameter_file.get<string>("filepaths.trees");
   run_list_dir_ = parameter_file.get<string>("filepaths.run_list");
-  output_dir_ = parameter_file.get<string>("filepaths.output");
+  base_output_dir_ = parameter_file.get<string>("filepaths.output.base");
+  plots_output_dir_ = base_output_dir_ +
+                     parameter_file.get<string>("filepaths.output.plots");
+  benedetto_output_dir_ = base_output_dir_ +
+                          parameter_file.get<string>("filepaths.output.benedetto");
 }
 
 int Analysis::RunAnalysis() {
@@ -416,9 +500,19 @@ int Analysis::RunAnalysis() {
       continue;
     }
 
+    SingleRunData this_run(run_name);
+    cout << this_run.LB_stability_offset_has_been_set_ << endl;
+
+    // Read in pedestals
     if (retrieve_currents_) {
       if (verbose_) cout << "Retrieving channel pedestals" << endl;
-      int err_pedestal = ReadPedestals(pedestals_dir_, run_name);
+
+      vector<string> channel_names;
+      for (const auto &channel: channels_list_) {
+        channel_names.push_back(channel.first);
+      }
+
+      int err_pedestal = this_run.ReadPedestals(pedestals_dir_, channel_names);
       if (err_pedestal) {
         cerr << "ERROR: In ReadPedestals(string pedestals_dir, string run_name)"
              << endl;
@@ -426,17 +520,21 @@ int Analysis::RunAnalysis() {
       }
     }
 
-    int err_analyse = AnalyseTree(run_name);
+    int err_analyse = AnalyseTree(this_run);
     if (err_analyse) {
       cerr << "ERROR: In AnalyseTree(string run_name)" << endl;
       return 1;
     }
 
-    int err_plots = CreateSingleRunPlots(run_name);
+    int err_plots = CreateSingleRunPlots(this_run);
     if (err_plots) {
       cerr << "ERROR: In CreateSingleRunPlots(string run_name)" << endl;
       return 1;
     }
+
+    int err_lumi_FCal = CalcFCalLumi(this_run);
+    int err_mu_FCal = CalcFCalMu(this_run);
+    int err_Benedetto = CreateBenedettoOutput(this_run);
   }
 
   return 0;
