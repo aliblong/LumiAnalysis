@@ -8,20 +8,19 @@
 #include "single_run_data.h"
 
 class Analysis {
-  typedef typename std::string string;
-
  public:
-  Analysis(string params_filepath);
+  Analysis(std::string params_filepath);
   ~Analysis(){};
 
   int AnalyseTree(SingleRunData &this_run);
+  int CreateAllRunPlots(const std::map<std::string, SingleRunData> &runs_data);
   int CreateSingleRunPlots(const SingleRunData &this_run);
-  int PrepareAnalysis(string params_filepath);
-  int ReadCalibrations(string channels_filepath);
-  int ReadChannelsList(string channels_list_filepath);
-  void ReadParams(string params_filepath);
+  int PrepareAnalysis(std::string params_filepath);
+  int ReadCalibrations(std::string channels_filepath);
+  int ReadChannelsList(std::string channels_list_filepath);
+  void ReadParams(std::string params_filepath);
   int RunAnalysis();
-  int WriteCurrentsToFile(string run_name);
+  int WriteCurrentsToFile(std::string run_name);
 
   int CalcFCalLumi(SingleRunData &this_run);
   int CalcFCalMu(SingleRunData &this_run);
@@ -39,18 +38,19 @@ class Analysis {
   double corr_C_;
   double corr_Avg_;
 
-  string params_filepath_;
-  string calibrations_filepath_;
-  string channels_list_filepath_;
-  string pedestals_dir_;
-  string trees_dir_;
-  string run_list_dir_;
-  string base_output_dir_;
-  string plots_output_dir_;
-  string benedetto_output_dir_;
+  std::string params_filepath_;
+  std::string calibrations_filepath_;
+  std::string channels_list_filepath_;
+  std::string pedestals_dir_;
+  std::string trees_dir_;
+  std::string run_list_dir_;
+  std::string base_output_dir_;
+  std::string plots_output_dir_;
+  std::string benedetto_output_dir_;
 
-  std::vector<string> plot_types_;
+  std::vector<std::string> plot_types_;
 
+  bool retrieve_timestamps_;
   bool retrieve_currents_;
   bool retrieve_lumi_BCM_;
   bool retrieve_lumi_FCal_;
@@ -60,7 +60,7 @@ class Analysis {
     float intercept;
   };
 
-  std::map<string, ChannelCalibration> channels_list_;
+  std::map<std::string, ChannelCalibration> channels_list_;
 };
 
 #endif

@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
   } else if (argc == 2) {
     params_filepath = argv[1];
   } else {
-    params_filepath = "params/parameters.json";
+    params_filepath = "params/param_trees/default.json";
   }
 
   Analysis analysis(params_filepath);

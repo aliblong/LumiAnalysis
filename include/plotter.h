@@ -5,26 +5,31 @@
 #include <vector>
 #include <map>
 
-#include "plot_options.h"
 #include "fit_results.h"
+#include "lumi_current_plot_options.h"
+#include "mu_stab_plot_options.h"
+#include "single_run_data.h"
 
-class Plotter {
-  typedef typename std::string string;
- public:
-  Plotter(){};
-  ~Plotter(){};
-
+namespace Plotter {
   int PlotLumiCurrent(const std::vector<float> &lumi,
                       const std::vector<float> &current,
-                      string run_name,
-                      string channel_name,
-                      string output_dir,
-                      const PlotOptions &plot_options,
+                      std::string run_name,
+                      std::string channel_name,
+                      const LumiCurrentPlotOptions &plot_options,
+                      std::string output_dir,
                       FitResults &fit_results);
 
-  int SaveFitResults(const std::map<string, FitResults> &fit_results,
-                     string run_name,
-                     string output_name);
-};
+  int SaveFitResultsToTree(const std::map<std::string, FitResults> &fit_results,
+                           std::string run_name,
+                           std::string output_name);
+
+  int SaveCalibrationToText(const std::map<std::string, FitResults> &fit_results,
+                            std::string run_name,
+                            std::string output_dir);
+
+  int PlotMuStability(const std::map<std::string, SingleRunData> &runs_data,
+                      const MuStabPlotOptions &plot_options,
+                      std::string output_dir);
+}
 
 #endif

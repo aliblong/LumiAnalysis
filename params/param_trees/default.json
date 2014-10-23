@@ -1,0 +1,116 @@
+{
+  "verbose": true,
+  "do_Benedetto": true,
+  "ref_run_number": 203709,
+  "lumi_calculation": {
+    "f_rev": 11245.5,
+    "x_sec": 73000.0
+  },
+  "corrections": {
+    "0": {
+      "A": 1.0,
+      "C": 1.0,
+      "Avg": 1.0
+    },
+    "203709": {
+      "A": 1.0292738,
+      "C": 1.0213649,
+      "Avg": 1.0253193
+    },
+    "213431": {
+      "A": 1.0417910,
+      "C": 1.04350776,
+      "Avg": 1.0426493
+    },
+    "214777": {
+      "A": 1.0,
+      "C": 1.0,
+      "Avg": 1.0
+    },
+    "215414": {
+      "A": 1.0333838,
+      "C": 1.0319952,
+      "Avg": 1.0326917
+    }
+  },
+  "plot_types": {
+    "lumi_current": false,
+    "mu_stability": true
+  },
+  "filepaths": {
+    "calibrations": "params/calibrations/online.dat",
+    "channels_list": "params/channels_list/online_calib.dat",
+    "pedestals": "params/baselines/",
+    "trees": "params/trees/",
+    "run_list": "params/run_lists/interest.dat",
+    "output": {
+      "base": "output/",
+      "plots": "plots/",
+      "benedetto": "benedetto/"
+    }
+  },
+  "plot_options": {
+    "lumi_current": {
+      "fit": {
+        "do": true,
+        "show": false,
+        "show_legend": true,
+        "verbose": 0,
+        "line_color": 1,
+        "line_width": 0.5
+      },
+      "draw_options": "AP",
+      "marker": {
+        "color": 2,
+        "style": 20,
+        "size": 0.3
+      },
+      "x": {
+        "scale": 0.001,
+        "auto_range": true,
+        "min": 1.4,
+        "max": 7.0,
+        "title": "Instantaneous Luminosity [10^{33} cm^{-2} s^{-1}]"
+      },
+      "y": {
+        "scale": 1,
+        "auto_range": true,
+        "min": 20.0,
+        "max": 120.0,
+        "title": "Current [#mu A]"
+      }
+    },
+    "mu_stability": {
+      "draw_options": "AP",
+      "marker": {
+        "A": {
+          "color": 797,
+          "size": 0.9,
+          "style": 22
+        },
+        "C": {
+          "color": 9,
+          "size": 0.9,
+          "style": 22
+        },
+        "Avg": {
+          "color": 20,
+          "size": 0.9,
+          "style": 22
+        }
+      },
+      "x": {
+        "auto_range": true,
+        "min": 1335300000,
+        "max": 1358000000,
+        "title": "Date"
+      },
+      "y": {
+        "auto_range": true,
+        "min": -3,
+        "max": 4,
+        "title": "<I>_{algorithm}/<#mu>_{BCMV_EventOR} -1 [%]"
+      }
+    }
+  }
+}

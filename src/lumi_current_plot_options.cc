@@ -1,13 +1,13 @@
 #include <string>
 
 #include "json_reader.h"
-#include "plot_options.h"
+#include "lumi_current_plot_options.h"
 
 using std::string;
 
-PlotOptions::PlotOptions(string params_filepath, string plot_type) {
+LumiCurrentPlotOptions::LumiCurrentPlotOptions(string params_filepath) {
   JSONReader parameter_file(params_filepath);
-  string node_name = "plot_options."+plot_type+".";
+  string node_name = "plot_options.lumi_current.";
 
   do_fit = parameter_file.get<bool>(node_name+"fit.do");
 

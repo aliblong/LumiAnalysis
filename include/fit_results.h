@@ -11,6 +11,8 @@ struct FitResults {
   float chi_squared;
   int nDoF;
   bool is_short;
+  float calibration_slope;
+  float calibration_intercept;
 };
   /*
   void Set(string CN, float m, float m_E, float b,
