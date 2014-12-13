@@ -27,8 +27,8 @@ int SingleRunData::ReadPedestals(string pedestals_dir,
     }
 
     string channel_name;
-    float pedestal;
-    float something; // I'm not sure what this value is
+    Float_t pedestal;
+    Float_t something; // I'm not sure what this value is
     bool found_channel = false;
     while (pedestals_file >> channel_name >> pedestal >> something) {
       if (this_channel_name == channel_name) {

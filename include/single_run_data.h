@@ -35,13 +35,13 @@ class SingleRunData {
   int LB_stability_offset_;
   bool LB_stability_offset_has_been_set_;
 
-  std::map<std::string, float> pedestals_;
-  std::map< std::string, std::vector<float> > currents_;
-  std::vector<float> lumi_BCM_;
-  std::vector<float> lumi_FCal_A_;
-  std::vector<float> lumi_FCal_C_;
-  std::vector<float> mu_FCal_A_;
-  std::vector<float> mu_FCal_C_;
+  std::map<std::string, Float_t> pedestals_;
+  std::map< std::string, std::vector<Float_t> > currents_;
+  std::vector<Float_t> lumi_BCM_;
+  std::vector<Float_t> lumi_FCal_A_;
+  std::vector<Float_t> lumi_FCal_C_;
+  std::vector<Float_t> mu_FCal_A_;
+  std::vector<Float_t> mu_FCal_C_;
 };
 
 #endif

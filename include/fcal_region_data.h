@@ -13,7 +13,7 @@ class FCalRegionData {
                  std::string name,
                  std::string title,
                  unsigned color,
-                 float size,
+                 Float_t size,
                  unsigned style)
     : region_name_(region),
       plot_name_(name),
@@ -31,7 +31,7 @@ class FCalRegionData {
   std::unique_ptr<TProfile> plot_;
 
   unsigned marker_color_;
-  float marker_size_;
+  Float_t marker_size_;
   unsigned marker_style_;
 };
 

@@ -3,28 +3,28 @@
 
 #include <string>
 
-struct FitResults {
-  float slope;
-  float slope_err;
-  float intercept;
-  float intercept_err;
-  float chi_squared;
-  int nDoF;
-  bool is_short;
-  float calibration_slope;
-  float calibration_intercept;
+#include <TF1.h>
+
+#include <lumi_current_plot_options.h>
+
+class FitResults {
+ public:
+  FitResults();
+  ~FitResults();
+  FitResults& operator=(const FitResults &rhs);
+
+  void FromFit(const TF1 *fit, const LumiCurrentPlotOptions &plot_options);
+
+  Float_t slope;
+  Float_t slope_err;
+  Float_t intercept;
+  Float_t intercept_err;
+  Float_t chi_squared;
+  UInt_t nDoF;
+  Bool_t is_short;
+
+  Float_t calibration_slope;
+  Float_t calibration_intercept;
 };
-  /*
-  void Set(string CN, float m, float m_E, float b,
-           float b_E, float X2, int ndof) {
-    channel_name = CN;
-    slope = m;
-    slope_error = m_E;
-    intercept = b;
-    intercept_error = b_E;
-    chi_squared = X2;
-    nDoF = ndof;
-  }
-  */
 
 #endif

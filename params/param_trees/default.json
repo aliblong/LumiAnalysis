@@ -1,7 +1,7 @@
 {
   "verbose": true,
-  "do_Benedetto": true,
-  "ref_run_number": 203709,
+  "do_Benedetto": false,
+  "ref_run_number": 0,
   "lumi_calculation": {
     "f_rev": 11245.5,
     "x_sec": 73000.0
@@ -11,26 +11,6 @@
       "A": 1.0,
       "C": 1.0,
       "Avg": 1.0
-    },
-    "203709": {
-      "A": 1.0292738,
-      "C": 1.0213649,
-      "Avg": 1.0253193
-    },
-    "213431": {
-      "A": 1.0417910,
-      "C": 1.04350776,
-      "Avg": 1.0426493
-    },
-    "214777": {
-      "A": 1.0,
-      "C": 1.0,
-      "Avg": 1.0
-    },
-    "215414": {
-      "A": 1.0333838,
-      "C": 1.0319952,
-      "Avg": 1.0326917
     }
   },
   "plot_types": {
@@ -38,15 +18,20 @@
     "mu_stability": true
   },
   "filepaths": {
-    "calibrations": "params/calibrations/online.dat",
-    "channels_list": "params/channels_list/online_calib.dat",
+    "calibrations": "params/calibrations/all_blank.dat",
+    "channels_list": "params/channels_list/all.dat",
     "pedestals": "params/baselines/",
     "trees": "params/trees/",
-    "run_list": "params/run_lists/interest.dat",
+    "run_list": "params/run_lists/run_list_2012_all.dat",
     "output": {
       "base": "output/",
       "plots": "plots/",
-      "benedetto": "benedetto/"
+      "benedetto": "benedetto/",
+      "fit_results": {
+        "base": "fit_results/",
+        "calibrations": "calibrations/",
+        "geometric": "geometric/"
+      }
     }
   },
   "plot_options": {
@@ -81,7 +66,7 @@
       }
     },
     "mu_stability": {
-      "draw_options": "AP",
+      "draw_options": "nostackP",
       "marker": {
         "A": {
           "color": 797,
@@ -101,9 +86,10 @@
       },
       "x": {
         "auto_range": true,
-        "min": 1335300000,
+        "min": 1334500000,
         "max": 1358000000,
-        "title": "Date"
+        "n_bins": 940,
+        "title": "Date in 2012"
       },
       "y": {
         "auto_range": true,

@@ -46,6 +46,9 @@ class Analysis {
   std::string run_list_dir_;
   std::string base_output_dir_;
   std::string plots_output_dir_;
+  std::string fit_results_output_dir_;
+  std::string calibrations_output_dir_;
+  std::string geometric_analysis_output_dir_;
   std::string benedetto_output_dir_;
 
   std::vector<std::string> plot_types_;
@@ -56,8 +59,8 @@ class Analysis {
   bool retrieve_lumi_FCal_;
 
   struct ChannelCalibration {
-    float slope;
-    float intercept;
+    Float_t slope;
+    Float_t intercept;
   };
 
   std::map<std::string, ChannelCalibration> channels_list_;

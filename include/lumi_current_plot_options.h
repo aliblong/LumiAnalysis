@@ -8,31 +8,56 @@ class LumiCurrentPlotOptions {
   LumiCurrentPlotOptions(std::string params_filepath);
   ~LumiCurrentPlotOptions(){};
 
- //private:
-  bool do_fit;
+  bool do_fit() const { return do_fit_; }
 
-  std::string fit_options;
-  bool fit_show_legend;
-  int fit_line_color;
-  float fit_line_width;
+  std::string fit_options() const { return fit_options_; }
+  bool fit_show_legend() const { return fit_show_legend_; }
+  int fit_line_color() const { return fit_line_color_; }
+  Float_t fit_line_width() const { return fit_line_width_; }
 
-  std::string draw_options;
+  std::string draw_options() const { return draw_options_; }
 
-  int marker_color;
-  float marker_size;
-  int marker_style;
+  int marker_color() const { return marker_color_; }
+  Float_t marker_size() const { return marker_size_; }
+  int marker_style() const { return marker_style_; }
 
-  float x_scale;
-  bool x_auto_range;
-  float x_min;
-  float x_max;
-  std::string x_title;
+  Float_t x_scale() const { return x_scale_; }
+  bool x_auto_range() const { return x_auto_range_; }
+  Float_t x_min() const { return x_min_; }
+  Float_t x_max() const { return x_max_; }
+  std::string x_title() const { return x_title_; }
 
-  float y_scale;
-  bool y_auto_range;
-  float y_min;
-  float y_max;
-  std::string y_title;
+  Float_t y_scale() const { return y_scale_; }
+  bool y_auto_range() const { return y_auto_range_; }
+  Float_t y_min() const { return y_min_; }
+  Float_t y_max() const { return y_max_; }
+  std::string y_title() const { return y_title_; }
+
+ private:
+  bool do_fit_;
+
+  std::string fit_options_;
+  bool fit_show_legend_;
+  int fit_line_color_;
+  Float_t fit_line_width_;
+
+  std::string draw_options_;
+
+  int marker_color_;
+  Float_t marker_size_;
+  int marker_style_;
+
+  Float_t x_scale_;
+  bool x_auto_range_;
+  Float_t x_min_;
+  Float_t x_max_;
+  std::string x_title_;
+
+  Float_t y_scale_;
+  bool y_auto_range_;
+  Float_t y_min_;
+  Float_t y_max_;
+  std::string y_title_;
 };
 
 #endif

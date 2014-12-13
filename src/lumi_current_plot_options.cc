@@ -1,5 +1,7 @@
 #include <string>
 
+#include "Rtypes.h"
+
 #include "json_reader.h"
 #include "lumi_current_plot_options.h"
 
@@ -9,7 +11,7 @@ LumiCurrentPlotOptions::LumiCurrentPlotOptions(string params_filepath) {
   JSONReader parameter_file(params_filepath);
   string node_name = "plot_options.lumi_current.";
 
-  do_fit = parameter_file.get<bool>(node_name+"fit.do");
+  do_fit_ = parameter_file.get<bool>(node_name+"fit.do");
 
   // Fit options
   string fit_verbosity_option;
@@ -27,27 +29,27 @@ LumiCurrentPlotOptions::LumiCurrentPlotOptions(string params_filepath) {
   } else {
     fit_show_option = "0";
   }
-  fit_options = fit_verbosity_option + fit_show_option;
+  fit_options_ = fit_verbosity_option + fit_show_option;
 
-  fit_show_legend = parameter_file.get<bool>(node_name+"fit.show_legend");
-  fit_line_color = parameter_file.get<int>(node_name+"fit.line_color");
-  fit_line_width = parameter_file.get<float>(node_name+"fit.line_width");
+  fit_show_legend_ = parameter_file.get<bool>(node_name+"fit.show_legend");
+  fit_line_color_ = parameter_file.get<int>(node_name+"fit.line_color");
+  fit_line_width_ = parameter_file.get<Float_t>(node_name+"fit.line_width");
 
-  draw_options = parameter_file.get<string>(node_name+"draw_options");
+  draw_options_ = parameter_file.get<string>(node_name+"draw_options");
 
-  marker_color = parameter_file.get<int>(node_name+"marker.color");
-  marker_style = parameter_file.get<int>(node_name+"marker.style");
-  marker_size = parameter_file.get<float>(node_name+"marker.size");
+  marker_color_ = parameter_file.get<int>(node_name+"marker.color");
+  marker_style_ = parameter_file.get<int>(node_name+"marker.style");
+  marker_size_ = parameter_file.get<Float_t>(node_name+"marker.size");
 
-  x_scale = parameter_file.get<float>(node_name+"x.scale");
-  x_auto_range = parameter_file.get<bool>(node_name+"x.auto_range");
-  x_min = parameter_file.get<float>(node_name+"x.min");
-  x_max = parameter_file.get<float>(node_name+"x.max");
-  x_title = parameter_file.get<string>(node_name+"x.title");
+  x_scale_ = parameter_file.get<Float_t>(node_name+"x.scale");
+  x_auto_range_ = parameter_file.get<bool>(node_name+"x.auto_range");
+  x_min_ = parameter_file.get<Float_t>(node_name+"x.min");
+  x_max_ = parameter_file.get<Float_t>(node_name+"x.max");
+  x_title_ = parameter_file.get<string>(node_name+"x.title");
 
-  y_scale = parameter_file.get<float>(node_name+"y.scale");
-  y_auto_range = parameter_file.get<bool>(node_name+"y.auto_range");
-  y_min = parameter_file.get<float>(node_name+"y.min");
-  y_max = parameter_file.get<float>(node_name+"y.max");
-  y_title = parameter_file.get<string>(node_name+"y.title");
+  y_scale_ = parameter_file.get<Float_t>(node_name+"y.scale");
+  y_auto_range_ = parameter_file.get<bool>(node_name+"y.auto_range");
+  y_min_ = parameter_file.get<Float_t>(node_name+"y.min");
+  y_max_ = parameter_file.get<Float_t>(node_name+"y.max");
+  y_title_ = parameter_file.get<string>(node_name+"y.title");
 }

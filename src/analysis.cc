@@ -8,6 +8,7 @@
 
 #include "analysis.h"
 #include "branch_array_buffer_sizes.h"
+#include "cutoffs.h"
 #include "json_reader.h"
 #include "plotter.h"
 #include "lumi_current_plot_options.h"
@@ -50,15 +51,15 @@ int GetNumLumiBlocks(TTree *tree) {
   return nLB;
 }
 
-void DumpVector(const vector<float> &vec) {
+void DumpVector(const vector<Float_t> &vec) {
   // Prints newline-separated vector elements to cout.
   for (auto element: vec) cout << element << endl;
 }
 
-bool IsZeroes(const vector<float> &vec) {
+bool IsZeroes(const vector<Float_t> &vec) {
   // Checks whether or not the vector has all elements less than epsilon
 
-  float epsilon = 0.0000000001;
+  Float_t epsilon = 0.0000000001;
   for (auto element: vec) {
     if (element > epsilon) return false;
   }
@@ -131,8 +132,8 @@ int Analysis::AnalyseTree(SingleRunData &this_run) {
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work)
-  float currents[gMaxNumChannels][gMaxNumLB];
-  float lumi_BCM[gMaxNumLB];
+  Float_t currents[gMaxNumChannels][gMaxNumLB];
+  Float_t lumi_BCM[gMaxNumLB];
   int quality[gMaxNumLB];
   std::unique_ptr< vector<string> > beam_mode(new vector<string>);
 
@@ -159,7 +160,10 @@ int Analysis::AnalyseTree(SingleRunData &this_run) {
   this_tree->GetEntry(0);
 
   this_run.timestamp_ = timestamp;
-  if (run_name == "208642") {
+  if (run_name == "206955") {
+    cout << "Manually setting nColl for run 206955" << endl;
+    this_run.nCollisions_ = 1368;
+  } else if (run_name == "208642") {
     cout << "Manually setting nColl for run 208642" << endl;
     this_run.nCollisions_ = 465;
   } else if (run_name == "211620") {
@@ -167,24 +171,26 @@ int Analysis::AnalyseTree(SingleRunData &this_run) {
     this_run.nCollisions_ = 801;
   }
 
-  // Save results to member variables
+  // Save results to the SingleRunData instance
   for (int iLB = 0; iLB < this_run.nLB_; ++iLB) {
     if (quality[iLB] && beam_mode->at(iLB) == "STABLE BEAMS") {
       if (!this_run.LB_stability_offset_has_been_set_) {
         this_run.LB_stability_offset_ = iLB + 1; //LB numbers are 1-indexed, I think
         this_run.LB_stability_offset_has_been_set_ = true;
-        cout << iLB << " " << currents[0][iLB]*x_sec_/this_run.nCollisions_/f_rev_ << endl;
+        cout << "Timestamp: " << timestamp << endl;
+        cout << "First stable LB: " << iLB << endl;
+        cout << "Mu for first channel at first stable LB: " << currents[0][iLB]*x_sec_/this_run.nCollisions_/f_rev_ << endl;
       }
       if (retrieve_currents_) {
         unsigned iChannel = 0;
         for (const auto &channel: channels_list_) {
           string this_channel_name = channel.first;
 
-          vector<float> current_vec;
+          vector<Float_t> current_vec;
           this_run.currents_.insert(std::make_pair(this_channel_name,
                                                    current_vec));
 
-          float this_channel_pedestal = this_run.pedestals_.at(this_channel_name);
+          Float_t this_channel_pedestal = this_run.pedestals_.at(this_channel_name);
           auto &this_channel_currents = this_run.currents_.at(this_channel_name);
 
           auto this_current = currents[iChannel][iLB] -
@@ -202,7 +208,7 @@ int Analysis::AnalyseTree(SingleRunData &this_run) {
   //for (const auto &channel: channels_list_) {
   //  auto this_channel_name = channel.first;
   //  auto &this_channel_currents = this_run.currents_.at(this_channel_name);
-  //  WriteVectorToFile<float>(this_channel_currents, "output/current_test/"+run_name+"_"+this_channel_name+".root");
+  //  WriteVectorToFile<Float_t>(this_channel_currents, "output/current_test/"+run_name+"_"+this_channel_name+".root");
   //}
   return 0;
 }
@@ -231,8 +237,8 @@ int Analysis::CalcFCalLumi(SingleRunData &this_run) {
   // Averages lumi measurement from all channels for each side and for each
   //   lumi block
   for (unsigned iLB = 0; iLB < nLB_stable; ++iLB) {
-    float lumi_A_temp = 0;
-    float lumi_C_temp = 0;
+    Float_t lumi_A_temp = 0.0;
+    Float_t lumi_C_temp = 0.0;
     unsigned num_channels_A = 0;
     unsigned num_channels_C = 0;
 
@@ -242,7 +248,7 @@ int Analysis::CalcFCalLumi(SingleRunData &this_run) {
       auto current = this_module_currents.second.at(iLB);
 
       // Skip channel if current is too low
-      if (current < gCurrentCutoff) continue;
+      if (current < gFCalCurrentCutoff) continue;
 
       string module_name = this_module_currents.first;
       auto intercept = channels_list_.at(module_name).intercept;
@@ -295,7 +301,7 @@ int Analysis::CalcFCalMu(SingleRunData &this_run) {
     return 3;
   }
 
-  float conversion_factor = x_sec_ / (this_run.nCollisions_ * f_rev_);
+  Float_t conversion_factor = x_sec_ / (this_run.nCollisions_ * f_rev_);
   // Cross-section conversion factor from 7 -> 8 TeV
   if (this_run.run_name_.at(0) == '2') conversion_factor /= 1.05;
 
@@ -372,20 +378,23 @@ int Analysis::CreateSingleRunPlots(const SingleRunData &this_run) {
           return 2;
         }
 
-        if (plot_options.do_fit) {
+        if (plot_options.do_fit()) {
           fit_results.insert(std::make_pair(this_channel_name,
                                             this_channel_fit_results));
         }
       }
 
-      if (plot_options.do_fit) {
-        int err_fit_to_tree = Plotter::SaveFitResultsToTree(fit_results,
-                                                            run_name,
-                                                            plots_output_dir_);
+      if (plot_options.do_fit()) {
+        int err_fit_res = Plotter::WriteFitResultsToTree(fit_results,
+                                                         run_name,
+                                                         fit_results_output_dir_);
 
-        int err_fit_to_text = Plotter::SaveCalibrationToText(fit_results,
-                                                            run_name,
-                                                            plots_output_dir_);
+        int err_calib = Plotter::WriteCalibrationToText(fit_results,
+                                                        run_name,
+                                                        calibrations_output_dir_);
+        int err_geo = Plotter::GeometricAnalysisOfFitResults(fit_results,
+                                                             run_name,
+                                                             geometric_analysis_output_dir_);
       }
     }
   }
@@ -449,8 +458,8 @@ int Analysis::ReadCalibrations(string calibrations_filepath) {
     }
 
     string channel_name;
-    float slope;
-    float intercept;
+    Float_t slope;
+    Float_t intercept;
     bool found_channel = false;
     while (calibrations_file >> channel_name >> slope >> intercept) {
       if (channel.first == channel_name) {
@@ -538,7 +547,18 @@ void Analysis::ReadParams(string params_filepath) {
   plots_output_dir_ = base_output_dir_ +
                      parameter_file.get<string>("filepaths.output.plots");
   benedetto_output_dir_ = base_output_dir_ +
-                          parameter_file.get<string>("filepaths.output.benedetto");
+                          parameter_file.get<string>(
+                            "filepaths.output.benedetto");
+
+  fit_results_output_dir_ = base_output_dir_ +
+                            parameter_file.get<string>(
+                              "filepaths.output.fit_results.base");
+  calibrations_output_dir_ = fit_results_output_dir_ +
+                             parameter_file.get<string>(
+                               "filepaths.output.fit_results.calibrations");
+  geometric_analysis_output_dir_ = fit_results_output_dir_ +
+                                   parameter_file.get<string>(
+                                     "filepaths.output.fit_results.geometric");
 }
 
 int Analysis::RunAnalysis() {
@@ -550,46 +570,55 @@ int Analysis::RunAnalysis() {
     return 1;
   }
 
-  // Iterate over samples
   string run_name;
-  std::map<string, SingleRunData> runs_data;
-
+  vector<string> run_names_vec;
   while ( getline(run_names_file, run_name) ) {
     // Skip samples commented out with #
     if (run_name[0] == '#') {
       if (verbose_) cout << "Skipping run " << run_name << endl;
       continue;
     }
+    run_names_vec.push_back(run_name);
+  }
 
-    SingleRunData this_run(run_name);
+  vector<string> channel_names;
+  for (const auto &channel: channels_list_) {
+    channel_names.push_back(channel.first);
+  }
+
+
+  // Iterate over samples
+  std::map<string, SingleRunData> runs_data;
+
+  #pragma omp parallel for
+  for (auto it = run_names_vec.begin(); it < run_names_vec.end(); ++it) {
+    SingleRunData this_run(*it);
 
     // Read in pedestals
     if (retrieve_currents_) {
       if (verbose_) cout << "Retrieving channel pedestals" << endl;
 
-      vector<string> channel_names;
-      for (const auto &channel: channels_list_) {
-        channel_names.push_back(channel.first);
-      }
-
       int err_pedestal = this_run.ReadPedestals(pedestals_dir_, channel_names);
       if (err_pedestal) {
         cerr << "ERROR: In ReadPedestals(string pedestals_dir, string run_name)"
              << endl;
-        return 1;
+        continue;
+        //return 1;
       }
     }
 
     auto err_analyse = AnalyseTree(this_run);
     if (err_analyse) {
       cerr << "ERROR: In AnalyseTree(string run_name)" << endl;
-      return 1;
+      continue;
+      //return 1;
     }
 
     auto err_plots = CreateSingleRunPlots(this_run);
     if (err_plots) {
       cerr << "ERROR: In CreateSingleRunPlots(string run_name)" << endl;
-      return 1;
+      continue;
+      //return 1;
     }
 
     if (retrieve_lumi_FCal_) {
@@ -600,9 +629,9 @@ int Analysis::RunAnalysis() {
       auto err_Benedetto = CreateBenedettoOutput(this_run);
     }
 
-    runs_data.insert(std::make_pair(run_name, std::move(this_run)));
+    #pragma omp critical
+    runs_data.insert(std::make_pair(*it, std::move(this_run)));
   }
-
 
   auto err_plots_all = CreateAllRunPlots(runs_data);
 
@@ -610,7 +639,7 @@ int Analysis::RunAnalysis() {
 }
 
 /*
-int WriteCurrentsToFile(vector<float> currents, string run_name) {
+int WriteCurrentsToFile(vector<Float_t> currents, string run_name) {
   std::ofstream out_file(out_filepath);
   if (!out_file.is_open()) {
     cerr << "ERROR: Could not open file \'" << out_filepath << "\'" << endl;

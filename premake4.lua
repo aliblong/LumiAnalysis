@@ -8,8 +8,8 @@ solution "default"
     includedirs { "include" }
 
     configuration { "Debug*" }
-      buildoptions { "-std=c++0x", "$(shell root-config --cflags)" }
-      linkoptions { "$(shell root-config --libs)", "-lMinuit" }
+      buildoptions { "-std=c++0x", "$(shell root-config --cflags)", "-fopenmp" }
+      linkoptions { "$(shell root-config --libs)", "-lMinuit", "-fopenmp" }
       defines { "_DEBUG", "DEBUG" }
       flags   { "Symbols", "ExtraWarnings" }
 
