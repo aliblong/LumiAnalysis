@@ -2,28 +2,24 @@
 #define LUMIANALYSIS_INCLUDE_FCAL_REGION_DATA_H_
 
 #include <string>
+#include <memory>
 
+#include "fcal_region_z_side.h"
 #include "TProfile.h"
-
-enum class FCalRegion {A, C, Avg};
 
 class FCalRegionData {
  public:
-  FCalRegionData(FCalRegion region,
+  FCalRegionData(FCalRegion::ZSide region,
                  std::string name,
                  std::string title,
                  unsigned color,
                  Float_t size,
-                 unsigned style)
-    : region_name_(region),
-      plot_name_(name),
-      plot_title_(title),
-      marker_color_(color),
-      marker_size_(size),
-      marker_style_(style) {}
-  ~FCalRegionData() {}
+                 unsigned style);
+  ~FCalRegionData();
+  FCalRegionData(const FCalRegionData &rhs);
+  FCalRegionData(FCalRegionData &&rhs);
 
-  FCalRegion region_name_;
+  FCalRegion::ZSide region_name_;
 
   std::string plot_name_;
   std::string plot_title_;

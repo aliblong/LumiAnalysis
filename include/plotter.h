@@ -23,6 +23,12 @@ namespace Plotter {
                       const LumiCurrentPlotOptions &plot_options,
                       std::string output_dir,
                       FitResults &fit_results);
+  int PlotLumiTotalCurrent(const std::vector<Float_t> &lumi,
+                           const std::vector<Float_t> &current_A,
+                           const std::vector<Float_t> &current_C,
+                           std::string run_name,
+                           const LumiCurrentPlotOptions &plot_options,
+                           std::string output_dir);
 
   int PlotMuStability(const std::map<std::string, SingleRunData> &runs_data,
                       const MuStabPlotOptions &plot_options,

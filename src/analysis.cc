@@ -135,7 +135,8 @@ int Analysis::AnalyseTree(SingleRunData &this_run) {
   Float_t currents[gMaxNumChannels][gMaxNumLB];
   Float_t lumi_BCM[gMaxNumLB];
   int quality[gMaxNumLB];
-  std::unique_ptr< vector<string> > beam_mode(new vector<string>);
+  //std::unique_ptr< vector<string> > beam_mode(nullptr);
+  vector<string> *beam_mode = nullptr;
 
   // Set variables to retrieve based on which plot types are being produced
   if (retrieve_currents_) {
@@ -332,70 +333,135 @@ int Analysis::CreateBenedettoOutput(const SingleRunData &this_run) const {
   return err;
 }
 
+int Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
+  if (verbose_) cout << "    " << "Making lumi vs. current plots" << endl;
+
+  string run_name = this_run.run_name_;
+  LumiCurrentPlotOptions plot_options(params_filepath_);
+  std::map<string, FitResults> fit_results;
+
+  if (plot_options.do_individual()) {
+    for (const auto &channel: channels_list_) {
+      auto this_channel_name = channel.first;
+      auto this_channel_current = this_run.currents_.at(this_channel_name);
+
+      if (IsZeroes(this_channel_current) && verbose_) {
+        if (verbose_) cout << "Skipping channel with zero current: "
+                           << this_channel_name << endl;
+        continue;
+      }
+
+      FitResults this_channel_fit_results;
+      if (this_run.pedestals_.at(this_channel_name) > 20) {
+        this_channel_fit_results.is_short = true;
+      } else {
+        this_channel_fit_results.is_short = false;
+      }
+
+      int err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
+                                              this_channel_current,
+                                              run_name,
+                                              this_channel_name,
+                                              plot_options,
+                                              plots_output_dir_,
+                                              this_channel_fit_results);
+      if (err_plot) {
+        cerr << "ERROR: in Plotter::PlotLumiCurrent()" << endl;
+        return 2;
+      }
+
+      if (plot_options.do_fit()) {
+        fit_results.insert(std::make_pair(this_channel_name,
+                                          this_channel_fit_results));
+      }
+    } //channels loop
+  }
+
+  if (plot_options.do_sum()) {
+    vector<Float_t> channel_currents_sum_A;
+    vector<Float_t> channel_currents_sum_C;
+    for (const auto &channel: channels_list_) {
+      auto this_channel_name = channel.first;
+      auto this_channel_current = this_run.currents_.at(this_channel_name);
+
+      vector<Float_t> *this_side_channel_currents_sum;
+      if (this_channel_name.at(1) == '1') {
+        this_side_channel_currents_sum = &channel_currents_sum_A;
+      } else if (this_channel_name.at(1) == '8') {
+        this_side_channel_currents_sum = &channel_currents_sum_C;
+      } else {
+        cerr << "Invalid FCal module in Analysis::CreateSingleRunPlots" << endl;
+        return 1;
+      }
+      if (this_side_channel_currents_sum->size() == 0) {
+        *this_side_channel_currents_sum = this_channel_current;
+      } else {
+        std::transform(this_side_channel_currents_sum->begin(),
+                       this_side_channel_currents_sum->end(),
+                       this_channel_current.begin(),
+                       this_side_channel_currents_sum->begin(),
+                       std::plus<Float_t>());
+      }
+    }
+
+    FitResults channels_sum_fit_results;
+    /*
+    int err_plot = Plotter::PlotLumiTotalCurrent(
+                              this_run.lumi_BCM_,
+                              channel_currents_sum_A,
+                              channel_currents_sum_C,
+                              run_name,
+                              plot_options,
+                              plots_output_dir_);
+                                            */
+    int err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
+                                            channel_currents_sum_A,
+                                            run_name,
+                                            "Sum A",
+                                            plot_options,
+                                            plots_output_dir_,
+                                            channels_sum_fit_results);
+    err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
+                                            channel_currents_sum_C,
+                                            run_name,
+                                            "Sum C",
+                                            plot_options,
+                                            plots_output_dir_,
+                                            channels_sum_fit_results);
+  }
+
+  if (plot_options.do_fit()) {
+    int err_fit_res = Plotter::WriteFitResultsToTree(fit_results,
+                                                     run_name,
+                                                     fit_results_output_dir_);
+
+    int err_calib = Plotter::WriteCalibrationToText(fit_results,
+                                                    run_name,
+                                                    calibrations_output_dir_);
+
+    int err_geo = Plotter::GeometricAnalysisOfFitResults(fit_results,
+                                                         run_name,
+                                                         geometric_analysis_output_dir_);
+  }
+
+  return 0;
+}
+
 int Analysis::CreateSingleRunPlots(const SingleRunData &this_run) {
 // Create those plots which use data from only a single sample
 
   string run_name = this_run.run_name_;
 
   if (plot_types_.size() == 0) {
+    if (verbose_) cout << "No plot types selected" << endl;
     return 0;
   }
   if (verbose_) cout << "Creating plots for sample " << run_name << endl;
 
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "lumi_current") {
-      if (verbose_) cout << "    " << "Making lumi vs. current plots" << endl;
-
-      LumiCurrentPlotOptions plot_options(params_filepath_);
       std::map<string, FitResults> fit_results;
-
-      for (const auto &channel: channels_list_) {
-        auto this_channel_name = channel.first;
-        auto this_channel_current = this_run.currents_.at(this_channel_name);
-
-        if (IsZeroes(this_channel_current) && verbose_) {
-          cout << "Skipping channel with zero current: " << this_channel_name
-               << endl;
-          continue;
-        }
-
-        FitResults this_channel_fit_results;
-        if (this_run.pedestals_.at(this_channel_name) > 20) {
-          this_channel_fit_results.is_short = true;
-        } else {
-          this_channel_fit_results.is_short = false;
-        }
-
-        int err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
-                                                this_channel_current,
-                                                run_name,
-                                                this_channel_name,
-                                                plot_options,
-                                                plots_output_dir_,
-                                                this_channel_fit_results);
-        if (err_plot) {
-          cerr << "ERROR: in Plotter::PlotLumiCurrent()" << endl;
-          return 2;
-        }
-
-        if (plot_options.do_fit()) {
-          fit_results.insert(std::make_pair(this_channel_name,
-                                            this_channel_fit_results));
-        }
-      }
-
-      if (plot_options.do_fit()) {
-        int err_fit_res = Plotter::WriteFitResultsToTree(fit_results,
-                                                         run_name,
-                                                         fit_results_output_dir_);
-
-        int err_calib = Plotter::WriteCalibrationToText(fit_results,
-                                                        run_name,
-                                                        calibrations_output_dir_);
-        int err_geo = Plotter::GeometricAnalysisOfFitResults(fit_results,
-                                                             run_name,
-                                                             geometric_analysis_output_dir_);
-      }
+      int err_lumi_curr = CreateLumiCurrentPlots(this_run);
     }
   }
 
@@ -564,7 +630,7 @@ void Analysis::ReadParams(string params_filepath) {
 int Analysis::RunAnalysis() {
 // Control flow for the analysis of samples and creation of plots
 
-  ifstream run_names_file(run_list_dir_);
+  std::ifstream run_names_file(run_list_dir_);
   if (!run_names_file) {
     cerr << "ERROR: Could not locate file: " << run_list_dir_ << endl;
     return 1;
@@ -590,7 +656,7 @@ int Analysis::RunAnalysis() {
   // Iterate over samples
   std::map<string, SingleRunData> runs_data;
 
-  #pragma omp parallel for
+  //#pragma omp parallel for
   for (auto it = run_names_vec.begin(); it < run_names_vec.end(); ++it) {
     SingleRunData this_run(*it);
 
@@ -629,7 +695,7 @@ int Analysis::RunAnalysis() {
       auto err_Benedetto = CreateBenedettoOutput(this_run);
     }
 
-    #pragma omp critical
+    //#pragma omp critical
     runs_data.insert(std::make_pair(*it, std::move(this_run)));
   }
 

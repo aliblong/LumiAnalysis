@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 
+#include "fit_results.h"
 #include "single_run_data.h"
 
 class Analysis {
@@ -14,6 +15,7 @@ class Analysis {
 
   int AnalyseTree(SingleRunData &this_run);
   int CreateAllRunPlots(const std::map<std::string, SingleRunData> &runs_data);
+  int CreateLumiCurrentPlots(const SingleRunData &this_run);
   int CreateSingleRunPlots(const SingleRunData &this_run);
   int PrepareAnalysis(std::string params_filepath);
   int ReadCalibrations(std::string channels_filepath);

@@ -8,6 +8,8 @@ class LumiCurrentPlotOptions {
   LumiCurrentPlotOptions(std::string params_filepath);
   ~LumiCurrentPlotOptions(){};
 
+  bool do_individual() const { return do_individual_; }
+  bool do_sum() const { return do_sum_; }
   bool do_fit() const { return do_fit_; }
 
   std::string fit_options() const { return fit_options_; }
@@ -22,18 +24,22 @@ class LumiCurrentPlotOptions {
   int marker_style() const { return marker_style_; }
 
   Float_t x_scale() const { return x_scale_; }
+  Float_t x_rel_error() const { return x_rel_error_; }
   bool x_auto_range() const { return x_auto_range_; }
   Float_t x_min() const { return x_min_; }
   Float_t x_max() const { return x_max_; }
   std::string x_title() const { return x_title_; }
 
   Float_t y_scale() const { return y_scale_; }
+  Float_t y_rel_error() const { return y_rel_error_; }
   bool y_auto_range() const { return y_auto_range_; }
   Float_t y_min() const { return y_min_; }
   Float_t y_max() const { return y_max_; }
   std::string y_title() const { return y_title_; }
 
  private:
+  bool do_individual_;
+  bool do_sum_;
   bool do_fit_;
 
   std::string fit_options_;
@@ -48,12 +54,14 @@ class LumiCurrentPlotOptions {
   int marker_style_;
 
   Float_t x_scale_;
+  Float_t x_rel_error_;
   bool x_auto_range_;
   Float_t x_min_;
   Float_t x_max_;
   std::string x_title_;
 
   Float_t y_scale_;
+  Float_t y_rel_error_;
   bool y_auto_range_;
   Float_t y_min_;
   Float_t y_max_;
