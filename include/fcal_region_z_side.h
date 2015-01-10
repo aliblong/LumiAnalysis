@@ -1,20 +1,27 @@
 #ifndef INCLUDE_FCAL_REGION_Z_SIDE_H_
 #define INCLUDE_FCAL_REGION_Z_SIDE_H_
 
-#include "enum.h"
+#include <set>
 
 namespace FCalRegion {
 
-class ZSide: public Enum<ZSide> {
- public:
-  using Enum::Enum;
-  //explicit ZSide(int val) : Enum(val) {}
+enum class ZSide {A, C, Both};
 
-  static const ZSide A;
-  static const ZSide C;
-  static const ZSide Both;
-};
-
+//bool operator< (const ZSide &s1, const ZSide &s2) {
+//  if (s2 == ZSide::A) return false;
+//  else if (s2 == ZSide::C) {
+//    if (s1 == ZSide::A) return true;
+//    else return false;
+////  }
+////  else {
+//    if (s1 == ZSide::Both) return false;
+//    else return true;
+//  }
+//}
+//
+const std::set<ZSide> Z_SIDES = {ZSide::A,
+                                 ZSide::C,
+                                 ZSide::Both};
 }
 
 #endif

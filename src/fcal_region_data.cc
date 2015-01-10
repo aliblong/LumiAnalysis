@@ -14,7 +14,7 @@ FCalRegionData::FCalRegionData(FCalRegion::ZSide region,
       marker_color_(color),
       marker_size_(size),
       marker_style_(style),
-      plot_(nullptr) {}
+      plot_() {}
 
 FCalRegionData::~FCalRegionData() {}
 
@@ -25,7 +25,7 @@ FCalRegionData::FCalRegionData(const FCalRegionData &rhs)
       marker_color_(rhs.marker_color_),
       marker_size_(rhs.marker_size_),
       marker_style_(rhs.marker_style_),
-      plot_(nullptr) {}
+      plot_() {}
 
 FCalRegionData::FCalRegionData(FCalRegionData &&rhs)
     : region_name_(rhs.region_name_),

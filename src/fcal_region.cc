@@ -12,8 +12,20 @@ using std::string;
 using FCalRegion::ZSide;
 using FCalRegion::Axis;
 using FCalRegion::Sign;
+using FCalRegion::ModuleHalfSet;
+
+using boost::expected;
+using boost::make_unexpected;
 
 namespace {
+
+const std::map<ZSide, std::string> z_side_str_rep { {ZSide::A, "A"},
+                                                    {ZSide::C, "C"},
+                                                    {ZSide::Both, "Total"} };
+const std::map<Axis, std::string> axis_str_rep { {Axis::X, "X"},
+                                                 {Axis::Y, "Y"} };
+const std::map<Sign, std::string> sign_str_rep { {Sign::Pos, "+"},
+                                                 {Sign::Neg, "-"} };
 
 template <typename T>
 std::string MsgFromDict(const T &key, std::map<T, std::string> dict) {
@@ -59,45 +71,29 @@ string PhiSliceFromID(char region_ID, char module_ID, char channel_ID) {
 
 }
 
-INIT_ENUM(Axis);
-
-const Axis Axis::X(0);
-const Axis Axis::Y(1);
-
-INIT_ENUM(Sign);
-
-const Sign Sign::Pos(0);
-const Sign Sign::Neg(1);
-
-FCalRegion::ModuleHalfSet FCalRegion::CreateModuleHalfSet() {
-  FCalRegion::ModuleHalfSet result;
-  ENUM_FOR_EACH(side_ptr_it, FCalRegion::ZSide) {
-    ENUM_FOR_EACH(axis_ptr_it, FCalRegion::Axis) {
-      ENUM_FOR_EACH(sign_ptr_it, FCalRegion::Sign) {
-        result.insert(std::make_tuple(**side_ptr_it, **axis_ptr_it, **sign_ptr_it));
+ModuleHalfSet FCalRegion::CreateModuleHalfSet() {
+  ModuleHalfSet result;
+  for (const auto &side: FCalRegion::Z_SIDES) {
+    for (const auto &axis: FCalRegion::AXES) {
+      for (const auto &sign: FCalRegion::SIGNS) {
+        result.insert(std::make_tuple(side, axis, sign));
       }
     }
   }
+
   return result;
 }
 
 string FCalRegion::ToString(ZSide side) {
-  std::map<ZSide, std::string> string_rep { {ZSide::A, "A"},
-                                            {ZSide::C, "C"},
-                                            {ZSide::Both, "Total"} };
-  return MsgFromDict(side, string_rep);
+  return MsgFromDict(side, z_side_str_rep);
 }
 
 string FCalRegion::ToString(Axis axis) {
-  std::map<Axis, std::string> string_rep { {Axis::X, "X"},
-                                           {Axis::Y, "Y"} };
-  return MsgFromDict(axis, string_rep);
+  return MsgFromDict(axis, axis_str_rep);
 }
 
 string FCalRegion::ToString(Sign sign) {
-  std::map<Sign, std::string> string_rep { {Sign::Pos, "+"},
-                                           {Sign::Neg, "-"} };
-  return MsgFromDict(sign, string_rep);
+  return MsgFromDict(sign, sign_str_rep);
 }
 
 /*

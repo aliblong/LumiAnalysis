@@ -6,53 +6,37 @@
 
 #include "Rtypes.h"
 
-#include "enum.h"
 #include "fcal_region_z_side.h"
+#include "boost/expected/expected.hpp"
 
 namespace FCalRegion {
 
-class Axis: public Enum<Axis> {
- public:
-  using Enum::Enum;
-  //explicit Axis(int val) : Enum(val) {}
+enum class Axis {X, Y};
 
-  static const Axis X;
-  static const Axis Y;
-};
+enum class Sign {Pos, Neg};
 
-class Sign: public Enum<Sign> {
- public:
-  using Enum::Enum;
-  //explicit Sign(int val) : Enum(val) {}
+//bool operator< (const Axis &a1, const Axis &a2) {
+//  if (a2 == Axis::X) return false;
+//  else {
+//    if (a1 == Axis::Y) return false;
+//    else return true;
+//  }
+//}
 
-  static const Sign Pos;
-  static const Sign Neg;
-};
+//bool operator< (const Sign &s1, const Sign &s2) {
+//  if (s2 == Sign::Pos) return false;
+//  else {
+//    if (s1 == Sign::Neg) return false;
+//    else return true;
+//  }
+//}
+
+const std::set<Axis> AXES = {Axis::X, Axis::Y};
+const std::set<Sign> SIGNS = {Sign::Pos, Sign::Neg};
 
 typedef std::tuple<ZSide, Axis, Sign> ModuleHalf;
 
-struct ModuleHalfOrderer {
-  bool operator() (const ModuleHalf &r1, const ModuleHalf &r2) const {
-    auto side1 = std::get<0>(r1);
-    auto side2 = std::get<0>(r2);
-    auto axis1 = std::get<1>(r1);
-    auto axis2 = std::get<1>(r2);
-    auto sign1 = std::get<2>(r1);
-    auto sign2 = std::get<2>(r2);
-
-    if (side1 == side2) {
-      if (sign1 == sign2) {
-        return axis1.value() < axis2.value();
-      } else {
-        return sign1.value() < sign2.value();
-      }
-    } else {
-      return side1.value() < side2.value();
-    }
-  }
-};
-
-typedef std::set<ModuleHalf, ModuleHalfOrderer> ModuleHalfSet;
+typedef std::set<ModuleHalf> ModuleHalfSet;
 ModuleHalfSet CreateModuleHalfSet();
 
 std::string ToString(ZSide region);

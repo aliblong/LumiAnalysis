@@ -48,7 +48,7 @@ typedef std::map<string, FitResults> FitResultsMap;
 
 namespace {
 
-typedef std::map<FCalRegion::ModuleHalf, Float_t, FCalRegion::ModuleHalfOrderer>
+typedef std::map<FCalRegion::ModuleHalf, Float_t>
           ModuleHalfMap;
 
 ModuleHalfMap InitRegionsSlopeSumsMap() {
