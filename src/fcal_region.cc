@@ -14,9 +14,6 @@ using FCalRegion::Axis;
 using FCalRegion::Sign;
 using FCalRegion::ModuleHalfSet;
 
-using boost::expected;
-using boost::make_unexpected;
-
 namespace {
 
 const std::map<ZSide, std::string> z_side_str_rep { {ZSide::A, "A"},

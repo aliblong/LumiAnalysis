@@ -8,6 +8,8 @@ using std::endl;
 
 using std::string;
 
+Error::Base::~Base() {}
+
 void Error::Report(const string &err_msg) {
   Error::Report(err_msg, 0);
 }

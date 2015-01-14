@@ -6,6 +6,8 @@
 #include "TFile.h"
 #include "TTree.h"
 
+#include "boost/expected/expected.hpp"
+
 #include "analysis.h"
 #include "branch_array_buffer_sizes.h"
 #include "cutoffs.h"
@@ -21,6 +23,10 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+
+using boost::expected;
+using boost::make_expected;
+using boost::make_unexpected;
 
 namespace {
 
@@ -358,17 +364,15 @@ int Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
         this_channel_fit_results.is_short = false;
       }
 
-      int err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
+      auto err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
                                               this_channel_current,
                                               run_name,
                                               this_channel_name,
                                               plot_options,
                                               plots_output_dir_,
                                               this_channel_fit_results);
-      if (err_plot) {
-        cerr << "ERROR: in Plotter::PlotLumiCurrent()" << endl;
-        return 2;
-      }
+      //TODO
+      //if (err_plot)
 
       if (plot_options.do_fit()) {
         fit_results.insert(std::make_pair(this_channel_name,
@@ -406,7 +410,7 @@ int Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
 
     FitResults channels_sum_fit_results;
     /*
-    int err_plot = Plotter::PlotLumiTotalCurrent(
+    auto err_plot = Plotter::PlotLumiTotalCurrent(
                               this_run.lumi_BCM_,
                               channel_currents_sum_A,
                               channel_currents_sum_C,
@@ -414,34 +418,36 @@ int Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
                               plot_options,
                               plots_output_dir_);
                                             */
-    int err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
+    auto err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
                                             channel_currents_sum_A,
                                             run_name,
-                                            "Sum A",
+                                            "Sum_A",
                                             plot_options,
                                             plots_output_dir_,
                                             channels_sum_fit_results);
     err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
                                             channel_currents_sum_C,
                                             run_name,
-                                            "Sum C",
+                                            "Sum_C",
                                             plot_options,
                                             plots_output_dir_,
                                             channels_sum_fit_results);
   }
 
   if (plot_options.do_fit()) {
-    int err_fit_res = Plotter::WriteFitResultsToTree(fit_results,
+    auto err_fit_res = Plotter::WriteFitResultsToTree(fit_results,
                                                      run_name,
                                                      fit_results_output_dir_);
 
-    int err_calib = Plotter::WriteCalibrationToText(fit_results,
+    auto err_calib = Plotter::WriteCalibrationToText(fit_results,
                                                     run_name,
                                                     calibrations_output_dir_);
 
-    int err_geo = Plotter::GeometricAnalysisOfFitResults(fit_results,
-                                                         run_name,
-                                                         geometric_analysis_output_dir_);
+    auto result_geo = Plotter::GeometricAnalysisOfFitResults(fit_results,
+                                                             run_name,
+                                                             geometric_analysis_output_dir_);
+
+    if (!result_geo.valid()) cout << result_geo.error()->what() << endl;
   }
 
   return 0;
