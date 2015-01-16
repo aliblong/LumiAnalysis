@@ -100,7 +100,7 @@ Expected<Void> WriteGeometricAnalysisToText(
   const string out_filepath = output_dir + run_name + ".dat";
   std::ofstream out_file(out_filepath);
   if (!out_file.is_open()) {
-    return make_unexpected(make_shared<Error::FileNotOpen>(out_filepath, this_func_name));
+    return make_unexpected(make_shared<Error::File>(out_filepath, this_func_name));
   }
 
   for (const auto &this_phi_slice_slopes_sum: phi_slices_slopes_sums) {
@@ -308,10 +308,10 @@ void DrawATLASInternalLabel(TLatex &label) {
   label.SetTextSize(0.030);
 }
 
-void FilterOutliers(TGraphErrors &graph, TF1 *&fit,
+void FilterOutliers(TGraphErrors &graph, const TF1 &fit,
                     const LumiCurrentPlotOptions &plot_options) {
-  Double_t slope = fit->GetParameter(1);
-  Double_t intercept = fit->GetParameter(0);
+  Double_t slope = fit.GetParameter(1);
+  Double_t intercept = fit.GetParameter(0);
 
   Double_t x;
   Double_t y;
@@ -336,11 +336,13 @@ void FilterOutliers(TGraphErrors &graph, TF1 *&fit,
     //cout << *rit << endl;
   }
 
-  graph.Fit("pol1", plot_options.fit_options().c_str());
-  fit = graph.GetFunction("pol1");
+  graph.Fit("f1", "BQS");
+
+  //graph.Fit("pol1", plot_options.fit_options().c_str());
+  //fit = graph.GetFunction("pol1");
 }
 
-void RecursiveFilterOutliers(TGraphErrors &graph, TF1 *&fit,
+void RecursiveFilterOutliers(TGraphErrors &graph, const TF1 &fit,
                              const LumiCurrentPlotOptions &plot_options) {
   Int_t nPoints = graph.GetN();
   Int_t new_nPoints = 1;
@@ -452,20 +454,33 @@ Expected<Void> Plotter::PlotLumiCurrent(const vector<Float_t> &lumi_arg,
   // Write fit results and format fit legend
   TPaveText fit_legend;
   if (plot_options.do_fit()) {
-    graph.Fit("pol1", plot_options.fit_options().c_str());
-    TF1 *fit = graph.GetFunction("pol1");
-    cout << "Chi^2 = " << fit->GetChisquare()
-         << ", nDoF = " << fit->GetNDF() << endl;
+    //graph.Fit("pol1", plot_options.fit_options().c_str());
+    //TF1 *fit = graph.GetFunction("pol1");
+
+    TF1 fit("f1", "[0]+[1]*x", graph.GetXaxis()->GetXmin(), graph.GetXaxis()->GetXmax());
+
+    if (plot_options.fit_fix_intercept()) fit.FixParameter(0, 0.0);
+    fit.SetLineColor(plot_options.fit_line_color());
+    fit.SetLineWidth(plot_options.fit_line_width());
+
+    graph.Fit("f1", (plot_options.fit_options()+"BQS").c_str());
+
+    cout << "Chi^2 = " << fit.GetChisquare()
+         << ", nDoF = " << fit.GetNDF() << endl;
 
     RecursiveFilterOutliers(graph, fit, plot_options);
 
-    cout << "Chi^2 = " << fit->GetChisquare()
-         << ", nDoF = " << fit->GetNDF() << endl;
+    cout << "Chi^2 = " << fit.GetChisquare()
+         << ", nDoF = " << fit.GetNDF() << endl;
 
-    fit->SetLineColor(plot_options.fit_line_color());
-    fit->SetLineWidth(plot_options.fit_line_width());
+    //fit->FixParameter(0, 0.0);
+    //auto fit_result = graph.Fit(fit, "BQS");
 
-    fit_results.FromFit(fit, plot_options);
+    //fit->SetLineColor(plot_options.fit_line_color());
+    //fit->SetLineWidth(plot_options.fit_line_width());
+
+    fit_results.FromFit(&fit, plot_options);
+    //delete fit;
 
     if (plot_options.fit_show_legend()) {
       FormatLegend(fit_legend, fit_results);
@@ -548,7 +563,7 @@ Expected<Void> Plotter::WriteFitResultsToTree(const FitResultsMap &fit_results,
 
   const char *this_func_name = "WriteFitResultsToTree";
 
-  TRY( Util::mkdir(output_dir) );
+  TRY( Util::mkdir(output_dir) )
 
   TFile file((output_dir+run_name+".root").c_str(), "recreate");
   TTree tree;
@@ -589,12 +604,12 @@ Expected<Void> Plotter::WriteCalibrationToText(const FitResultsMap &fit_results,
 
   const char *this_func_name = "WriteCalibrationToText";
 
-  TRY( Util::mkdir(output_dir) );
+  TRY( Util::mkdir(output_dir) )
 
   string out_filepath = output_dir + run_name + ".dat";
   std::ofstream out_file(out_filepath);
   if (!out_file.is_open()) {
-    return make_unexpected(make_shared<Error::FileNotOpen>(out_filepath, this_func_name));
+    return make_unexpected(make_shared<Error::File>(out_filepath, this_func_name));
   }
 
   for (const auto& this_channel_results: fit_results) {
@@ -661,7 +676,7 @@ Expected<Void> Plotter::PlotMuStability(const std::map<string, SingleRunData> &r
 
     TRY( PopulateTProfile(region.region_name_,
                           runs_data,
-                          region.plot_.get()) );
+                          region.plot_.get()) )
 
 
     // Profiles are saved individually in root files

@@ -1,8 +1,10 @@
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
+#include "Rtypes.h"
 #include "TFile.h"
 #include "TTree.h"
 
@@ -24,33 +26,18 @@ using std::cout;
 using std::cerr;
 using std::endl;
 
+using std::make_shared;
+
 using boost::expected;
-using boost::make_expected;
 using boost::make_unexpected;
+
+using Error::Expected;
 
 namespace {
 
-template <typename T>
-int WriteVectorToFile(const vector<T> &vec, string filepath) {
-  // Writes each element of a vector to a file at the specified path;
-  //   elements are separated by newlines.
-
-  std::ofstream out_file(filepath);
-  if (!out_file.is_open()) {
-    cerr << "ERROR: could not open file \'" << filepath << "\'" << endl;
-    return 1;
-  }
-
-  for (auto iElement: vec) out_file << iElement << '\n';
-  out_file.close();
-
-  return 0;
-}
-
-int GetNumLumiBlocks(TTree *tree) {
-  // Retrieves the quantity stored in the NLB variable in a TTree.
-
-  int nLB = 0;
+// Retrieves the quantity stored in the NLB variable in a TTree.
+Int_t GetNumLumiBlocks(TTree *tree) {
+  Int_t nLB = 0;
   tree->SetBranchAddress("NLB", &nLB);
   tree->GetEntry(0);
 
@@ -62,18 +49,17 @@ void DumpVector(const vector<Float_t> &vec) {
   for (auto element: vec) cout << element << endl;
 }
 
+// Checks whether or not the vector has all elements less than epsilon
 bool IsZeroes(const vector<Float_t> &vec) {
-  // Checks whether or not the vector has all elements less than epsilon
-
-  Float_t epsilon = 0.0000000001;
   for (auto element: vec) {
-    if (element > epsilon) return false;
+    if (element > gEpsilon) return false;
   }
   return true;
 }
 
 } // Anonymous namespace
 
+// Initializes various quantities required to run the analysis
 Analysis::Analysis(string params_filepath)
   : verbose_(false),
     do_Benedetto_(false),
@@ -99,38 +85,30 @@ Analysis::Analysis(string params_filepath)
     retrieve_currents_(false),
     retrieve_lumi_BCM_(false),
     retrieve_lumi_FCal_(false) {
-// Initializes various quantities required to run the analysis
 
   params_filepath_ = params_filepath;
-  int err = PrepareAnalysis(params_filepath);
-  if (err) {
-    cerr << "ERROR: in PrepareAnalysis(string params_filepath)" << endl;
-  }
+  LOG_ERR_CTOR_THROW( PrepareAnalysis(params_filepath) )
 }
 
-int Analysis::AnalyseTree(SingleRunData &this_run) {
 // Runs the analysis for a single sample.
 // Saves relevant results to member variables of the analysis object.
+Expected<Void> Analysis::AnalyseTree(SingleRunData &this_run) {
+  const char *this_func_name = "Analysis::AnalyseTree";
 
   string run_name = this_run.run_name_;
-
-  if (verbose_) {
-    cout << "Analysing sample " << run_name << endl;
-  }
+  if (verbose_) cout << "Analysing sample " << run_name << endl;
 
   // Get tree object from the sample of choice
   string filepath = trees_dir_+run_name+".root";
   TFile *this_file = TFile::Open(filepath.c_str());
   if (!this_file) {
-    cerr << "ERROR: Could not locate file: " << filepath << endl;
-    return 1;
+    return make_unexpected(make_shared<Error::File>(filepath, this_func_name));
   }
   string tree_name = "t_"+run_name;
   TTree *this_tree = static_cast<TTree*>( this_file->Get(tree_name.c_str()) );
   if (!this_tree) {
-    cerr << "ERROR: tree \'" << tree_name << "\' not found in file \'" <<
-            filepath << "\'" << endl;
-    return 2;
+    auto err_msg = "tree `"+tree_name+"` not found in file `"+filepath+"`";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
   // The number of luminosity readings in the run
@@ -141,7 +119,6 @@ int Analysis::AnalyseTree(SingleRunData &this_run) {
   Float_t currents[gMaxNumChannels][gMaxNumLB];
   Float_t lumi_BCM[gMaxNumLB];
   int quality[gMaxNumLB];
-  //std::unique_ptr< vector<string> > beam_mode(nullptr);
   vector<string> *beam_mode = nullptr;
 
   // Set variables to retrieve based on which plot types are being produced
@@ -212,33 +189,30 @@ int Analysis::AnalyseTree(SingleRunData &this_run) {
     }
   }
 
-  //for (const auto &channel: channels_list_) {
-  //  auto this_channel_name = channel.first;
-  //  auto &this_channel_currents = this_run.currents_.at(this_channel_name);
-  //  WriteVectorToFile<Float_t>(this_channel_currents, "output/current_test/"+run_name+"_"+this_channel_name+".root");
-  //}
-  return 0;
+  return Void();
 }
 
-int Analysis::CalcFCalLumi(SingleRunData &this_run) {
 // Calculates FCal luminosity from currents data for a run
+Expected<Void> Analysis::CalcFCalLumi(SingleRunData &this_run) {
+  auto this_func_name = "Analysis::CalcFCalLumi";
   if (verbose_) cout << "Calculating FCal luminosity" << endl;
 
   // Checks that these values were not previously calculated
   if (this_run.lumi_FCal_A_.size() > 0 || this_run.lumi_FCal_C_.size() > 0) {
-    cerr << "ERROR: FCal lumi vector(s) already filled" << endl;
-    return 1;
+    auto err_msg = "FCal lumi vector(s) already filled";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
   // Checks that currents data exists
   if (this_run.currents_.size() == 0) {
-    cerr << "ERROR: currents map empty" << endl;
-    return 2;
+    auto err_msg = "currents map empty";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
+
   unsigned nLB_stable = this_run.currents_.begin()->second.size();
   if (nLB_stable == 0) {
-    cerr << "ERROR: no stable lumi blocks" << endl;
-    return 3;
+    auto err_msg = "no stable lumi blocks";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
   // Averages lumi measurement from all channels for each side and for each
@@ -284,28 +258,29 @@ int Analysis::CalcFCalLumi(SingleRunData &this_run) {
     }
   }
 
-  return 0;
+  return Void();
 }
 
-int Analysis::CalcFCalMu(SingleRunData &this_run) {
 // Calculates <mu> from FCal luminosity for a run
+Expected<Void> Analysis::CalcFCalMu(SingleRunData &this_run) {
+  auto this_func_name = "Analysis::CalcFCalMu";
 
   if (verbose_) cout << "Calculating FCal <mu>" << endl;
 
   // Checks that FCal lumi data exists
   if (this_run.lumi_FCal_A_.size() == 0 && this_run.lumi_FCal_C_.size() == 0) {
-    cerr << "ERROR: FCal lumi vector(s) have not been filled" << endl;
-    return 1;
+    auto err_msg = "FCal lumi vector(s) have not been filled";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
   // Checks that mu data has not already been calculated
   if (this_run.mu_FCal_A_.size() > 0 || this_run.mu_FCal_C_.size() > 0) {
-    cerr << "ERROR: FCal mu vector(s) already filled" << endl;
-    return 2;
+    auto err_msg = "FCal mu vector(s) already filled";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
   // Checks that value for number of collisions is nonzero
   if (this_run.nCollisions_ == 0) {
-    cerr << "ERROR: nCollisions = 0" << endl;
-    return 3;
+    auto err_msg = "num_collisions == 0";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
   Float_t conversion_factor = x_sec_ / (this_run.nCollisions_ * f_rev_);
@@ -319,27 +294,26 @@ int Analysis::CalcFCalMu(SingleRunData &this_run) {
   for (const auto &lumi: this_run.lumi_FCal_C_) {
     this_run.mu_FCal_C_.push_back(lumi*conversion_factor);
   }
-  return 0;
+  return Void();
 }
 
-int Analysis::CreateAllRunPlots(const std::map<string, SingleRunData> &runs_data) {
+void Analysis::CreateAllRunPlots(const std::map<string, SingleRunData> &runs_data) {
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "mu_stability") {
       if (verbose_) cout << "Making mu stability plot" << endl;
       MuStabPlotOptions plot_options(params_filepath_);
-      Plotter::PlotMuStability(runs_data, plot_options, plots_output_dir_);
+      LOG_ERR( Plotter::PlotMuStability(runs_data, plot_options, plots_output_dir_) )
     }
   }
-
-  return 0;
 }
 
-int Analysis::CreateBenedettoOutput(const SingleRunData &this_run) const {
-  int err = this_run.CreateBenedettoOutput(benedetto_output_dir_);
-  return err;
+Expected<Void> Analysis::CreateBenedettoOutput(const SingleRunData &this_run) const {
+  TRY( this_run.CreateBenedettoOutput(benedetto_output_dir_) )
+  return Void();
 }
 
-int Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
+Expected<Void> Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
+  const char* this_func_name = "Analysis::CreateLumiCurrentPlots";
   if (verbose_) cout << "    " << "Making lumi vs. current plots" << endl;
 
   string run_name = this_run.run_name_;
@@ -364,15 +338,13 @@ int Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
         this_channel_fit_results.is_short = false;
       }
 
-      auto err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
-                                              this_channel_current,
-                                              run_name,
-                                              this_channel_name,
-                                              plot_options,
-                                              plots_output_dir_,
-                                              this_channel_fit_results);
-      //TODO
-      //if (err_plot)
+      TRY( Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
+                                    this_channel_current,
+                                    run_name,
+                                    this_channel_name,
+                                    plot_options,
+                                    plots_output_dir_,
+                                    this_channel_fit_results) )
 
       if (plot_options.do_fit()) {
         fit_results.insert(std::make_pair(this_channel_name,
@@ -394,8 +366,7 @@ int Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
       } else if (this_channel_name.at(1) == '8') {
         this_side_channel_currents_sum = &channel_currents_sum_C;
       } else {
-        cerr << "Invalid FCal module in Analysis::CreateSingleRunPlots" << endl;
-        return 1;
+        return make_unexpected(make_shared<Error::Logic>("Invalid channel name", this_func_name));
       }
       if (this_side_channel_currents_sum->size() == 0) {
         *this_side_channel_currents_sum = this_channel_current;
@@ -409,72 +380,57 @@ int Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
     }
 
     FitResults channels_sum_fit_results;
-    /*
-    auto err_plot = Plotter::PlotLumiTotalCurrent(
-                              this_run.lumi_BCM_,
-                              channel_currents_sum_A,
-                              channel_currents_sum_C,
-                              run_name,
-                              plot_options,
-                              plots_output_dir_);
-                                            */
-    auto err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
-                                            channel_currents_sum_A,
-                                            run_name,
-                                            "Sum_A",
-                                            plot_options,
-                                            plots_output_dir_,
-                                            channels_sum_fit_results);
-    err_plot = Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
-                                            channel_currents_sum_C,
-                                            run_name,
-                                            "Sum_C",
-                                            plot_options,
-                                            plots_output_dir_,
-                                            channels_sum_fit_results);
+
+    TRY( Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
+                                  channel_currents_sum_A,
+                                  run_name,
+                                  "Sum_A",
+                                  plot_options,
+                                  plots_output_dir_,
+                                  channels_sum_fit_results) )
+
+    TRY( Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
+                                  channel_currents_sum_C,
+                                  run_name,
+                                  "Sum_C",
+                                  plot_options,
+                                  plots_output_dir_,
+                                  channels_sum_fit_results) )
   }
 
   if (plot_options.do_fit()) {
-    auto err_fit_res = Plotter::WriteFitResultsToTree(fit_results,
-                                                     run_name,
-                                                     fit_results_output_dir_);
+    LOG_ERR( Plotter::WriteFitResultsToTree(fit_results,
+                                            run_name,
+                                            fit_results_output_dir_) )
 
-    auto err_calib = Plotter::WriteCalibrationToText(fit_results,
+    LOG_ERR( Plotter::WriteCalibrationToText(fit_results,
+                                             run_name,
+                                             calibrations_output_dir_) )
+
+    LOG_ERR( Plotter::GeometricAnalysisOfFitResults(fit_results,
                                                     run_name,
-                                                    calibrations_output_dir_);
-
-    auto result_geo = Plotter::GeometricAnalysisOfFitResults(fit_results,
-                                                             run_name,
-                                                             geometric_analysis_output_dir_);
-
-    if (!result_geo.valid()) cout << result_geo.error()->what() << endl;
+                                                    geometric_analysis_output_dir_) )
   }
 
-  return 0;
+  return Void();
 }
 
-int Analysis::CreateSingleRunPlots(const SingleRunData &this_run) {
 // Create those plots which use data from only a single sample
-
+Expected<Void> Analysis::CreateSingleRunPlots(const SingleRunData &this_run) {
   string run_name = this_run.run_name_;
-
-  if (plot_types_.size() == 0) {
-    if (verbose_) cout << "No plot types selected" << endl;
-    return 0;
-  }
-  if (verbose_) cout << "Creating plots for sample " << run_name << endl;
 
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "lumi_current") {
+      if (verbose_) cout << "Creating plots for sample " << run_name << endl;
       std::map<string, FitResults> fit_results;
-      int err_lumi_curr = CreateLumiCurrentPlots(this_run);
+      TRY( CreateLumiCurrentPlots(this_run) )
     }
   }
-
-  return 0;
+  // Remove the TRY above if other single run plots are added
+  return Void();
 }
 
-int Analysis::PrepareAnalysis(string params_filepath) {
+Expected<Void> Analysis::PrepareAnalysis(string params_filepath) {
 // Reads in the analysis parameters (json) and channel information (text). 
 // Sets flags for which data to retrieve based on which plots to produce.
 
@@ -498,35 +454,23 @@ int Analysis::PrepareAnalysis(string params_filepath) {
   // FCal currents are required to calculate FCal lumi
   if (retrieve_lumi_FCal_) retrieve_currents_ = true;
 
-  int err_RCL = ReadChannelsList(channels_list_filepath_);
-  if (err_RCL) {
-    cerr << "ERROR: in ReadCalibrations(string channels_list_filepath)"
-         << endl;
-    return 1;
-  }
+  TRY( ReadChannelsList(channels_list_filepath_) )
 
   if (retrieve_lumi_FCal_) {
-    int err_RC = ReadCalibrations(calibrations_filepath_);
-    if (err_RC) {
-      cerr << "ERROR: in ReadCalibrations(string calibrations_filepath)"
-           << endl;
-      return 1;
-    }
+    TRY( ReadCalibrations(calibrations_filepath_) )
   }
 
-  return 0;
+  return Void();
 }
 
-int Analysis::ReadCalibrations(string calibrations_filepath) {
 // Reads in calibration values for each of the channels being used (those
 //   read in with ReadChannelsList)
-
+Expected<Void> Analysis::ReadCalibrations(string calibrations_filepath) {
+  auto this_func_name = "Analysis::ReadCalibrations";
   for (auto &channel: channels_list_) {
     std::ifstream calibrations_file(calibrations_filepath);
     if (!calibrations_file) {
-      cerr << "ERROR: Could not locate calibrations file \'"
-           << calibrations_filepath << "\'" << endl;
-      return 1;
+      return make_unexpected(make_shared<Error::File>(calibrations_filepath, this_func_name));
     }
 
     string channel_name;
@@ -545,24 +489,22 @@ int Analysis::ReadCalibrations(string calibrations_filepath) {
     calibrations_file.close();
 
     if (!found_channel) {
-      cerr << "ERROR: Could not locate calibration for channel "
-           << channel.first << endl;
-      return 2;
+      auto err_msg = "could not locate calibration for channel "+channel.first;
+      return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
     }
-  } // Used channels loop
+  }
 
-  return 0;
+  return Void();
 }
 
-int Analysis::ReadChannelsList(string channels_list_filepath) {
 // Reads the list of channels to be used in the analysis, and stores them
 //   in channels_list_
+Expected<Void> Analysis::ReadChannelsList(string channels_list_filepath) {
+  auto this_func_name = "Analysis::ReadChannelsList";
 
   std::ifstream channels_list_file(channels_list_filepath);
   if (!channels_list_file) {
-    cerr << "ERROR: Could not locate channels list file \'"
-         << channels_list_filepath << "\'" << endl;
-    return 1;
+    return make_unexpected(make_shared<Error::File>(channels_list_filepath, this_func_name));
   }
 
   string channel_name;
@@ -576,7 +518,7 @@ int Analysis::ReadChannelsList(string channels_list_filepath) {
   }
   channels_list_file.close();
 
-  return 0;
+  return Void();
 }
 
 void Analysis::ReadParams(string params_filepath) {
@@ -633,13 +575,14 @@ void Analysis::ReadParams(string params_filepath) {
                                      "filepaths.output.fit_results.geometric");
 }
 
-int Analysis::RunAnalysis() {
 // Control flow for the analysis of samples and creation of plots
+Expected<Void> Analysis::RunAnalysis() {
+
+  auto this_func_name = "Analysis::RunAnalysis()";
 
   std::ifstream run_names_file(run_list_dir_);
   if (!run_names_file) {
-    cerr << "ERROR: Could not locate file: " << run_list_dir_ << endl;
-    return 1;
+    return make_unexpected(make_shared<Error::File>(run_list_dir_, this_func_name));
   }
 
   string run_name;
@@ -662,52 +605,34 @@ int Analysis::RunAnalysis() {
   // Iterate over samples
   std::map<string, SingleRunData> runs_data;
 
-  //#pragma omp parallel for
-  for (auto it = run_names_vec.begin(); it < run_names_vec.end(); ++it) {
-    SingleRunData this_run(*it);
+  for (const auto &run_name: run_names_vec) {
+    SingleRunData this_run(run_name);
 
     // Read in pedestals
     if (retrieve_currents_) {
       if (verbose_) cout << "Retrieving channel pedestals" << endl;
 
-      int err_pedestal = this_run.ReadPedestals(pedestals_dir_, channel_names);
-      if (err_pedestal) {
-        cerr << "ERROR: In ReadPedestals(string pedestals_dir, string run_name)"
-             << endl;
-        continue;
-        //return 1;
-      }
+      LOG_ERR_CONTINUE( this_run.ReadPedestals(pedestals_dir_, channel_names) )
     }
 
-    auto err_analyse = AnalyseTree(this_run);
-    if (err_analyse) {
-      cerr << "ERROR: In AnalyseTree(string run_name)" << endl;
-      continue;
-      //return 1;
-    }
+    LOG_ERR_CONTINUE( AnalyseTree(this_run) )
 
-    auto err_plots = CreateSingleRunPlots(this_run);
-    if (err_plots) {
-      cerr << "ERROR: In CreateSingleRunPlots(string run_name)" << endl;
-      continue;
-      //return 1;
-    }
+    LOG_ERR_CONTINUE( CreateSingleRunPlots(this_run) )
 
     if (retrieve_lumi_FCal_) {
-      auto err_lumi_FCal = CalcFCalLumi(this_run);
-      auto err_mu_FCal = CalcFCalMu(this_run);
+      LOG_ERR_CONTINUE( CalcFCalLumi(this_run) )
+      LOG_ERR_CONTINUE( CalcFCalMu(this_run) )
     }
     if (do_Benedetto_) {
-      auto err_Benedetto = CreateBenedettoOutput(this_run);
+      LOG_ERR_CONTINUE( CreateBenedettoOutput(this_run) )
     }
 
-    //#pragma omp critical
-    runs_data.insert(std::make_pair(*it, std::move(this_run)));
+    runs_data.insert(std::make_pair(run_name, std::move(this_run)));
   }
 
-  auto err_plots_all = CreateAllRunPlots(runs_data);
+  CreateAllRunPlots(runs_data);
 
-  return 0;
+  return Void();
 }
 
 /*
@@ -724,4 +649,22 @@ int WriteCurrentsToFile(vector<Float_t> currents, string run_name) {
   out_file.close();
   return 0;
 }
+
+template <typename T>
+int WriteVectorToFile(const vector<T> &vec, string filepath) {
+  // Writes each element of a vector to a file at the specified path;
+  //   elements are separated by newlines.
+
+  std::ofstream out_file(filepath);
+  if (!out_file.is_open()) {
+    cerr << "ERROR: could not open file \'" << filepath << "\'" << endl;
+    return 1;
+  }
+
+  for (auto iElement: vec) out_file << iElement << '\n';
+  out_file.close();
+
+  return 0;
+}
+
 */

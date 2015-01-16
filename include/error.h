@@ -7,8 +7,45 @@
 
 #include <boost/expected/expected.hpp>
 
+// Executes `expression` of return type Expected<T> and returns result if it
+//   is an error
 #define TRY(expression) \
-  if (!expression.valid()) return expression
+  {                                \
+    auto result = expression;         \
+    if (!result.valid()) return result; \
+  }
+
+// Executes `expression` of return type Expected<T> and streams error message
+//   to std::err if result is an error
+#define LOG_ERR(expression) \
+  {                                                         \
+    auto result = expression;                               \
+    if (!result.valid()) {                                  \
+      std::cerr << result.error()->what() << std::endl; \
+    }                                                       \
+  }
+
+// Executes `expression` of return type Expected<T> and streams error message
+//   to std::err if result is an error
+#define LOG_ERR_CONTINUE(expression) \
+  {                                                         \
+    auto result = expression;                               \
+    if (!result.valid()) {                                  \
+      std::cerr << result.error()->what() << std::endl; \
+      continue;                                             \
+    }                                                       \
+  }
+
+// Executes `expression` of return type Expected<T> and streams error message
+//   to std::err if result is an error
+#define LOG_ERR_CTOR_THROW(expression) \
+  {                                                           \
+    auto result = expression;                                 \
+    if (!result.valid()) {                                    \
+      std::cerr << result.error()->what() << std::endl;   \
+      throw std::runtime_error("failed to construct object"); \
+    }                                                         \
+  }
 
 namespace Error {
 
@@ -33,12 +70,20 @@ class System : public Base {
   }
 };
 
-class FileNotOpen : public Base {
+class Runtime : public Base {
  public:
-  FileNotOpen(const std::string &filepath,
-              const std::string &func_name) {
+  Runtime(const std::string &msg,
+          const std::string &func_name) {
+    Base::msg_ = "Error: in "+func_name+" - "+msg;
+  }
+};
+
+class File : public Base {
+ public:
+  File(const std::string &filepath,
+       const std::string &func_name) {
     Base::msg_ = ("Error: in "+func_name+" - file `"+filepath+
-                    "` could not be opened");
+                    "` was not found or could not be opened");
   }
 };
 
@@ -46,6 +91,14 @@ class Nullptr : public Base {
  public:
   Nullptr(const std::string &func_name) {
     Base::msg_ = ("Error: "+func_name+" was passed a nullptr");
+  }
+};
+
+class Logic : public Base {
+ public:
+  Logic(const std::string description,
+        const std::string &func_name) {
+    Base::msg_ = ("Error: in "+func_name+" - "+description);
   }
 };
 

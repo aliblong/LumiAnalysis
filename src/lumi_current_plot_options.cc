@@ -35,6 +35,8 @@ LumiCurrentPlotOptions::LumiCurrentPlotOptions(string params_filepath) {
 
   fit_options_ = fit_verbosity_option + fit_show_option + additional_options;
 
+  fit_fix_intercept_ = parameter_file.get<bool>(node_name+"fit.fix_intercept");
+
   fit_show_legend_ = parameter_file.get<bool>(node_name+"fit.show_legend");
   fit_line_color_ = parameter_file.get<int>(node_name+"fit.line_color");
   fit_line_width_ = parameter_file.get<Float_t>(node_name+"fit.line_width");

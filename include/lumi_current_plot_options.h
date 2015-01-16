@@ -12,6 +12,7 @@ class LumiCurrentPlotOptions {
   bool do_sum() const { return do_sum_; }
   bool do_fit() const { return do_fit_; }
 
+  bool fit_fix_intercept() const { return fit_fix_intercept_; }
   std::string fit_options() const { return fit_options_; }
   bool fit_show_legend() const { return fit_show_legend_; }
   int fit_line_color() const { return fit_line_color_; }
@@ -42,6 +43,7 @@ class LumiCurrentPlotOptions {
   bool do_sum_;
   bool do_fit_;
 
+  bool fit_fix_intercept_;
   std::string fit_options_;
   bool fit_show_legend_;
   int fit_line_color_;

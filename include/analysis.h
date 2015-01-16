@@ -5,30 +5,31 @@
 #include <vector>
 #include <map>
 
+#include "error.h"
 #include "fit_results.h"
 #include "single_run_data.h"
+#include "void.h"
 
+// God object for the analysis
 class Analysis {
  public:
   Analysis(std::string params_filepath);
   ~Analysis(){};
 
-  int AnalyseTree(SingleRunData &this_run);
-  int CreateAllRunPlots(const std::map<std::string, SingleRunData> &runs_data);
-  int CreateLumiCurrentPlots(const SingleRunData &this_run);
-  int CreateSingleRunPlots(const SingleRunData &this_run);
-  int PrepareAnalysis(std::string params_filepath);
-  int ReadCalibrations(std::string channels_filepath);
-  int ReadChannelsList(std::string channels_list_filepath);
+  Error::Expected<Void> AnalyseTree(SingleRunData &this_run);
+  void CreateAllRunPlots(const std::map<std::string, SingleRunData> &runs_data);
+  Error::Expected<Void> CreateLumiCurrentPlots(const SingleRunData &this_run);
+  Error::Expected<Void> CreateSingleRunPlots(const SingleRunData &this_run);
+  Error::Expected<Void> PrepareAnalysis(std::string params_filepath);
+  Error::Expected<Void> ReadCalibrations(std::string channels_filepath);
+  Error::Expected<Void> ReadChannelsList(std::string channels_list_filepath);
   void ReadParams(std::string params_filepath);
-  int RunAnalysis();
-  int WriteCurrentsToFile(std::string run_name);
+  Error::Expected<Void> RunAnalysis();
+  Error::Expected<Void> WriteCurrentsToFile(std::string run_name);
+  Error::Expected<Void> CalcFCalLumi(SingleRunData &this_run);
+  Error::Expected<Void> CalcFCalMu(SingleRunData &this_run);
+  Error::Expected<Void> CreateBenedettoOutput(const SingleRunData &this_run) const;
 
-  int CalcFCalLumi(SingleRunData &this_run);
-  int CalcFCalMu(SingleRunData &this_run);
-  int CreateBenedettoOutput(const SingleRunData &this_run) const;
-
- private:
   bool verbose_;
 
   bool do_Benedetto_;

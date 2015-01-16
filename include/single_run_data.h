@@ -7,6 +7,9 @@
 
 #include "Rtypes.h"
 
+#include "error.h"
+#include "void.h"
+
 // Holds data for single runs
 class SingleRunData {
  public:
@@ -23,9 +26,9 @@ class SingleRunData {
  //private:
   friend class Analysis;
 
-  int ReadPedestals(std::string pedestals_dir,
+  Error::Expected<Void> ReadPedestals(std::string pedestals_dir,
                     const std::vector<std::string> &channel_names);
-  int CreateBenedettoOutput(std::string output_dir) const;
+  Error::Expected<Void> CreateBenedettoOutput(std::string output_dir) const;
 
   std::string run_name_;
   int nLB_; //number of lumi blocks

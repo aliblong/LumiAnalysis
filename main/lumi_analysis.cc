@@ -2,6 +2,7 @@
 #include <string>
 
 #include "analysis.h"
+#include "error.h"
 
 using std::string;
 using std::vector;
@@ -18,6 +19,7 @@ int main(int argc, char *argv[]) {
     cerr << "ERROR: invalid number of command line args. This program takes"
          << "one optional argument for the filepath of the parameters file."
          << endl;
+    return 1;
   } else if (argc == 2) {
     params_filepath = argv[1];
   } else {
@@ -25,10 +27,5 @@ int main(int argc, char *argv[]) {
   }
 
   Analysis analysis(params_filepath);
-  int err = analysis.RunAnalysis();
-  if (!err) {
-    cout << "Execution successful" << endl;
-  } else {
-    cout << "Execution produced one or more errors" << endl;
-  }
+  LOG_ERR( analysis.RunAnalysis() )
 }
