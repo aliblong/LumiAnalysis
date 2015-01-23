@@ -6,8 +6,10 @@
 
 #include "Rtypes.h"
 
-#include "fcal_region_z_side.h"
 #include "boost/expected/expected.hpp"
+
+#include "error.h"
+#include "fcal_region_z_side.h"
 
 namespace FCalRegion {
 
@@ -43,7 +45,7 @@ std::string ToString(ZSide region);
 std::string ToString(Axis axis);
 std::string ToString(Sign sign);
 
-std::string PhiSliceFromChannel(std::string channel_name);
+Error::Expected<std::string> PhiSliceFromChannel(std::string channel_name);
 Sign SignFromAxisAndPhiSlice(Axis axis, std::string phi_slice_name);
 
 }

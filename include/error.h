@@ -2,49 +2,43 @@
 #define INCLUDE_ERROR_H_
 
 #include <exception>
+#include <iostream>
 #include <memory>
 #include <string>
 
 #include <boost/expected/expected.hpp>
 
-// Executes `expression` of return type Expected<T> and returns result if it
-//   is an error
-#define TRY(expression) \
-  {                                \
-    auto result = expression;         \
-    if (!result.valid()) return result; \
+#include "void.h"
+
+#define RETURN_IF_ERR(result) \
+  if (!result.valid()) return result.get_unexpected();
+
+// If `result` of type Expected<T> is an error, executes `continue`.
+#define CONTINUE_IF_ERR(result) \
+  if (!result.valid()) { result.catch_error(Error::Log); continue; }
+
+// If `result` of type Expected<T> is an error, throws a std::runtime_error.
+#define THROW_IF_ERR(result)                         \
+  if (!result.valid()) throw std::runtime_error(result.error()->what());
+
+// Executes `expression` of return type Expected<Void> and returns result if it
+//   is an error.
+#define TRY(expression)                 \
+  {                                     \
+    auto result_TRY = expression;           \
+    RETURN_IF_ERR(result_TRY); \
   }
 
-// Executes `expression` of return type Expected<T> and streams error message
-//   to std::err if result is an error
-#define LOG_ERR(expression) \
-  {                                                         \
-    auto result = expression;                               \
-    if (!result.valid()) {                                  \
-      std::cerr << result.error()->what() << std::endl; \
-    }                                                       \
+#define TRY_CONTINUE(expression)                 \
+  {                                     \
+    auto result_TRY = expression;           \
+    CONTINUE_IF_ERR(result_TRY); \
   }
 
-// Executes `expression` of return type Expected<T> and streams error message
-//   to std::err if result is an error
-#define LOG_ERR_CONTINUE(expression) \
-  {                                                         \
-    auto result = expression;                               \
-    if (!result.valid()) {                                  \
-      std::cerr << result.error()->what() << std::endl; \
-      continue;                                             \
-    }                                                       \
-  }
-
-// Executes `expression` of return type Expected<T> and streams error message
-//   to std::err if result is an error
-#define LOG_ERR_CTOR_THROW(expression) \
-  {                                                           \
-    auto result = expression;                                 \
-    if (!result.valid()) {                                    \
-      std::cerr << result.error()->what() << std::endl;   \
-      throw std::runtime_error("failed to construct object"); \
-    }                                                         \
+#define TRY_THROW(expression)                 \
+  {                                     \
+    auto result_TRY = expression;           \
+    THROW_IF_ERR(result_TRY); \
   }
 
 namespace Error {
@@ -59,6 +53,8 @@ class Base : public std::exception {
 
 template <typename T>
 using Expected = boost::expected<T, std::shared_ptr<Base> >;
+
+auto Log = [](std::shared_ptr<Error::Base> error) { std::cerr << error->what() << std::endl; return Void(); };
 
 class System : public Base {
  public:
@@ -130,10 +126,6 @@ class Object {
   std::string msg_;
 };
 */
-
-void Report(const std::string &err_msg);
-
-void Report(const std::string &err_msg, unsigned indent_level);
 
 }
 

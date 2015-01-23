@@ -10,10 +10,11 @@
 class FitResults {
  public:
   FitResults();
+  FitResults(const TF1 &fit, const LumiCurrentPlotOptions &plot_options);
   ~FitResults();
   FitResults& operator=(const FitResults &rhs);
 
-  void FromFit(const TF1 *fit, const LumiCurrentPlotOptions &plot_options);
+  void FromFit(const TF1 &fit, const LumiCurrentPlotOptions &plot_options);
 
   Float_t slope;
   Float_t slope_err;

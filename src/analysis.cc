@@ -32,6 +32,7 @@ using boost::expected;
 using boost::make_unexpected;
 
 using Error::Expected;
+using Error::Log;
 
 namespace {
 
@@ -87,7 +88,7 @@ Analysis::Analysis(string params_filepath)
     retrieve_lumi_FCal_(false) {
 
   params_filepath_ = params_filepath;
-  LOG_ERR_CTOR_THROW( PrepareAnalysis(params_filepath) )
+  TRY_THROW( PrepareAnalysis(params_filepath) )
 }
 
 // Runs the analysis for a single sample.
@@ -302,7 +303,7 @@ void Analysis::CreateAllRunPlots(const std::map<string, SingleRunData> &runs_dat
     if (plot_type == "mu_stability") {
       if (verbose_) cout << "Making mu stability plot" << endl;
       MuStabPlotOptions plot_options(params_filepath_);
-      LOG_ERR( Plotter::PlotMuStability(runs_data, plot_options, plots_output_dir_) )
+      Plotter::PlotMuStability(runs_data, plot_options, plots_output_dir_).catch_error(Log);
     }
   }
 }
@@ -331,24 +332,25 @@ Expected<Void> Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
         continue;
       }
 
-      FitResults this_channel_fit_results;
-      if (this_run.pedestals_.at(this_channel_name) > 20) {
-        this_channel_fit_results.is_short = true;
-      } else {
-        this_channel_fit_results.is_short = false;
-      }
+      auto this_channel_fit_results =
+        Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
+                                 this_channel_current,
+                                 run_name,
+                                 this_channel_name,
+                                 plot_options,
+                                 plots_output_dir_);
 
-      TRY( Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
-                                    this_channel_current,
-                                    run_name,
-                                    this_channel_name,
-                                    plot_options,
-                                    plots_output_dir_,
-                                    this_channel_fit_results) )
+      RETURN_IF_ERR(this_channel_fit_results)
+
+      if (this_run.pedestals_.at(this_channel_name) > 20) {
+        this_channel_fit_results->is_short = true;
+      } else {
+        this_channel_fit_results->is_short = false;
+      }
 
       if (plot_options.do_fit()) {
         fit_results.insert(std::make_pair(this_channel_name,
-                                          this_channel_fit_results));
+                                          *this_channel_fit_results));
       }
     } //channels loop
   }
@@ -379,37 +381,33 @@ Expected<Void> Analysis::CreateLumiCurrentPlots(const SingleRunData &this_run) {
       }
     }
 
-    FitResults channels_sum_fit_results;
-
     TRY( Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
                                   channel_currents_sum_A,
                                   run_name,
                                   "Sum_A",
                                   plot_options,
-                                  plots_output_dir_,
-                                  channels_sum_fit_results) )
+                                  plots_output_dir_) )
 
     TRY( Plotter::PlotLumiCurrent(this_run.lumi_BCM_,
                                   channel_currents_sum_C,
                                   run_name,
                                   "Sum_C",
                                   plot_options,
-                                  plots_output_dir_,
-                                  channels_sum_fit_results) )
+                                  plots_output_dir_) )
   }
 
   if (plot_options.do_fit()) {
-    LOG_ERR( Plotter::WriteFitResultsToTree(fit_results,
-                                            run_name,
-                                            fit_results_output_dir_) )
+    Plotter::WriteFitResultsToTree(fit_results,
+                                   run_name,
+                                   fit_results_output_dir_).catch_error(Log);
 
-    LOG_ERR( Plotter::WriteCalibrationToText(fit_results,
-                                             run_name,
-                                             calibrations_output_dir_) )
+    Plotter::WriteCalibrationToText(fit_results,
+                                    run_name,
+                                    calibrations_output_dir_).catch_error(Log);
 
-    LOG_ERR( Plotter::GeometricAnalysisOfFitResults(fit_results,
-                                                    run_name,
-                                                    geometric_analysis_output_dir_) )
+    Plotter::GeometricAnalysisOfFitResults(fit_results,
+                                           run_name,
+                                           geometric_analysis_output_dir_).catch_error(Log);
   }
 
   return Void();
@@ -612,19 +610,19 @@ Expected<Void> Analysis::RunAnalysis() {
     if (retrieve_currents_) {
       if (verbose_) cout << "Retrieving channel pedestals" << endl;
 
-      LOG_ERR_CONTINUE( this_run.ReadPedestals(pedestals_dir_, channel_names) )
+      CONTINUE_IF_ERR( this_run.ReadPedestals(pedestals_dir_, channel_names) )
     }
 
-    LOG_ERR_CONTINUE( AnalyseTree(this_run) )
+    CONTINUE_IF_ERR( AnalyseTree(this_run) )
 
-    LOG_ERR_CONTINUE( CreateSingleRunPlots(this_run) )
+    CONTINUE_IF_ERR( CreateSingleRunPlots(this_run) )
 
     if (retrieve_lumi_FCal_) {
-      LOG_ERR_CONTINUE( CalcFCalLumi(this_run) )
-      LOG_ERR_CONTINUE( CalcFCalMu(this_run) )
+      CONTINUE_IF_ERR( CalcFCalLumi(this_run) )
+      CONTINUE_IF_ERR( CalcFCalMu(this_run) )
     }
     if (do_Benedetto_) {
-      LOG_ERR_CONTINUE( CreateBenedettoOutput(this_run) )
+      CONTINUE_IF_ERR( CreateBenedettoOutput(this_run) )
     }
 
     runs_data.insert(std::make_pair(run_name, std::move(this_run)));

@@ -57,6 +57,7 @@ using FCalRegion::Sign;
 
 using Error::Expected;
 
+typedef vector<Float_t> VectorF;
 typedef std::map<string, FitResults> FitResultsMap;
 
 namespace {
@@ -195,7 +196,7 @@ Expected<Void> PopulateTProfile(FCalRegion::ZSide side,
                      const std::map<string, SingleRunData> &runs_data,
                      TProfile *profile) {
 // Fills the TProfile for a given side using run data
-  const char *func_name = "PopulateTProfile";
+  auto func_name = "PopulateTProfile";
   if (profile == nullptr) {
     return make_unexpected(make_shared<Error::Nullptr>(func_name));
   }
@@ -205,7 +206,10 @@ Expected<Void> PopulateTProfile(FCalRegion::ZSide side,
   for (const auto &run: runs_data) {
     const auto &run_name = run.first;
     const auto &this_run_data = run.second;
-    const auto &timestamp = this_run_data.timestamp();
+    auto timestamp = this_run_data.timestamp();
+    const auto &this_run_lumi_BCM = this_run_data.lumi_BCM();
+    const auto &this_run_lumi_FCal_A = this_run_data.lumi_FCal_A();
+    const auto &this_run_lumi_FCal_C = this_run_data.lumi_FCal_C();
 
     auto this_bin = profile->GetXaxis()->FindBin(timestamp);
     if (this_bin == last_bin) {
@@ -214,25 +218,22 @@ Expected<Void> PopulateTProfile(FCalRegion::ZSide side,
       last_bin = this_bin;
     }
 
-    auto n_events = this_run_data.lumi_BCM_.size();
+    auto n_events = this_run_lumi_BCM.size();
 
     for (unsigned iEvent = 0; iEvent < n_events; ++iEvent) {
-      auto event_lumi_BCM = this_run_data.lumi_BCM_.at(iEvent);
+      auto event_lumi_BCM = this_run_lumi_BCM.at(iEvent);
       if (event_lumi_BCM < gBCMLumiCutoff) continue;
 
       Float_t event_lumi_FCal;
       if (side == ZSide::A) {
-          event_lumi_FCal = this_run_data.lumi_FCal_A_.at(iEvent);
+          event_lumi_FCal = this_run_lumi_FCal_A.at(iEvent);
       } else if (side == ZSide::C) {
-        event_lumi_FCal = this_run_data.lumi_FCal_C_.at(iEvent);
-      } else if (side == ZSide::Both) {
-        event_lumi_FCal = ( this_run_data.lumi_FCal_A_.at(iEvent) +
-                            this_run_data.lumi_FCal_C_.at(iEvent) ) / 2;
-        if (this_run_data.lumi_FCal_A_.at(iEvent) < gFCalLumiCutoff ||
-            this_run_data.lumi_FCal_C_.at(iEvent) < gFCalLumiCutoff) continue;
-      } else {
-        Error::Report("Error using FCalRegion enum");
-        event_lumi_FCal = -999.0;
+        event_lumi_FCal = this_run_lumi_FCal_C.at(iEvent);
+      } else { // (side == ZSide::Both) {
+        event_lumi_FCal = ( this_run_lumi_FCal_A.at(iEvent) +
+                            this_run_lumi_FCal_C.at(iEvent) ) / 2;
+        if (this_run_lumi_FCal_A.at(iEvent) < gFCalLumiCutoff ||
+            this_run_lumi_FCal_C.at(iEvent) < gFCalLumiCutoff) continue;
       }
       if (event_lumi_FCal < gFCalLumiCutoff) continue;
       Float_t this_event_diff = ((event_lumi_FCal/event_lumi_BCM) - 1)*100;
@@ -247,13 +248,13 @@ Expected<Void> PopulateTProfile(FCalRegion::ZSide side,
   return Void();
 }
 
-void ScaleVector(vector<Float_t> &vec, Float_t factor) {
+void ScaleVector(VectorF &vec, Float_t factor) {
   for (auto &element: vec) {
     element *= factor;
   }
 }
 
-void SetAxisAutoRange(TAxis *axis, const vector<Float_t> &points) {
+void SetAxisAutoRange(TAxis *axis, const VectorF &points) {
   auto max = *(std::max_element(points.begin(), points.end()));
   auto min_nonzero = *(std::min_element(points.begin(), points.end()));
   axis->SetRangeUser(0.8*min_nonzero, 1.2*max);
@@ -371,7 +372,7 @@ struct BinaryAverage {
   Float_t operator() (const T &T1, const T &T2) { return (T1 + T2) / 2.0; }
 };
 
-void DumpVector(const vector<Float_t> &vec) {
+void DumpVector(const VectorF &vec) {
   for (auto element: vec) cout << element << endl;
 }
 
@@ -390,21 +391,21 @@ bool MinNonZero(Float_t i, Float_t j) {
 
 }
 
-Expected<Void> Plotter::PlotLumiCurrent(const vector<Float_t> &lumi_arg,
-                                        const vector<Float_t> &current_arg,
-                                        string run_name,
-                                        string channel_name,
-                                        const LumiCurrentPlotOptions &plot_options,
-                                        string output_dir,
-                                        FitResults &fit_results) {
+Expected<FitResults> Plotter::PlotLumiCurrent(
+    const VectorF &lumi_arg,
+    const VectorF &current_arg,
+    string run_name,
+    string channel_name,
+    const LumiCurrentPlotOptions &plot_options,
+    string output_dir) {
 
   const char *this_func_name = "PlotLumiCurrent";
 
   TCanvas canvas;
   canvas.cd();
 
-  vector<Float_t> lumi;
-  vector<Float_t> current;
+  VectorF lumi;
+  VectorF current;
   auto num_points_arg = lumi_arg.size();
   Float_t epsilon = 0.00000000001;
 
@@ -453,6 +454,7 @@ Expected<Void> Plotter::PlotLumiCurrent(const vector<Float_t> &lumi_arg,
 
   // Write fit results and format fit legend
   TPaveText fit_legend;
+  FitResults fit_results;
   if (plot_options.do_fit()) {
     //graph.Fit("pol1", plot_options.fit_options().c_str());
     //TF1 *fit = graph.GetFunction("pol1");
@@ -479,8 +481,7 @@ Expected<Void> Plotter::PlotLumiCurrent(const vector<Float_t> &lumi_arg,
     //fit->SetLineColor(plot_options.fit_line_color());
     //fit->SetLineWidth(plot_options.fit_line_width());
 
-    fit_results.FromFit(&fit, plot_options);
-    //delete fit;
+    fit_results.FromFit(fit, plot_options);
 
     if (plot_options.fit_show_legend()) {
       FormatLegend(fit_legend, fit_results);
@@ -503,21 +504,22 @@ Expected<Void> Plotter::PlotLumiCurrent(const vector<Float_t> &lumi_arg,
   }
 
   canvas.Print( (write_dir+channel_name+".png").c_str() );
-  return Void();
+  return fit_results;
 }
 
+// Writes FCal current vs. BCM lumi fit parameters to a root file for a given
+//   run. These parameters are used to derive the FCal lumi calibration.
 Expected<Void> Plotter::GeometricAnalysisOfFitResults(
                      const FitResultsMap &fit_results,
                      string run_name,
                      string output_dir) {
-// Writes FCal current vs. BCM lumi fit parameters to a root file for a given
-//   run. These parameters are used to derive the FCal lumi calibration.
 
   auto phi_slices_slopes_sums = InitPhiSlicesSlopeSumsMap();
   for (const auto &this_channel_results: fit_results) {
     auto phi_slice =
       FCalRegion::PhiSliceFromChannel(this_channel_results.first);
-    phi_slices_slopes_sums.at(phi_slice) += this_channel_results.second.slope;
+    RETURN_IF_ERR(phi_slice)
+    phi_slices_slopes_sums.at(*phi_slice) += this_channel_results.second.slope;
   }
 
   auto regions_slopes_sums = InitRegionsSlopeSumsMap();
@@ -555,15 +557,15 @@ Expected<Void> Plotter::GeometricAnalysisOfFitResults(
                                       output_dir);
 }
 
+// Writes FCal current vs. BCM lumi fit parameters to a root file for a given
+//   run. These parameters are used to derive the FCal lumi calibration.
 Expected<Void> Plotter::WriteFitResultsToTree(const FitResultsMap &fit_results,
                                               string run_name,
                                               string output_dir) {
-// Writes FCal current vs. BCM lumi fit parameters to a root file for a given
-//   run. These parameters are used to derive the FCal lumi calibration.
 
   const char *this_func_name = "WriteFitResultsToTree";
 
-  TRY( Util::mkdir(output_dir) )
+  auto result_mkdir =  Util::mkdir(output_dir);
 
   TFile file((output_dir+run_name+".root").c_str(), "recreate");
   TTree tree;
@@ -595,12 +597,12 @@ Expected<Void> Plotter::WriteFitResultsToTree(const FitResultsMap &fit_results,
   return Void();
 }
 
-Expected<Void> Plotter::WriteCalibrationToText(const FitResultsMap &fit_results,
-                                               string run_name,
-                                               string output_dir) {
 // Writes the FCal lumi calibration data space-delimited in a plaintext file:
 //     
 //     ChannelName slope intercept
+Expected<Void> Plotter::WriteCalibrationToText(const FitResultsMap &fit_results,
+                                               string run_name,
+                                               string output_dir) {
 
   const char *this_func_name = "WriteCalibrationToText";
 
@@ -626,12 +628,11 @@ Expected<Void> Plotter::WriteCalibrationToText(const FitResultsMap &fit_results,
   return Void();
 }
 
+// Plots TProfiles of <mu> time stability for select FCal regions (A-side,
+//   C-side, average between them, etc.) all on the same canvas.
 Expected<Void> Plotter::PlotMuStability(const std::map<string, SingleRunData> &runs_data,
                              const MuStabPlotOptions &plot_options,
                              string output_dir) {
-// Plots TProfiles of <mu> time stability for select FCal regions (A-side,
-//   C-side, average between them, etc.) all on the same canvas.
-
   TCanvas canvas;
   canvas.cd();
   THStack stack("stack","");
@@ -732,9 +733,9 @@ Expected<Void> Plotter::PlotMuStability(const std::map<string, SingleRunData> &r
 }
 
 /*
-int Plotter::PlotLumiTotalCurrent(const vector<Float_t> &lumi_arg,
-                             const vector<Float_t> &current_arg_A,
-                             const vector<Float_t> &current_arg_C,
+int Plotter::PlotLumiTotalCurrent(const VectorF &lumi_arg,
+                             const VectorF &current_arg_A,
+                             const VectorF &current_arg_C,
                              string run_name,
                              const LumiCurrentPlotOptions &plot_options,
                              string output_dir) {
@@ -742,9 +743,9 @@ int Plotter::PlotLumiTotalCurrent(const vector<Float_t> &lumi_arg,
   TCanvas canvas("c_lumi_tot_current", "placeholder", 1024, 768);
   canvas.cd();
 
-  vector<Float_t> lumi;
-  vector<Float_t> current_A;
-  vector<Float_t> current_C;
+  VectorF lumi;
+  VectorF current_A;
+  VectorF current_C;
   auto num_points_arg = lumi_arg.size();
   Float_t epsilon = 0.00000000001;
 

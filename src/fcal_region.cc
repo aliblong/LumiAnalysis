@@ -1,20 +1,37 @@
+#include "fcal_region.h"
+
 #include <iostream>
 #include <map>
 #include <sstream>
 #include <string>
 
-#include "fcal_region.h"
+#include "boost/expected/expected.hpp"
+
 #include "enum.h"
 #include "error.h"
-
-using std::string;
 
 using FCalRegion::ZSide;
 using FCalRegion::Axis;
 using FCalRegion::Sign;
 using FCalRegion::ModuleHalfSet;
 
+using std::string;
+using std::make_shared;
+
+using boost::make_unexpected;
+using Error::Expected;
+
 namespace {
+
+struct LineID {
+  LineID(char r, char m, char c)
+    : region_ID(r),
+      module_ID(m),
+      channel_ID(c) {}
+  char region_ID;
+  char module_ID;
+  char channel_ID;
+};
 
 const std::map<ZSide, std::string> z_side_str_rep { {ZSide::A, "A"},
                                                     {ZSide::C, "C"},
@@ -47,21 +64,22 @@ int IntFromChar(char c) {
   return result;
 }
 
-string PhiSliceFromID(char region_ID, char module_ID, char channel_ID) {
-  auto module_ID_int = IntFromChar(module_ID);
+Expected<string> PhiSliceFromID(const LineID line_ID) {
+  auto this_func_name = "PhiSliceFromID";
+
+  auto module_ID_int = IntFromChar(line_ID.module_ID);
   if ( (module_ID_int < 0) || (module_ID_int > 9) ) {
-    Error::Report("ERROR: in IntFromChar(char c) - module_ID input falls"
-                  "outside [0,9]");
-    return "ERROR";
+    auto err_msg = "module_ID input falls outside [0,9]";
+    return make_unexpected(make_shared<Error::Logic>(err_msg, this_func_name));
   }
-  auto channel_ID_int = IntFromChar(channel_ID);
+  auto channel_ID_int = IntFromChar(line_ID.channel_ID);
   if ( (channel_ID_int < 0) || (channel_ID_int > 9) ) {
-    Error::Report("ERROR: in IntFromChar(char c) - channel_ID input falls"
-                  "outside [0,9]");
-    return "ERROR";
+    auto err_msg = "channel_ID input falls outside [0,9]";
+    return make_unexpected(make_shared<Error::Logic>(err_msg, this_func_name));
   }
+
   unsigned phi_slice_ID_int = (module_ID_int * 2) + (channel_ID_int / 4);
-  string region_ID_str(1,region_ID);
+  string region_ID_str(1, line_ID.region_ID);
   string phi_slice = region_ID_str + "1." + StringFromInt(phi_slice_ID_int, 2);
   return phi_slice;
 }
@@ -70,9 +88,9 @@ string PhiSliceFromID(char region_ID, char module_ID, char channel_ID) {
 
 ModuleHalfSet FCalRegion::CreateModuleHalfSet() {
   ModuleHalfSet result;
-  for (const auto &side: FCalRegion::Z_SIDES) {
-    for (const auto &axis: FCalRegion::AXES) {
-      for (const auto &sign: FCalRegion::SIGNS) {
+  for (auto side: FCalRegion::Z_SIDES) {
+    for (auto axis: FCalRegion::AXES) {
+      for (auto sign: FCalRegion::SIGNS) {
         result.insert(std::make_tuple(side, axis, sign));
       }
     }
@@ -101,7 +119,7 @@ void FCalRegion::DumpGeoRegion(const ModuleHalf &region) {
 }
 */
 
-string FCalRegion::PhiSliceFromChannel(string channel_name) {
+Expected<string> FCalRegion::PhiSliceFromChannel(string channel_name) {
 // This is vaguely hack-y & only works with a very specific channel-naming scheme
 
   ZSide this_region = ZSide::A;
@@ -121,7 +139,7 @@ string FCalRegion::PhiSliceFromChannel(string channel_name) {
     module_ID = channel_name.at(3);
     channel_ID = channel_name.at(5);
   }
-  return PhiSliceFromID(region_ID, module_ID, channel_ID);
+  return PhiSliceFromID(LineID(region_ID, module_ID, channel_ID));
 }
 
 Sign FCalRegion::SignFromAxisAndPhiSlice(Axis axis, string phi_slice_name) {
@@ -132,14 +150,11 @@ Sign FCalRegion::SignFromAxisAndPhiSlice(Axis axis, string phi_slice_name) {
     } else {
       return Sign::Neg;
     }
-  } else if (axis == Axis::Y) {
+  } else { //if (axis == Axis::Y) {
     if (phi_slice_number < 8) {
       return Sign::Pos;
     } else {
       return Sign::Neg;
     }
-  } else {
-    Error::Report("ERROR in SignFromAxisAndPhiSlice: invalid axis");
-    return Sign::Pos;
   }
 }
