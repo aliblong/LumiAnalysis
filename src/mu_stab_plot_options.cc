@@ -11,6 +11,11 @@ MuStabPlotOptions::MuStabPlotOptions(string params_filepath) {
   JSONReader parameter_file(params_filepath);
   string node_name = "plot_options.mu_stability.";
 
+  base_output_dir_ = parameter_file.get<string>("output_dirs.mu_stability");
+  rootfiles_output_dir_ = base_output_dir_ +
+                          parameter_file.get<string>(
+                              node_name+"output_dirs.rootfiles");
+
   draw_options_ = parameter_file.get<string>(node_name+"draw_options");
 
   marker_color_A_ = parameter_file.get<int>(node_name+"marker.A.color");

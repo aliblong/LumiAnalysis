@@ -48,6 +48,8 @@ std::string ToString(Sign sign);
 Error::Expected<std::string> PhiSliceFromChannel(std::string channel_name);
 Sign SignFromAxisAndPhiSlice(Axis axis, std::string phi_slice_name);
 
+bool IsValidChannel(const std::string& channel_name);
+
 }
 
 #endif

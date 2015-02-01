@@ -5,8 +5,19 @@
 
 class LumiCurrentPlotOptions {
  public:
-  LumiCurrentPlotOptions(std::string params_filepath);
+  LumiCurrentPlotOptions(const std::string& params_filepath);
   ~LumiCurrentPlotOptions(){};
+
+  void set_run_name(std::string run_name) { run_name_ = run_name; }
+  void set_channel_name(std::string channel_name) { channel_name_ = channel_name; }
+
+  const std::string& run_name() const { return run_name_; }
+  const std::string& channel_name() const { return channel_name_; }
+
+  const auto& plots_dir() const { return plots_dir_; }
+  const auto& raw_fit_results_dir() const { return raw_fit_results_dir_; }
+  const auto& calibration_results_dir() const { return calibration_results_dir_; }
+  const auto& geometric_results_dir() const { return geometric_results_dir_; }
 
   bool do_individual() const { return do_individual_; }
   bool do_sum() const { return do_sum_; }
@@ -39,6 +50,14 @@ class LumiCurrentPlotOptions {
   std::string y_title() const { return y_title_; }
 
  private:
+  std::string run_name_;
+  std::string channel_name_;
+
+  std::string plots_dir_;
+  std::string raw_fit_results_dir_;
+  std::string calibration_results_dir_;
+  std::string geometric_results_dir_;
+
   bool do_individual_;
   bool do_sum_;
   bool do_fit_;

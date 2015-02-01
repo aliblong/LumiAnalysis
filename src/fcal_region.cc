@@ -33,7 +33,7 @@ struct LineID {
   char channel_ID;
 };
 
-const std::map<ZSide, std::string> z_side_str_rep { {ZSide::A, "A"},
+const std::map<ZSide, std::string> Z_SIDE_STR_REP { {ZSide::A, "A"},
                                                     {ZSide::C, "C"},
                                                     {ZSide::Both, "Total"} };
 const std::map<Axis, std::string> axis_str_rep { {Axis::X, "X"},
@@ -46,7 +46,8 @@ std::string MsgFromDict(const T &key, std::map<T, std::string> dict) {
   auto msg_it = dict.find(key);
   if (msg_it == dict.end()) {
     return "ERROR: entry for enum not found";
-  } else {
+  }
+  else {
     return msg_it->second;
   }
 }
@@ -100,7 +101,7 @@ ModuleHalfSet FCalRegion::CreateModuleHalfSet() {
 }
 
 string FCalRegion::ToString(ZSide side) {
-  return MsgFromDict(side, z_side_str_rep);
+  return MsgFromDict(side, Z_SIDE_STR_REP);
 }
 
 string FCalRegion::ToString(Axis axis) {
@@ -134,7 +135,8 @@ Expected<string> FCalRegion::PhiSliceFromChannel(string channel_name) {
     region_ID = 'A';
     module_ID = channel_name.at(2);
     channel_ID = channel_name.at(4);
-  } else {
+  }
+  else {
     region_ID = 'C';
     module_ID = channel_name.at(3);
     channel_ID = channel_name.at(5);
@@ -147,14 +149,26 @@ Sign FCalRegion::SignFromAxisAndPhiSlice(Axis axis, string phi_slice_name) {
   if (axis == Axis::X) {
     if ((phi_slice_number < 4) || (phi_slice_number > 11)) {
       return Sign::Pos;
-    } else {
-      return Sign::Neg;
     }
-  } else { //if (axis == Axis::Y) {
-    if (phi_slice_number < 8) {
-      return Sign::Pos;
-    } else {
+    else {
       return Sign::Neg;
     }
   }
+  else { //if (axis == Axis::Y) {
+    if (phi_slice_number < 8) {
+      return Sign::Pos;
+    }
+    else {
+      return Sign::Neg;
+    }
+  }
+}
+
+// A half-assed test
+bool FCalRegion::IsValidChannel(const string& channel_name) {
+  auto size = channel_name.size();
+  if (size < 5 || size > 6) return false;
+  if (channel_name[0] != 'M') return false;
+  if (channel_name[1] != '1' && channel_name[1] != '8') return false;
+  return true;
 }

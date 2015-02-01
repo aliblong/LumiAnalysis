@@ -35,6 +35,7 @@
 #include "fit_results.h"
 #include "lumi_current_plot_options.h"
 #include "mu_stab_plot_options.h"
+#include "point.h"
 #include "util.h"
 #include "void.h"
 
@@ -68,7 +69,7 @@ typedef std::map<FCalRegion::ModuleHalf, Float_t>
 ModuleHalfMap InitRegionsSlopeSumsMap() {
   ModuleHalfMap result;
   auto module_half_set = FCalRegion::CreateModuleHalfSet();
-  for (const auto &region: module_half_set) {
+  for (const auto& region: module_half_set) {
     result.insert(std::make_pair(region, 0.0));
   }
   return result;
@@ -83,30 +84,25 @@ string StringFromInt(int i, unsigned width) {
 }
 
 Expected<Void> WriteGeometricAnalysisToText(
-      const std::map<string, Float_t> &phi_slices_slopes_sums,
-      const ModuleHalfMap &regions_slopes_sums,
-      const string &run_name,
-      const string &output_dir) {
+      const std::map<string, Float_t>& phi_slices_slopes_sums,
+      const ModuleHalfMap& regions_slopes_sums,
+      const LumiCurrentPlotOptions& options) {
 
   // For error reporting. Replace with reflection framework?
   const char *this_func_name = "WriteGeometricAnalysisToText";
 
-  const string make_outdir_command = "mkdir -p " + output_dir;
-  const int err = system( make_outdir_command.c_str() );
+  auto output_dir = options.geometric_results_dir();
+  TRY( Util::mkdir(output_dir) )
 
-  if (err) {
-    return make_unexpected(make_shared<Error::System>(err, make_outdir_command, this_func_name));
-  }
-
-  const string out_filepath = output_dir + run_name + ".dat";
+  const string out_filepath = output_dir + options.run_name() + ".dat";
   std::ofstream out_file(out_filepath);
   if (!out_file.is_open()) {
     return make_unexpected(make_shared<Error::File>(out_filepath, this_func_name));
   }
 
-  for (const auto &this_phi_slice_slopes_sum: phi_slices_slopes_sums) {
-    const auto &phi_slice_name = this_phi_slice_slopes_sum.first;
-    const auto &slopes_sum = this_phi_slice_slopes_sum.second;
+  for (const auto& this_phi_slice_slopes_sum: phi_slices_slopes_sums) {
+    const auto& phi_slice_name = this_phi_slice_slopes_sum.first;
+    const auto& slopes_sum = this_phi_slice_slopes_sum.second;
 
     out_file << phi_slice_name << ' ' << slopes_sum << '\n';
   }
@@ -114,7 +110,7 @@ Expected<Void> WriteGeometricAnalysisToText(
   out_file << '\n';
 
   auto regions = FCalRegion::CreateModuleHalfSet();
-  for (const auto &region: regions) {
+  for (const auto& region: regions) {
     auto z_side = std::get<0>(region);
     auto axis = std::get<1>(region);
     auto sign = std::get<2>(region);
@@ -137,21 +133,22 @@ std::map<string, Float_t> InitPhiSlicesSlopeSumsMap() {
     phi_slice_names.emplace_back("A1." + StringFromInt(i, 2));
     phi_slice_names.emplace_back("C1." + StringFromInt(i, 2));
   }
-  for (const auto &phi_slice: phi_slice_names) {
+  for (const auto& phi_slice: phi_slice_names) {
     result.insert(std::make_pair(phi_slice, 0.0));
   }
   return result;
 }
 
-void FormatTHStack(const MuStabPlotOptions &plot_options,
-                   THStack &stack) {
+void FormatTHStack(const MuStabPlotOptions& plot_options,
+                   THStack& stack) {
   Double_t ratio_max;
   Double_t ratio_min;
 
   if(plot_options.y_auto_range()) {
     ratio_max = stack.GetMaximum() * 1.2;
     ratio_min = stack.GetMinimum() * 0.8;
-  } else {
+  }
+  else {
     ratio_max = plot_options.y_max();
     ratio_min = plot_options.y_min();
   }
@@ -164,7 +161,7 @@ void FormatTHStack(const MuStabPlotOptions &plot_options,
   stack.SetMaximum(ratio_max);
 }
 
-vector<FCalRegionData> InitRegionsData(const MuStabPlotOptions &plot_options) {
+vector<FCalRegionData> InitRegionsData(const MuStabPlotOptions& plot_options) {
 // Creates a vector of plotting parameters for the A- and C- side <mu>
 //   stability profiles, as well as the average
 
@@ -192,29 +189,31 @@ vector<FCalRegionData> InitRegionsData(const MuStabPlotOptions &plot_options) {
   return regions;
 }
 
-Expected<Void> PopulateTProfile(FCalRegion::ZSide side,
-                     const std::map<string, SingleRunData> &runs_data,
-                     TProfile *profile) {
 // Fills the TProfile for a given side using run data
+Expected<Void> PopulateTProfile(
+    FCalRegion::ZSide side,
+    const std::map<string, SingleRunData>& runs_data,
+    TProfile *profile)
+{
   auto func_name = "PopulateTProfile";
   if (profile == nullptr) {
     return make_unexpected(make_shared<Error::Nullptr>(func_name));
   }
 
-  Float_t last_run_diff = 0.0;
   Int_t last_bin = -999;
-  for (const auto &run: runs_data) {
-    const auto &run_name = run.first;
-    const auto &this_run_data = run.second;
+  for (const auto& run: runs_data) {
+    const auto& run_name = run.first;
+    const auto& this_run_data = run.second;
     auto timestamp = this_run_data.timestamp();
-    const auto &this_run_lumi_BCM = this_run_data.lumi_BCM();
-    const auto &this_run_lumi_FCal_A = this_run_data.lumi_FCal_A();
-    const auto &this_run_lumi_FCal_C = this_run_data.lumi_FCal_C();
+    const auto& this_run_lumi_BCM = this_run_data.lumi_BCM();
+    const auto& this_run_lumi_FCal_A = this_run_data.lumi_FCal_A();
+    const auto& this_run_lumi_FCal_C = this_run_data.lumi_FCal_C();
 
     auto this_bin = profile->GetXaxis()->FindBin(timestamp);
     if (this_bin == last_bin) {
       cerr << "Warning: bin collision for run " << run_name << endl;
-    } else {
+    }
+    else {
       last_bin = this_bin;
     }
 
@@ -227,9 +226,11 @@ Expected<Void> PopulateTProfile(FCalRegion::ZSide side,
       Float_t event_lumi_FCal;
       if (side == ZSide::A) {
           event_lumi_FCal = this_run_lumi_FCal_A.at(iEvent);
-      } else if (side == ZSide::C) {
+      }
+      else if (side == ZSide::C) {
         event_lumi_FCal = this_run_lumi_FCal_C.at(iEvent);
-      } else { // (side == ZSide::Both) {
+      }
+      else { // (side == ZSide::Both) {
         event_lumi_FCal = ( this_run_lumi_FCal_A.at(iEvent) +
                             this_run_lumi_FCal_C.at(iEvent) ) / 2;
         if (this_run_lumi_FCal_A.at(iEvent) < gFCalLumiCutoff ||
@@ -248,16 +249,10 @@ Expected<Void> PopulateTProfile(FCalRegion::ZSide side,
   return Void();
 }
 
-void ScaleVector(VectorF &vec, Float_t factor) {
-  for (auto &element: vec) {
-    element *= factor;
-  }
-}
-
-void SetAxisAutoRange(TAxis *axis, const VectorF &points) {
-  auto max = *(std::max_element(points.begin(), points.end()));
-  auto min_nonzero = *(std::min_element(points.begin(), points.end()));
-  axis->SetRangeUser(0.8*min_nonzero, 1.2*max);
+void SetAxisAutoRange(TAxis *axis) {
+  auto max = axis->GetXmax();
+  auto min = axis->GetXmin();
+  axis->SetRangeUser(0.8*min, 1.2*max);
 }
 
 string TruncateFloatToString(Float_t value, unsigned n_decimal_places) {
@@ -266,7 +261,7 @@ string TruncateFloatToString(Float_t value, unsigned n_decimal_places) {
   return stream.str();
 }
 
-void FormatLegend(TPaveText &fit_legend, const FitResults &fit_results) {
+void FormatLegend(TPaveText& fit_legend, const FitResults& fit_results) {
   Float_t goodness_of_fit = fit_results.chi_squared / fit_results.nDoF;
   string GoF = TruncateFloatToString(goodness_of_fit, 2);
   string slope = TruncateFloatToString(fit_results.slope, 3);
@@ -286,8 +281,8 @@ void FormatLegend(TPaveText &fit_legend, const FitResults &fit_results) {
   fit_legend.SetFillColor(0);
 }
 
-void ApplyLCPlotOptionsToGraph(TGraphErrors &graph,
-                               const LumiCurrentPlotOptions &plot_options) {
+void ApplyLCPlotOptionsToGraph(TGraphErrors& graph,
+                               const LumiCurrentPlotOptions& plot_options) {
   graph.SetMarkerColor(plot_options.marker_color());
   graph.SetMarkerStyle(plot_options.marker_style());
   graph.SetMarkerSize(plot_options.marker_size());
@@ -299,7 +294,8 @@ void ApplyLCPlotOptionsToGraph(TGraphErrors &graph,
   graph.GetYaxis()->SetTitle(plot_options.y_title().c_str());
 }
 
-void DrawATLASInternalLabel(TLatex &label) {
+TLatex DrawATLASInternalLabel() {
+  TLatex label;
   label.SetNDC(true);
   label.SetTextSize(0.040);
   label.SetTextFont(72);
@@ -307,10 +303,12 @@ void DrawATLASInternalLabel(TLatex &label) {
   label.SetTextFont(42);
   label.DrawLatex(0.65+0.10,0.84,"Internal");
   label.SetTextSize(0.030);
+
+  return label;
 }
 
-void FilterOutliers(TGraphErrors &graph, const TF1 &fit,
-                    const LumiCurrentPlotOptions &plot_options) {
+void FilterOutliers(TGraphErrors& graph, const TF1& fit,
+                    const LumiCurrentPlotOptions& plot_options) {
   Double_t slope = fit.GetParameter(1);
   Double_t intercept = fit.GetParameter(0);
 
@@ -343,8 +341,8 @@ void FilterOutliers(TGraphErrors &graph, const TF1 &fit,
   //fit = graph.GetFunction("pol1");
 }
 
-void RecursiveFilterOutliers(TGraphErrors &graph, const TF1 &fit,
-                             const LumiCurrentPlotOptions &plot_options) {
+void RecursiveFilterOutliers(TGraphErrors& graph, const TF1& fit,
+                             const LumiCurrentPlotOptions& plot_options) {
   Int_t nPoints = graph.GetN();
   Int_t new_nPoints = 1;
   while (new_nPoints < nPoints && new_nPoints) {
@@ -355,7 +353,7 @@ void RecursiveFilterOutliers(TGraphErrors &graph, const TF1 &fit,
   }
 }
 
-void SetErrors(TGraphErrors &graph, Double_t x_rel_error, Double_t y_rel_error) {
+void SetErrors(TGraphErrors& graph, Double_t x_rel_error, Double_t y_rel_error) {
   Int_t nPoints = graph.GetN();
   Double_t x;
   Double_t y;
@@ -369,10 +367,10 @@ void SetErrors(TGraphErrors &graph, Double_t x_rel_error, Double_t y_rel_error) 
 /* Unused functions
 template<typename T>
 struct BinaryAverage {
-  Float_t operator() (const T &T1, const T &T2) { return (T1 + T2) / 2.0; }
+  Float_t operator() (const T& T1, const T& T2) { return (T1 + T2) / 2.0; }
 };
 
-void DumpVector(const VectorF &vec) {
+void DumpVector(const VectorF& vec) {
   for (auto element: vec) cout << element << endl;
 }
 
@@ -380,9 +378,11 @@ bool MinNonZero(Float_t i, Float_t j) {
   Float_t min_allowable = 0.1;
   if (j < min_allowable) {
     return 1;
-  } else if (i < min_allowable) {
+  }
+  else if (i < min_allowable) {
     return 0;
-  } else {
+  }
+  else {
     return i < j;
   }
   return i < j;
@@ -392,46 +392,33 @@ bool MinNonZero(Float_t i, Float_t j) {
 }
 
 Expected<FitResults> Plotter::PlotLumiCurrent(
-    const VectorF &lumi_arg,
-    const VectorF &current_arg,
-    string run_name,
-    string channel_name,
-    const LumiCurrentPlotOptions &plot_options,
-    string output_dir) {
+    const VectorP<Float_t>& points,
+    const LumiCurrentPlotOptions& options) {
 
   const char *this_func_name = "PlotLumiCurrent";
 
   TCanvas canvas;
   canvas.cd();
 
-  VectorF lumi;
-  VectorF current;
-  auto num_points_arg = lumi_arg.size();
-  Float_t epsilon = 0.00000000001;
+  VectorP<Float_t> points_filtered(points);
+  std::remove_if(points_filtered.begin(),
+                 points_filtered.end(),
+                 [] (auto point) {
+                   return point[0] < gEpsilon || point[1] < gEpsilon;
+                 });
 
-  // Filter out events with lumi or current of 0
-  for (unsigned i=0; i < num_points_arg; ++i) {
-    if (lumi_arg.at(i) > epsilon && current_arg.at(i) > epsilon) {
-      lumi.push_back(lumi_arg.at(i));
-      current.push_back(current_arg.at(i));
-    }
-  }
-
-  // Don't bother running the scaling transform if scale_factor = 1.0
-  if (abs(plot_options.x_scale() - 1) < epsilon) {
-    ScaleVector(lumi, plot_options.x_scale());
-  }
-  if (abs(plot_options.y_scale() - 1) < epsilon) {
-    ScaleVector(current, plot_options.y_scale());
+  for (auto& point: points_filtered) {
+    point[0] *= options.x_scale();
+    point[1] *= options.y_scale();
   }
 
   // Use C-style dynamic arrays since ROOT doesn't support vectors
-  auto num_points = lumi.size();
+  auto num_points = points_filtered.size();
   Float_t *lumi_arr = new Float_t[num_points];
   Float_t *current_arr = new Float_t[num_points];
   for (unsigned iPoint=0; iPoint < num_points; ++iPoint) {
-    lumi_arr[iPoint] = lumi.at(iPoint);
-    current_arr[iPoint] = current.at(iPoint);
+    lumi_arr[iPoint] = points_filtered[iPoint][0];
+    current_arr[iPoint] = points_filtered[iPoint][1];
   }
 
   TGraphErrors graph(num_points, lumi_arr, current_arr);
@@ -440,82 +427,69 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
 
   // Axes formatting
   // Must call Draw before doing anything with the axes
-  graph.Draw(plot_options.draw_options().c_str());
-  SetErrors(graph, plot_options.x_rel_error(), plot_options.y_rel_error());
+  graph.Draw(options.draw_options().c_str());
+  SetErrors(graph, options.x_rel_error(), options.y_rel_error());
 
   // Plot formatting
-  ApplyLCPlotOptionsToGraph(graph, plot_options);
+  ApplyLCPlotOptionsToGraph(graph, options);
 
-  string graph_title = "Run "+run_name+", Channel "+channel_name;
+  auto channel_name = options.channel_name();
+  string graph_title = "Run "+options.run_name() +
+                         ", Channel "+channel_name;
   graph.SetTitle( graph_title.c_str() );
 
-  if (plot_options.x_auto_range()) SetAxisAutoRange(graph.GetXaxis(), lumi);
-  if (plot_options.y_auto_range()) SetAxisAutoRange(graph.GetYaxis(), current);
+  auto is_valid_channel = FCalRegion::IsValidChannel(channel_name);
+  if (options.x_auto_range() || !is_valid_channel) SetAxisAutoRange(graph.GetXaxis());
+  if (options.y_auto_range() || !is_valid_channel) SetAxisAutoRange(graph.GetYaxis());
 
   // Write fit results and format fit legend
   TPaveText fit_legend;
   FitResults fit_results;
-  if (plot_options.do_fit()) {
-    //graph.Fit("pol1", plot_options.fit_options().c_str());
-    //TF1 *fit = graph.GetFunction("pol1");
 
+  if (options.do_fit()) {
     TF1 fit("f1", "[0]+[1]*x", graph.GetXaxis()->GetXmin(), graph.GetXaxis()->GetXmax());
 
-    if (plot_options.fit_fix_intercept()) fit.FixParameter(0, 0.0);
-    fit.SetLineColor(plot_options.fit_line_color());
-    fit.SetLineWidth(plot_options.fit_line_width());
+    if (options.fit_fix_intercept()) fit.FixParameter(0, 0.0);
+    fit.SetLineColor(options.fit_line_color());
+    fit.SetLineWidth(options.fit_line_width());
 
-    graph.Fit("f1", (plot_options.fit_options()+"BQS").c_str());
+    graph.Fit("f1", (options.fit_options()+"BQS").c_str());
 
-    cout << "Chi^2 = " << fit.GetChisquare()
-         << ", nDoF = " << fit.GetNDF() << endl;
+    //cout << "Chi^2 = " << fit.GetChisquare()
+    //     << ", nDoF = " << fit.GetNDF() << endl;
 
-    RecursiveFilterOutliers(graph, fit, plot_options);
+    RecursiveFilterOutliers(graph, fit, options);
 
-    cout << "Chi^2 = " << fit.GetChisquare()
-         << ", nDoF = " << fit.GetNDF() << endl;
+    //cout << "Chi^2 = " << fit.GetChisquare()
+    //     << ", nDoF = " << fit.GetNDF() << endl;
 
-    //fit->FixParameter(0, 0.0);
-    //auto fit_result = graph.Fit(fit, "BQS");
+    fit_results.FromFit(fit, options);
 
-    //fit->SetLineColor(plot_options.fit_line_color());
-    //fit->SetLineWidth(plot_options.fit_line_width());
-
-    fit_results.FromFit(fit, plot_options);
-
-    if (plot_options.fit_show_legend()) {
+    if (options.fit_show_legend()) {
       FormatLegend(fit_legend, fit_results);
     }
   }
 
-  //graph.Draw(plot_options.draw_options.c_str());
   fit_legend.Draw();
 
-  TLatex label_ATLAS;
-  DrawATLASInternalLabel(label_ATLAS);
+  TLatex label_ATLAS = DrawATLASInternalLabel();
 
   canvas.Update();
-  string write_dir = output_dir+"lumi_current/"+run_name+"/";
-  string make_outdir_command = "mkdir -p "+write_dir;
-  int err = system( make_outdir_command.c_str() );
+  auto write_dir = options.plots_dir()+"lumi_current/"+options.run_name()+"/";
+  TRY( Util::mkdir(write_dir) )
 
-  if (err) {
-    return make_unexpected(make_shared<Error::System>(err, make_outdir_command, this_func_name));
-  }
-
-  canvas.Print( (write_dir+channel_name+".png").c_str() );
+  canvas.Print( (write_dir+options.channel_name()+".png").c_str() );
   return fit_results;
 }
 
 // Writes FCal current vs. BCM lumi fit parameters to a root file for a given
 //   run. These parameters are used to derive the FCal lumi calibration.
 Expected<Void> Plotter::GeometricAnalysisOfFitResults(
-                     const FitResultsMap &fit_results,
-                     string run_name,
-                     string output_dir) {
+                     const FitResultsMap& fit_results,
+                     const LumiCurrentPlotOptions& options) {
 
   auto phi_slices_slopes_sums = InitPhiSlicesSlopeSumsMap();
-  for (const auto &this_channel_results: fit_results) {
+  for (const auto& this_channel_results: fit_results) {
     auto phi_slice =
       FCalRegion::PhiSliceFromChannel(this_channel_results.first);
     RETURN_IF_ERR(phi_slice)
@@ -524,9 +498,9 @@ Expected<Void> Plotter::GeometricAnalysisOfFitResults(
 
   auto regions_slopes_sums = InitRegionsSlopeSumsMap();
 
-  for (const auto &this_phi_slice_slopes_sum: phi_slices_slopes_sums) {
-    const auto &phi_slice_name = this_phi_slice_slopes_sum.first;
-    const auto &slopes_sum = this_phi_slice_slopes_sum.second;
+  for (const auto& this_phi_slice_slopes_sum: phi_slices_slopes_sums) {
+    const auto& phi_slice_name = this_phi_slice_slopes_sum.first;
+    const auto& slopes_sum = this_phi_slice_slopes_sum.second;
 
     auto region = FCalRegion::ZSide::A;
     if (phi_slice_name.at(0) == 'C') region = FCalRegion::ZSide::C;
@@ -553,21 +527,21 @@ Expected<Void> Plotter::GeometricAnalysisOfFitResults(
 
   return WriteGeometricAnalysisToText(phi_slices_slopes_sums,
                                       regions_slopes_sums,
-                                      run_name,
-                                      output_dir);
+                                      options);
 }
 
 // Writes FCal current vs. BCM lumi fit parameters to a root file for a given
 //   run. These parameters are used to derive the FCal lumi calibration.
-Expected<Void> Plotter::WriteFitResultsToTree(const FitResultsMap &fit_results,
-                                              string run_name,
-                                              string output_dir) {
+Expected<Void> Plotter::WriteFitResultsToTree(
+    const FitResultsMap& fit_results,
+    const LumiCurrentPlotOptions& options) {
 
   const char *this_func_name = "WriteFitResultsToTree";
 
-  auto result_mkdir =  Util::mkdir(output_dir);
-
-  TFile file((output_dir+run_name+".root").c_str(), "recreate");
+  auto output_dir = options.raw_fit_results_dir();
+  TRY( Util::mkdir(output_dir) )
+  TFile file((output_dir+options.run_name()+".root").c_str(),
+              "recreate");
   TTree tree;
 
   string channel_name;
@@ -600,15 +574,16 @@ Expected<Void> Plotter::WriteFitResultsToTree(const FitResultsMap &fit_results,
 // Writes the FCal lumi calibration data space-delimited in a plaintext file:
 //     
 //     ChannelName slope intercept
-Expected<Void> Plotter::WriteCalibrationToText(const FitResultsMap &fit_results,
-                                               string run_name,
-                                               string output_dir) {
+Expected<Void> Plotter::WriteCalibrationToText(
+    const FitResultsMap &fit_results,
+    const LumiCurrentPlotOptions& options) {
 
   const char *this_func_name = "WriteCalibrationToText";
 
+  auto output_dir = options.calibration_results_dir();
   TRY( Util::mkdir(output_dir) )
 
-  string out_filepath = output_dir + run_name + ".dat";
+  auto out_filepath = output_dir + options.run_name() + ".dat";
   std::ofstream out_file(out_filepath);
   if (!out_file.is_open()) {
     return make_unexpected(make_shared<Error::File>(out_filepath, this_func_name));
@@ -630,9 +605,9 @@ Expected<Void> Plotter::WriteCalibrationToText(const FitResultsMap &fit_results,
 
 // Plots TProfiles of <mu> time stability for select FCal regions (A-side,
 //   C-side, average between them, etc.) all on the same canvas.
-Expected<Void> Plotter::PlotMuStability(const std::map<string, SingleRunData> &runs_data,
-                             const MuStabPlotOptions &plot_options,
-                             string output_dir) {
+Expected<Void> Plotter::PlotMuStability(
+    const std::map<string, SingleRunData> &runs_data,
+    const MuStabPlotOptions &options) {
   TCanvas canvas;
   canvas.cd();
   THStack stack("stack","");
@@ -643,26 +618,27 @@ Expected<Void> Plotter::PlotMuStability(const std::map<string, SingleRunData> &r
   legend.SetNColumns(2);
 
   // Plots and root files are saved in separate directories
-  string write_dir = output_dir+"mu_stability/";
-  string rootfiles_write_dir = write_dir+"histo_files/";
-  int err_mkdir1 = system( ("mkdir -p "+write_dir).c_str() );
-  int err_mkdir2 = system( ("mkdir -p "+rootfiles_write_dir).c_str() );
+  auto base_output_dir = options.base_output_dir();
+  auto rootfiles_output_dir = base_output_dir+options.rootfiles_output_dir();
+
+  TRY( Util::mkdir(rootfiles_output_dir) )
 
   // This vector holds the plotting parameters for each region
-  auto regions = InitRegionsData(plot_options);
+  auto regions = InitRegionsData(options);
 
   // Binning is done with unix timestamp ranges
   UInt_t low_bin;
   UInt_t high_bin;
   UInt_t n_bins;
-  if (plot_options.x_auto_range()) {
+  if (options.x_auto_range()) {
     low_bin = runs_data.begin()->second.timestamp();
     high_bin = runs_data.end()->second.timestamp();
     n_bins = 1000;
-  } else {
-    low_bin = plot_options.low_bin();
-    high_bin = plot_options.high_bin();
-    n_bins = plot_options.n_bins();
+  }
+  else {
+    low_bin = options.low_bin();
+    high_bin = options.high_bin();
+    n_bins = options.n_bins();
   }
 
   // Creates a TProfile for each region and adds it to the stack
@@ -681,7 +657,7 @@ Expected<Void> Plotter::PlotMuStability(const std::map<string, SingleRunData> &r
 
 
     // Profiles are saved individually in root files
-    TFile file( (rootfiles_write_dir+region.plot_name_+".root").c_str(),
+    TFile file( (rootfiles_output_dir+region.plot_name_+".root").c_str(),
                 "RECREATE" );
     region.plot_->Write();
     file.Close();
@@ -695,8 +671,8 @@ Expected<Void> Plotter::PlotMuStability(const std::map<string, SingleRunData> &r
   }
 
   // Draw must be called before Format! ROOT's fault, not mine
-  stack.Draw(plot_options.draw_options().c_str());
-  FormatTHStack(plot_options, stack);
+  stack.Draw(options.draw_options().c_str());
+  FormatTHStack(options, stack);
 
   legend.Draw();
 
@@ -723,11 +699,10 @@ Expected<Void> Plotter::PlotMuStability(const std::map<string, SingleRunData> &r
     sample_marker.Draw();
   }
 
-  TLatex label_ATLAS;
-  DrawATLASInternalLabel(label_ATLAS);
+  TLatex label_ATLAS = DrawATLASInternalLabel();
 
   canvas.Update();
-  canvas.Print( (write_dir+"mu_stability.pdf").c_str() );
+  canvas.Print( (base_output_dir+"mu_stability.pdf").c_str() );
 
   return Void();
 }

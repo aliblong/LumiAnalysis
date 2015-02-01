@@ -10,6 +10,9 @@ class MuStabPlotOptions {
   MuStabPlotOptions(std::string params_filepath);
   ~MuStabPlotOptions(){};
 
+  const auto& base_output_dir() const { return base_output_dir_; }
+  const auto& rootfiles_output_dir() const { return base_output_dir_; }
+
   std::string draw_options() const { return draw_options_; }
 
   int marker_color_A() const { return marker_color_A_; }
@@ -34,6 +37,9 @@ class MuStabPlotOptions {
   std::string y_title() const { return y_title_; }
 
  private:
+  std::string base_output_dir_;
+  std::string rootfiles_output_dir_;
+
   std::string draw_options_;
 
   int marker_color_A_;

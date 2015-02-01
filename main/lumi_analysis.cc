@@ -27,5 +27,5 @@ int main(int argc, char *argv[]) {
   }
 
   Analysis analysis(params_filepath);
-  analysis.RunAnalysis().catch_error(Error::Log);
+  LOG_IF_ERR( analysis.RunAnalysis() )
 }

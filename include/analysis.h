@@ -7,32 +7,60 @@
 
 #include "error.h"
 #include "fit_results.h"
-#include "single_run_data.h"
 #include "void.h"
 
-// God object for the analysis
+class SingleRunData;
+
+// Contains analysis-wide parameters and methods which constitute the control
+//   flow of the analysis
 class Analysis {
  public:
   Analysis(std::string params_filepath);
   ~Analysis(){};
 
-  Error::Expected<Void> AnalyseTree(SingleRunData &this_run);
+  Error::Expected<SingleRunData> AnalyseTree(const std::string& run_name) const;
   void CreateAllRunPlots(const std::map<std::string, SingleRunData> &runs_data);
   Error::Expected<Void> CreateLumiCurrentPlots(const SingleRunData &this_run);
   Error::Expected<Void> CreateSingleRunPlots(const SingleRunData &this_run);
   Error::Expected<Void> PrepareAnalysis(std::string params_filepath);
   Error::Expected<Void> ReadCalibrations(std::string channels_filepath);
-  Error::Expected<Void> ReadChannelsList(std::string channels_list_filepath);
+  Error::Expected<Void> ReadChannels();
   void ReadParams(std::string params_filepath);
   Error::Expected<Void> RunAnalysis();
   Error::Expected<Void> WriteCurrentsToFile(std::string run_name);
   Error::Expected<Void> CalcFCalLumi(SingleRunData &this_run);
   Error::Expected<Void> CalcFCalMu(SingleRunData &this_run);
-  Error::Expected<Void> CreateBenedettoOutput(const SingleRunData &this_run) const;
 
+  auto verbose() const { return verbose_; }
+
+  auto f_rev() const { return f_rev_; }
+  auto x_sec() const { return x_sec_; }
+  auto ref_run_number() const { return ref_run_number_; }
+  auto corr_A() const { return corr_A_; }
+  auto corr_C() const { return corr_C_; }
+  auto corr_Avg() const { return corr_Avg_; }
+
+  const auto& params_filepath() const { return params_filepath_; }
+  const auto& calibrations_filepath() const { return calibrations_filepath_; }
+  const auto& channels_list_filepath() const { return channels_list_filepath_; }
+  const auto& pedestals_dir() const { return pedestals_dir_; }
+  const auto& trees_dir() const { return trees_dir_; }
+  const auto& run_list_dir() const { return run_list_dir_; }
+
+  const auto& plot_types() const { return plot_types_; }
+
+  auto retrieve_timestamps() const { return retrieve_timestamps_; }
+  auto retrieve_currents() const { return retrieve_currents_; }
+  auto retrieve_lumi_BCM() const { return retrieve_lumi_BCM_; }
+  auto retrieve_lumi_FCal() const { return retrieve_lumi_FCal_; }
+
+  auto do_benedetto() const { return do_benedetto_; }
+  const auto& benedetto_output_dir() const { return benedetto_output_dir_; }
+
+  const auto& channel_calibrations() const { return channel_calibrations_; }
+
+ private:
   bool verbose_;
-
-  bool do_Benedetto_;
 
   double f_rev_;
   double x_sec_;
@@ -47,12 +75,6 @@ class Analysis {
   std::string pedestals_dir_;
   std::string trees_dir_;
   std::string run_list_dir_;
-  std::string base_output_dir_;
-  std::string plots_output_dir_;
-  std::string fit_results_output_dir_;
-  std::string calibrations_output_dir_;
-  std::string geometric_analysis_output_dir_;
-  std::string benedetto_output_dir_;
 
   std::vector<std::string> plot_types_;
 
@@ -61,12 +83,15 @@ class Analysis {
   bool retrieve_lumi_BCM_;
   bool retrieve_lumi_FCal_;
 
+  bool do_benedetto_;
+  std::string benedetto_output_dir_;
+
   struct ChannelCalibration {
     Float_t slope;
     Float_t intercept;
   };
 
-  std::map<std::string, ChannelCalibration> channels_list_;
+  std::map<std::string, ChannelCalibration> channel_calibrations_;
 };
 
 #endif

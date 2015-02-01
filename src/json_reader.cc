@@ -21,9 +21,11 @@ bool JSONReader::get<bool>(const string key) const {
   string val = pt.get<string>(key);
   if (val == "true") {
     return true;
-  } else if (val == "false") {
+  }
+  else if (val == "false") {
     return false;
-  } else {
+  }
+  else {
     std::cerr << "ERROR: key \'" << key << "\' corresponds to value \'"
               << val << "\', which is not a boolean. Returning false."
               << std::endl;

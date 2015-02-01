@@ -10,18 +10,24 @@
 
 #include "void.h"
 
+#define LOG_IF_ERR(result) \
+  if (!result.valid()) std::cerr << result.error()->what() << std::endl;
+
 #define RETURN_IF_ERR(result) \
   if (!result.valid()) return result.get_unexpected();
 
 // If `result` of type Expected<T> is an error, executes `continue`.
 #define CONTINUE_IF_ERR(result) \
-  if (!result.valid()) { result.catch_error(Error::Log); continue; }
+  if (!result.valid()) { \
+    LOG_IF_ERR( result ) \
+    continue; \
+  }
 
 // If `result` of type Expected<T> is an error, throws a std::runtime_error.
 #define THROW_IF_ERR(result)                         \
   if (!result.valid()) throw std::runtime_error(result.error()->what());
 
-// Executes `expression` of return type Expected<Void> and returns result if it
+// Executes `expression` of return type Expected<T> and returns result if it
 //   is an error.
 #define TRY(expression)                 \
   {                                     \
@@ -53,8 +59,6 @@ class Base : public std::exception {
 
 template <typename T>
 using Expected = boost::expected<T, std::shared_ptr<Base> >;
-
-auto Log = [](std::shared_ptr<Error::Base> error) { std::cerr << error->what() << std::endl; return Void(); };
 
 class System : public Base {
  public:
