@@ -20,16 +20,11 @@ class Analysis {
 
   Error::Expected<SingleRunData> AnalyseTree(const std::string& run_name) const;
   void CreateAllRunPlots(const std::map<std::string, SingleRunData> &runs_data);
-  Error::Expected<Void> CreateLumiCurrentPlots(const SingleRunData &this_run);
-  Error::Expected<Void> CreateSingleRunPlots(const SingleRunData &this_run);
   Error::Expected<Void> PrepareAnalysis(std::string params_filepath);
   Error::Expected<Void> ReadCalibrations(std::string channels_filepath);
   Error::Expected<Void> ReadChannels();
   void ReadParams(std::string params_filepath);
   Error::Expected<Void> RunAnalysis();
-  Error::Expected<Void> WriteCurrentsToFile(std::string run_name);
-  Error::Expected<Void> CalcFCalLumi(SingleRunData &this_run);
-  Error::Expected<Void> CalcFCalMu(SingleRunData &this_run);
 
   auto verbose() const { return verbose_; }
 

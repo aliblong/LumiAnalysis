@@ -19,6 +19,10 @@ class SingleRunData {
   SingleRunData(std::string run_name, const Analysis& analysis);
   ~SingleRunData() {}
 
+  Error::Expected<Void> CreateLumiCurrentPlots() const;
+  Error::Expected<Void> CreateSingleRunPlots() const;
+  Error::Expected<Void> CalcFCalLumi();
+  Error::Expected<Void> CalcFCalMu();
   Error::Expected<Void> CreateBenedettoOutput() const;
 
   auto timestamp() const { return timestamp_; }
@@ -48,7 +52,7 @@ class SingleRunData {
 
   Int_t nLB_; // Number of lumi blocks
   Int_t nCollisions_;
-  Long64_t timestamp_;
+  Int_t timestamp_;
 
   Int_t LB_stability_offset_;
 

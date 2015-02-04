@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -12,7 +13,10 @@
 
 #include "analysis.h"
 #include "branch_array_buffer_sizes.h"
+#include "cutoffs.h"
 #include "error.h"
+#include "plotter.h"
+#include "point.h"
 #include "util.h"
 #include "single_run_data.h"
 
@@ -197,3 +201,226 @@ void SingleRunData::HardcodenLBIfMissingFromTree()
     nLB_ = run_ptr->second;
   }
 }
+
+// Calculates FCal luminosity from currents data for a run
+Expected<Void> SingleRunData::CalcFCalLumi() {
+  auto this_func_name = "SingleRunData::CalcFCalLumi";
+  if (analysis_.verbose()) cout << "Calculating FCal luminosity" << endl;
+
+  // Checks that these values were not previously calculated
+  if (lumi_FCal_A_.size() > 0 || lumi_FCal_C_.size() > 0) {
+    auto err_msg = "FCal lumi vector(s) already filled";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  // Checks that currents data exists
+  if (currents_.size() == 0) {
+    auto err_msg = "currents map empty";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  // All currents_ vectors should be the same size
+  unsigned nLB_stable = currents_.begin()->second.size();
+  if (nLB_stable == 0) {
+    auto err_msg = "no stable lumi blocks";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  // Averages lumi measurement from all channels for each side and for each
+  //   lumi block
+  for (unsigned iLB = 0; iLB < nLB_stable; ++iLB) {
+    Float_t lumi_A_temp = 0.0;
+    Float_t lumi_C_temp = 0.0;
+    unsigned num_channels_A = 0;
+    unsigned num_channels_C = 0;
+
+    // Calculates lumi for a channel using its current and calibration and
+    //   adds to running total
+    for (const auto& this_channel_currents: currents_) {
+      const auto& channel_name = this_channel_currents.first;
+      auto current = this_channel_currents.second.at(iLB);
+
+      // Skip channel if current is ~0
+      if (current < gFCalCurrentCutoff) continue;
+
+      // Perf sore point? (like it matters)
+      auto intercept = analysis_.channel_calibrations().at(channel_name).intercept;
+      auto slope = analysis_.channel_calibrations().at(channel_name).slope;
+
+      if (channel_name.at(1) == '1') { // channel from C-side
+        lumi_C_temp += current*slope + intercept;
+        ++num_channels_C;
+      }
+      else {
+        lumi_A_temp += current*slope + intercept;
+        ++num_channels_A;
+      }
+    }
+
+    // Computes the average lumi for this lumi block and adds to lumi vector.
+    // Adds 0 if no channels had high enough current
+    if (num_channels_A == 0) {
+      lumi_FCal_A_.push_back(0.0);
+    }
+    else {
+      lumi_FCal_A_.push_back(analysis_.corr_A()*lumi_A_temp / num_channels_A);
+    }
+    if (num_channels_C == 0) {
+      lumi_FCal_C_.push_back(0.0);
+    }
+    else {
+      lumi_FCal_C_.push_back(analysis_.corr_C()*lumi_C_temp / num_channels_C);
+    }
+  }
+
+  return Void();
+}
+
+// Calculates <mu> from FCal luminosity for a run
+Expected<Void> SingleRunData::CalcFCalMu() {
+  auto this_func_name = "SingleRunData::CalcFCalMu";
+
+  if (analysis_.verbose()) cout << "Calculating FCal <mu>" << endl;
+
+  // Checks that FCal lumi data exists
+  if (lumi_FCal_A_.size() == 0 && lumi_FCal_C_.size() == 0) {
+    auto err_msg = "FCal lumi vector(s) have not been filled";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+  // Checks that mu data has not already been calculated
+  if (mu_FCal_A_.size() > 0 || mu_FCal_C_.size() > 0) {
+    auto err_msg = "FCal mu vector(s) already filled";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+  // Checks that value for number of collisions is nonzero
+  if (nCollisions_ == 0) {
+    auto err_msg = "num_collisions == 0";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  Float_t conversion_factor = analysis_.x_sec() / (nCollisions_ * analysis_.f_rev());
+  // Cross-section conversion factor from 7 -> 8 TeV
+  if (run_name_.at(0) == '2') conversion_factor /= 1.05;
+
+  // Calculates <mu> for each lumi block
+  for (const auto &lumi: lumi_FCal_A_) {
+    mu_FCal_A_.push_back(lumi*conversion_factor);
+  }
+  for (const auto &lumi: lumi_FCal_C_) {
+    mu_FCal_C_.push_back(lumi*conversion_factor);
+  }
+  return Void();
+}
+
+Expected<Void> SingleRunData::CreateLumiCurrentPlots() const {
+  const char* this_func_name = "SingleRunData::CreateLumiCurrentPlots";
+  if (analysis_.verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
+
+  LumiCurrentPlotOptions plot_options(analysis_.params_filepath());
+  plot_options.set_run_name(run_name_);
+  std::map<string, FitResults> fit_results;
+
+  if (plot_options.do_individual()) {
+    for (const auto &channel: currents_) {
+      auto this_channel_name = channel.first;
+      plot_options.set_channel_name(this_channel_name);
+
+      auto lumi_current_points = PointVectorFromVectors(
+          lumi_BCM_,
+          channel.second);
+
+      CONTINUE_IF_ERR(lumi_current_points);
+
+      auto this_channel_fit_results =
+        Plotter::PlotLumiCurrent(*lumi_current_points,
+                                 plot_options);
+
+      CONTINUE_IF_ERR(this_channel_fit_results)
+
+      if (pedestals_.at(this_channel_name) > 20.0) {
+        this_channel_fit_results->is_short = true;
+      }
+      else {
+        this_channel_fit_results->is_short = false;
+      }
+
+      if (plot_options.do_fit()) {
+        fit_results.insert({this_channel_name, *this_channel_fit_results});
+      }
+    } //channels loop
+  }
+
+  if (plot_options.do_sum()) {
+    vector<Float_t> channel_currents_sum_A;
+    vector<Float_t> channel_currents_sum_C;
+    for (const auto &channel: analysis_.channel_calibrations()) {
+      auto this_channel_name = channel.first;
+      auto this_channel_current = currents_.at(this_channel_name);
+
+      vector<Float_t> *this_side_channel_currents_sum;
+      if (this_channel_name.at(1) == '1') {
+        this_side_channel_currents_sum = &channel_currents_sum_A;
+      }
+      else if (this_channel_name.at(1) == '8') {
+        this_side_channel_currents_sum = &channel_currents_sum_C;
+      }
+      else {
+        return make_unexpected(make_shared<Error::Logic>("Invalid channel name", this_func_name));
+      }
+
+      if (this_side_channel_currents_sum->size() == 0) {
+        *this_side_channel_currents_sum = this_channel_current;
+      }
+      else {
+        std::transform(this_side_channel_currents_sum->begin(),
+                       this_side_channel_currents_sum->end(),
+                       this_channel_current.begin(),
+                       this_side_channel_currents_sum->begin(),
+                       std::plus<Float_t>());
+      }
+    }
+
+    // TODO: figure out how to deal with sums
+    auto points_sum_A = PointVectorFromVectors(lumi_BCM_,
+                                               channel_currents_sum_A);
+    plot_options.set_channel_name("Sum_A");
+    if (points_sum_A.valid()) {
+      TRY( Plotter::PlotLumiCurrent(*points_sum_A, plot_options) )
+    }
+
+    auto points_sum_C = PointVectorFromVectors(lumi_BCM_,
+                                               channel_currents_sum_C);
+    plot_options.set_channel_name("Sum_C");
+    if (points_sum_C.valid()) {
+      TRY( Plotter::PlotLumiCurrent(*points_sum_C, plot_options) )
+    }
+  }
+
+  if (plot_options.do_fit()) {
+    LOG_IF_ERR( Plotter::WriteFitResultsToTree(fit_results,
+                                   plot_options) )
+
+    LOG_IF_ERR( Plotter::WriteCalibrationToText(fit_results,
+                                    plot_options) );
+
+    LOG_IF_ERR( Plotter::GeometricAnalysisOfFitResults(fit_results,
+                                           plot_options) );
+  }
+
+  return Void();
+}
+
+// Create those plots which use data from only a single sample
+Expected<Void> SingleRunData::CreateSingleRunPlots() const {
+  for (const auto &plot_type: analysis_.plot_types()) {
+    if (plot_type == "lumi_current") {
+      if (analysis_.verbose()) {
+        cout << "Creating plots for sample " << run_name_ << endl;
+      }
+      TRY( CreateLumiCurrentPlots() )
+    }
+  }
+  // Remove the TRY above if other single run plots are added
+  return Void();
+}
+
