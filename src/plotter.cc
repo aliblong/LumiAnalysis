@@ -475,7 +475,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   TLatex label_ATLAS = DrawATLASInternalLabel();
 
   canvas.Update();
-  auto write_dir = options.plots_dir()+"lumi_current/"+options.run_name()+"/";
+  auto write_dir = options.plots_dir()+options.run_name()+"/";
   TRY( Util::mkdir(write_dir) )
 
   canvas.Print( (write_dir+options.channel_name()+".png").c_str() );

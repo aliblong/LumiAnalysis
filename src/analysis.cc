@@ -73,7 +73,7 @@ Analysis::Analysis(string params_filepath)
     retrieve_lumi_FCal_(false) {
 
   params_filepath_ = params_filepath;
-  TRY_THROW( PrepareAnalysis(params_filepath) )
+  TRY_THROW( PrepareAnalysis() )
 }
 
 void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data) {
@@ -86,11 +86,11 @@ void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data) {
   }
 }
 
-Expected<Void> Analysis::PrepareAnalysis(string params_filepath) {
+Expected<Void> Analysis::PrepareAnalysis() {
 // Reads in the analysis parameters (json) and channel information (text). 
 // Sets flags for which data to retrieve based on which plots to produce.
 
-  ReadParams(params_filepath);
+  ReadParams();
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "lumi_current" ) {
       retrieve_currents_ = true;
@@ -113,7 +113,7 @@ Expected<Void> Analysis::PrepareAnalysis(string params_filepath) {
   TRY( ReadChannels() )
 
   if (retrieve_lumi_FCal_) {
-    TRY( ReadCalibrations(calibrations_filepath_) )
+    TRY( ReadCalibrations() )
   }
 
   return Void();
@@ -121,12 +121,12 @@ Expected<Void> Analysis::PrepareAnalysis(string params_filepath) {
 
 // Reads in calibration values for each of the channels being used (those
 //   read in with ReadChannels)
-Expected<Void> Analysis::ReadCalibrations(string calibrations_filepath) {
+Expected<Void> Analysis::ReadCalibrations() {
   auto this_func_name = "Analysis::ReadCalibrations";
   for (auto &channel: channel_calibrations_) {
-    std::ifstream calibrations_file(calibrations_filepath);
+    std::ifstream calibrations_file(calibrations_filepath_);
     if (!calibrations_file) {
-      return make_unexpected(make_shared<Error::File>(calibrations_filepath, this_func_name));
+      return make_unexpected(make_shared<Error::File>(calibrations_filepath_, this_func_name));
     }
 
     string channel_name;
@@ -176,17 +176,13 @@ Expected<Void> Analysis::ReadChannels() {
   return Void();
 }
 
-void Analysis::ReadParams(string params_filepath) {
 // Reads in parameters from json file and assigns their values to member
 //   variables
-
-  JSONReader parameter_file(params_filepath);
+void Analysis::ReadParams()
+{
+  JSONReader parameter_file(params_filepath_);
 
   verbose_ = parameter_file.get<bool>("verbose");
-
-  // Text output file for Benedetto
-  do_benedetto_ = parameter_file.get<bool>("do_benedetto");
-  benedetto_output_dir_ = parameter_file.get<string>("output_dirs.benedetto");
 
   // Used to calculate FCal luminosity
   //   Bunch crossing frequency
@@ -201,17 +197,24 @@ void Analysis::ReadParams(string params_filepath) {
   corr_C_ = parameter_file.get<double>("corrections."+ref_run_str+".C");
   corr_Avg_ = parameter_file.get<double>("corrections."+ref_run_str+".Avg");
 
-  auto plot_types_map = parameter_file.get_map<bool>("plot_types");
-  for (const auto &plot_type: plot_types_map) {
-    if (plot_type.second == true) plot_types_.push_back(plot_type.first);
-  }
-
   calibrations_filepath_ = parameter_file.get<string>("input_filepaths.calibrations");
   channels_list_filepath_ =
     parameter_file.get<string>("input_filepaths.channels_list");
   pedestals_dir_ = parameter_file.get<string>("input_filepaths.pedestals");
   trees_dir_ = parameter_file.get<string>("input_filepaths.trees");
   run_list_dir_ = parameter_file.get<string>("input_filepaths.run_list");
+
+  auto plot_types_map = parameter_file.get_map<bool>("plot_types");
+  for (const auto &plot_type: plot_types_map) {
+    if (plot_type.second == true) plot_types_.push_back(plot_type.first);
+  }
+
+  use_start_of_fill_pedestals_ = parameter_file.get<bool>("use_start_of_fill_pedestals");
+
+  // Text output file for Benedetto
+  do_benedetto_ = parameter_file.get<bool>("do_benedetto");
+  benedetto_output_dir_ = parameter_file.get<string>("output_dirs.benedetto");
+
 }
 
 // Control flow for the analysis of samples and creation of plots

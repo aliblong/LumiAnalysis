@@ -20,10 +20,10 @@ class Analysis {
 
   Error::Expected<SingleRunData> AnalyseTree(const std::string& run_name) const;
   void CreateAllRunPlots(const std::map<std::string, SingleRunData> &runs_data);
-  Error::Expected<Void> PrepareAnalysis(std::string params_filepath);
-  Error::Expected<Void> ReadCalibrations(std::string channels_filepath);
+  Error::Expected<Void> PrepareAnalysis();
+  Error::Expected<Void> ReadCalibrations();
   Error::Expected<Void> ReadChannels();
-  void ReadParams(std::string params_filepath);
+  void ReadParams();
   Error::Expected<Void> RunAnalysis();
 
   auto verbose() const { return verbose_; }
@@ -48,6 +48,8 @@ class Analysis {
   auto retrieve_currents() const { return retrieve_currents_; }
   auto retrieve_lumi_BCM() const { return retrieve_lumi_BCM_; }
   auto retrieve_lumi_FCal() const { return retrieve_lumi_FCal_; }
+
+  auto use_start_of_fill_pedestals() const { return use_start_of_fill_pedestals_; }
 
   auto do_benedetto() const { return do_benedetto_; }
   const auto& benedetto_output_dir() const { return benedetto_output_dir_; }
@@ -77,6 +79,8 @@ class Analysis {
   bool retrieve_currents_;
   bool retrieve_lumi_BCM_;
   bool retrieve_lumi_FCal_;
+
+  bool use_start_of_fill_pedestals_;
 
   bool do_benedetto_;
   std::string benedetto_output_dir_;

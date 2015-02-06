@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cassert>
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -33,6 +34,36 @@ using boost::make_unexpected;
 
 using Error::Expected;
 
+namespace {
+
+Expected<std::array<Int_t, 2>> FindStableLBBounds(const vector<string>* beam_mode) {
+  auto this_func_name = "FindStableLBBounds";
+  Int_t first_stable_LB = 0;
+  for (const auto& status: *beam_mode) {
+    if (status == "STABLE BEAMS") break;
+    ++first_stable_LB;
+  }
+
+  Int_t last_stable_LB = beam_mode->size() - 1;
+  for (auto status_it = beam_mode->rbegin();
+       status_it != beam_mode->rend();
+       ++status_it) {
+    if (*status_it == "STABLE BEAMS") break;
+    --last_stable_LB;
+  }
+
+  if (first_stable_LB == beam_mode->size()) {
+    auto err_msg = "no stable beams found";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+  else {
+    assert(first_stable_LB <= last_stable_LB);
+    return std::array<Int_t, 2>{first_stable_LB, last_stable_LB};
+  }
+}
+
+}
+
 SingleRunData::SingleRunData(std::string run_name, const Analysis& analysis)
   : run_name_(run_name),
     analysis_(analysis),
@@ -40,16 +71,10 @@ SingleRunData::SingleRunData(std::string run_name, const Analysis& analysis)
     nCollisions_(0),
     LB_stability_offset_(0)
 {
-  THROW_IF_ERR( ReadPedestals() )
-  THROW_IF_ERR( ReadTree() )
-}
-
-void SingleRunData::InitCurrentsMap()
-{
-  for (const auto& run: pedestals_) {
-    const auto& channel_name = run.first;
-    currents_.insert(std::make_pair(channel_name, vector<Float_t>()));
+  if (!analysis_.use_start_of_fill_pedestals()){
+    THROW_IF_ERR( ReadPedestals() )
   }
+  THROW_IF_ERR( ReadTree() )
 }
 
 // Reads in pedestal values for each of the channels specified in analysis_
@@ -115,9 +140,8 @@ Expected<Void> SingleRunData::ReadTree()
   Float_t currents_temp[gMaxNumChannels][gMaxNumLB];
   Float_t lumi_BCM_temp[gMaxNumLB];
   if (analysis_.retrieve_currents()) {
-    InitCurrentsMap();
     unsigned iChannel = 0;
-    for (const auto &channel: currents_) {
+    for (const auto &channel: analysis_.channel_calibrations()) {
       auto branch_name = "current_"+channel.first;
       this_tree->SetBranchAddress((branch_name).c_str(), &currents_temp[iChannel]);
       ++iChannel;
@@ -138,27 +162,65 @@ Expected<Void> SingleRunData::ReadTree()
 
   HardcodenLBIfMissingFromTree();
 
-  for (int iLB = 0; iLB < nLB_; ++iLB) {
-    if (quality[iLB] && beam_mode->at(iLB) == "STABLE BEAMS") {
-      if (LB_stability_offset_ == 0) {
-        LB_stability_offset_ = iLB + 1; //LB numbers are 1-indexed (I think)
-      }
-      // Branch prediction hopefully removes the inefficiency here
-      if (analysis_.retrieve_currents()) {
-        unsigned iChannel = 0;
-        for (const auto& channel: pedestals_) {
-          string this_channel_name = channel.first;
-          Float_t this_channel_pedestal = channel.second;
+  auto LB_bounds = FindStableLBBounds(beam_mode);
+  RETURN_IF_ERR( LB_bounds )
+  auto first_stable_LB = LB_bounds->at(0);
+  auto last_stable_LB = LB_bounds->at(1);
+  // LB indexing starts at 1, I think
+  LB_stability_offset_ = first_stable_LB + 1;
 
-          auto this_current = currents_temp[iChannel][iLB] -
-                              this_channel_pedestal;
-          currents_.at(this_channel_name).push_back(this_current);
-          ++iChannel;
+  if (analysis_.use_start_of_fill_pedestals()) {
+    assert(pedestals_.size() == 0);
+    auto iChannel = int{0};
+    // Avoid reallocations by reusing the same vector
+    vector<Float_t> pedestal_values;
+    pedestal_values.reserve(first_stable_LB);
+    for (const auto& channel: analysis_.channel_calibrations()) {
+      auto channel_name = channel.first;
+      for (Int_t iLB = 0; iLB < first_stable_LB; ++iLB) {
+        if (lumi_BCM_temp[iLB] > gBCMLumiCutoff) {
+          pedestal_values.push_back(currents_temp[iChannel][iLB]);
         }
       }
-      if (analysis_.retrieve_lumi_BCM()) {
-        lumi_BCM_.push_back( lumi_BCM_temp[iLB] );
+      auto pedestal_sum = std::accumulate(pedestal_values.begin(),
+                                          pedestal_values.end(),
+                                          0.0);
+      auto pedestal_avg = pedestal_sum / pedestal_values.size();
+      pedestals_.insert({channel_name, pedestal_avg});
+
+      ++iChannel;
+      pedestal_values.clear();
+    }
+  }
+
+  if (analysis_.retrieve_currents()) {
+    assert(currents_.size() == 0);
+
+    auto iChannel = int{0};
+    auto this_channel_currents = vector<Float_t>();
+    this_channel_currents.reserve(last_stable_LB - first_stable_LB + 1);
+    for (const auto& channel: pedestals_) {
+      auto this_channel_name = channel.first;
+      auto this_channel_pedestal = channel.second;
+
+      for (int iLB = first_stable_LB; iLB <= last_stable_LB; ++iLB) {
+        auto this_current = currents_temp[iChannel][iLB] -
+                            this_channel_pedestal;
+        this_channel_currents.push_back(this_current);
       }
+
+      currents_.insert({std::move(this_channel_name),
+                        std::move(this_channel_currents)});
+      ++iChannel;
+      this_channel_currents.clear();
+    }
+  }
+
+  if (analysis_.retrieve_lumi_BCM()) {
+    assert(lumi_BCM_.size() == 0);
+
+    for (int iLB = first_stable_LB; iLB <= last_stable_LB; ++iLB) {
+      lumi_BCM_.push_back( lumi_BCM_temp[iLB] );
     }
   }
 
