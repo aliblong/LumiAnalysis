@@ -44,6 +44,16 @@ Expected<std::array<Int_t, 2>> FindStableLBBounds(const vector<string>* beam_mod
     ++first_stable_LB;
   }
 
+  if (first_stable_LB == 0) {
+    auto err_msg = "stable beams at first lumi block";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  if (first_stable_LB == beam_mode->size()) {
+    auto err_msg = "no stable beams found";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
   Int_t last_stable_LB = beam_mode->size() - 1;
   for (auto status_it = beam_mode->rbegin();
        status_it != beam_mode->rend();
@@ -52,14 +62,8 @@ Expected<std::array<Int_t, 2>> FindStableLBBounds(const vector<string>* beam_mod
     --last_stable_LB;
   }
 
-  if (first_stable_LB == beam_mode->size()) {
-    auto err_msg = "no stable beams found";
-    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
-  }
-  else {
-    assert(first_stable_LB <= last_stable_LB);
-    return std::array<Int_t, 2>{first_stable_LB, last_stable_LB};
-  }
+  assert(first_stable_LB <= last_stable_LB);
+  return std::array<Int_t, 2>{first_stable_LB, last_stable_LB};
 }
 
 }
@@ -69,12 +73,17 @@ SingleRunData::SingleRunData(std::string run_name, const Analysis& analysis)
     analysis_(analysis),
     nLB_(0),
     nCollisions_(0),
+    timestamp_(0),
     LB_stability_offset_(0)
+{}
+
+Expected<Void> SingleRunData::Init()
 {
   if (!analysis_.use_start_of_fill_pedestals()){
-    THROW_IF_ERR( ReadPedestals() )
+    RETURN_IF_ERR( ReadPedestals() )
   }
-  THROW_IF_ERR( ReadTree() )
+  RETURN_IF_ERR( ReadTree() )
+  return Void();
 }
 
 // Reads in pedestal values for each of the channels specified in analysis_
@@ -171,7 +180,7 @@ Expected<Void> SingleRunData::ReadTree()
 
   if (analysis_.use_start_of_fill_pedestals()) {
     assert(pedestals_.size() == 0);
-    auto iChannel = int{0};
+    auto iChannel = 0;
     // Avoid reallocations by reusing the same vector
     vector<Float_t> pedestal_values;
     pedestal_values.reserve(first_stable_LB);
@@ -196,7 +205,7 @@ Expected<Void> SingleRunData::ReadTree()
   if (analysis_.retrieve_currents()) {
     assert(currents_.size() == 0);
 
-    auto iChannel = int{0};
+    auto iChannel = 0;
     auto this_channel_currents = vector<Float_t>();
     this_channel_currents.reserve(last_stable_LB - first_stable_LB + 1);
     for (const auto& channel: pedestals_) {
@@ -260,12 +269,13 @@ void SingleRunData::HardcodenLBIfMissingFromTree()
     if (analysis_.verbose()) {
       cout << "Manually setting nColl for run " << run_name_ << endl;
     }
-    nLB_ = run_ptr->second;
+    nCollisions_ = run_ptr->second;
   }
 }
 
 // Calculates FCal luminosity from currents data for a run
-Expected<Void> SingleRunData::CalcFCalLumi() {
+Expected<Void> SingleRunData::CalcFCalLumi()
+{
   auto this_func_name = "SingleRunData::CalcFCalLumi";
   if (analysis_.verbose()) cout << "Calculating FCal luminosity" << endl;
 
@@ -339,7 +349,8 @@ Expected<Void> SingleRunData::CalcFCalLumi() {
 }
 
 // Calculates <mu> from FCal luminosity for a run
-Expected<Void> SingleRunData::CalcFCalMu() {
+Expected<Void> SingleRunData::CalcFCalMu()
+{
   auto this_func_name = "SingleRunData::CalcFCalMu";
 
   if (analysis_.verbose()) cout << "Calculating FCal <mu>" << endl;
@@ -365,16 +376,20 @@ Expected<Void> SingleRunData::CalcFCalMu() {
   if (run_name_.at(0) == '2') conversion_factor /= 1.05;
 
   // Calculates <mu> for each lumi block
+  auto nLB_stable = lumi_BCM_.size();
+  mu_FCal_A_.reserve(nLB_stable);
   for (const auto &lumi: lumi_FCal_A_) {
     mu_FCal_A_.push_back(lumi*conversion_factor);
   }
+  mu_FCal_C_.reserve(nLB_stable);
   for (const auto &lumi: lumi_FCal_C_) {
     mu_FCal_C_.push_back(lumi*conversion_factor);
   }
   return Void();
 }
 
-Expected<Void> SingleRunData::CreateLumiCurrentPlots() const {
+Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
+{
   const char* this_func_name = "SingleRunData::CreateLumiCurrentPlots";
   if (analysis_.verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
 
@@ -473,7 +488,8 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const {
 }
 
 // Create those plots which use data from only a single sample
-Expected<Void> SingleRunData::CreateSingleRunPlots() const {
+Expected<Void> SingleRunData::CreateSingleRunPlots() const
+{
   for (const auto &plot_type: analysis_.plot_types()) {
     if (plot_type == "lumi_current") {
       if (analysis_.verbose()) {

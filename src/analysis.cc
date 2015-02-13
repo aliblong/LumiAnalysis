@@ -52,7 +52,7 @@ bool IsZeroes(const vector<Float_t> &vec) {
 // Initializes various quantities required to run the analysis
 Analysis::Analysis(string params_filepath)
   : verbose_(false),
-    do_benedetto_(false),
+    use_start_of_fill_pedestals_(false),
 
     f_rev_(0.0),
     x_sec_(0.0),
@@ -61,17 +61,13 @@ Analysis::Analysis(string params_filepath)
     corr_C_(0.0),
     corr_Avg_(0.0),
 
-    params_filepath_(""),
-    calibrations_filepath_(""),
-    channels_list_filepath_(""),
-    pedestals_dir_(""),
-    trees_dir_(""),
-    run_list_dir_(""),
     retrieve_timestamps_(false),
     retrieve_currents_(false),
     retrieve_lumi_BCM_(false),
-    retrieve_lumi_FCal_(false) {
+    retrieve_lumi_FCal_(false),
 
+    do_benedetto_(false)
+{
   params_filepath_ = params_filepath;
   TRY_THROW( PrepareAnalysis() )
 }
@@ -86,10 +82,10 @@ void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data) {
   }
 }
 
-Expected<Void> Analysis::PrepareAnalysis() {
-// Reads in the analysis parameters (json) and channel information (text). 
+// Reads in the analysis parameters (json) and channel information (text).
 // Sets flags for which data to retrieve based on which plots to produce.
-
+Expected<Void> Analysis::PrepareAnalysis()
+{
   ReadParams();
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "lumi_current" ) {
@@ -121,7 +117,8 @@ Expected<Void> Analysis::PrepareAnalysis() {
 
 // Reads in calibration values for each of the channels being used (those
 //   read in with ReadChannels)
-Expected<Void> Analysis::ReadCalibrations() {
+Expected<Void> Analysis::ReadCalibrations()
+{
   auto this_func_name = "Analysis::ReadCalibrations";
   for (auto &channel: channel_calibrations_) {
     std::ifstream calibrations_file(calibrations_filepath_);
@@ -242,7 +239,8 @@ Expected<Void> Analysis::RunAnalysis() {
   map<string, SingleRunData> runs_data;
 
   for (const auto &run_name: run_names_vec) {
-    auto this_run = SingleRunData{run_name, *this};
+    auto this_run = SingleRunData(run_name, *this);
+    TRY_CONTINUE( this_run.Init() )
 
     TRY_CONTINUE( this_run.CreateSingleRunPlots() )
 

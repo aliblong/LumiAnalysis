@@ -11,7 +11,9 @@ MuStabPlotOptions::MuStabPlotOptions(string params_filepath) {
   JSONReader parameter_file(params_filepath);
   string node_name = "plot_options.mu_stability.";
 
-  base_output_dir_ = parameter_file.get<string>("output_dirs.mu_stability");
+  base_output_dir_ = parameter_file.get<string>("output_dirs.base") +
+                     parameter_file.get<string>("output_dirs.mu_stability");
+
   rootfiles_output_dir_ = base_output_dir_ +
                           parameter_file.get<string>(
                               node_name+"output_dirs.rootfiles");

@@ -1,6 +1,7 @@
 #include "plotter.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -209,6 +210,16 @@ Expected<Void> PopulateTProfile(
     const auto& this_run_lumi_FCal_A = this_run_data.lumi_FCal_A();
     const auto& this_run_lumi_FCal_C = this_run_data.lumi_FCal_C();
 
+    assert(this_run_lumi_BCM.size() == this_run_lumi_FCal_A.size());
+    assert(this_run_lumi_FCal_A.size() == this_run_lumi_FCal_C.size());
+    /*
+    cout << "*******************************" << endl;
+    cout << run_name << endl;
+    cout << this_run_lumi_BCM.at(0) << endl;
+    cout << this_run_lumi_FCal_A.at(0) << endl;
+    cout << this_run_lumi_FCal_C.at(0) << endl;
+    */
+
     auto this_bin = profile->GetXaxis()->FindBin(timestamp);
     if (this_bin == last_bin) {
       cerr << "Warning: bin collision for run " << run_name << endl;
@@ -220,26 +231,26 @@ Expected<Void> PopulateTProfile(
     auto n_events = this_run_lumi_BCM.size();
 
     for (unsigned iEvent = 0; iEvent < n_events; ++iEvent) {
-      auto event_lumi_BCM = this_run_lumi_BCM.at(iEvent);
+      auto event_lumi_BCM = this_run_lumi_BCM[iEvent];
       if (event_lumi_BCM < gBCMLumiCutoff) continue;
 
-      Float_t event_lumi_FCal;
+      Float_t event_lumi_FCal = 0.0;
       if (side == ZSide::A) {
-          event_lumi_FCal = this_run_lumi_FCal_A.at(iEvent);
+        event_lumi_FCal = this_run_lumi_FCal_A[iEvent];
       }
       else if (side == ZSide::C) {
-        event_lumi_FCal = this_run_lumi_FCal_C.at(iEvent);
+        event_lumi_FCal = this_run_lumi_FCal_C[iEvent];
       }
       else { // (side == ZSide::Both) {
-        event_lumi_FCal = ( this_run_lumi_FCal_A.at(iEvent) +
-                            this_run_lumi_FCal_C.at(iEvent) ) / 2;
-        if (this_run_lumi_FCal_A.at(iEvent) < gFCalLumiCutoff ||
-            this_run_lumi_FCal_C.at(iEvent) < gFCalLumiCutoff) continue;
+        event_lumi_FCal = ( this_run_lumi_FCal_A[iEvent] +
+                            this_run_lumi_FCal_C[iEvent] ) / 2;
+        if (this_run_lumi_FCal_A[iEvent] < gFCalLumiCutoff ||
+            this_run_lumi_FCal_C[iEvent] < gFCalLumiCutoff) continue;
       }
       if (event_lumi_FCal < gFCalLumiCutoff) continue;
       Float_t this_event_diff = ((event_lumi_FCal/event_lumi_BCM) - 1)*100;
-      if (this_event_diff < gPercentDiffMin ||
-          this_event_diff > gPercentDiffMax) continue;
+      //if (this_event_diff < gPercentDiffMin ||
+      //    this_event_diff > gPercentDiffMax) continue;
 
       profile->Fill(timestamp, this_event_diff);
     }
@@ -393,24 +404,36 @@ bool MinNonZero(Float_t i, Float_t j) {
 
 Expected<FitResults> Plotter::PlotLumiCurrent(
     const VectorP<Float_t>& points,
-    const LumiCurrentPlotOptions& options) {
-
+    const LumiCurrentPlotOptions& options)
+{
   const char *this_func_name = "PlotLumiCurrent";
 
   TCanvas canvas;
   canvas.cd();
 
   VectorP<Float_t> points_filtered(points);
-  std::remove_if(points_filtered.begin(),
-                 points_filtered.end(),
-                 [] (auto point) {
-                   return point[0] < gEpsilon || point[1] < gEpsilon;
-                 });
-
   for (auto& point: points_filtered) {
     point[0] *= options.x_scale();
     point[1] *= options.y_scale();
   }
+
+  points_filtered.erase(
+      std::remove_if(
+          points_filtered.begin(),
+          points_filtered.end(),
+          [] (auto point) {
+            return point[0] < gFCalLumiCutoff || point[1] < gFCalCurrentCutoff;
+          }
+          ),
+      points_filtered.end());
+
+  /*
+  for (auto& point: points_filtered) {
+    if (options.channel_name() == "M180C5") {
+      cout << point[0] << '\t' << point[1] << endl;
+    }
+  }
+  */
 
   // Use C-style dynamic arrays since ROOT doesn't support vectors
   auto num_points = points_filtered.size();
@@ -455,13 +478,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
 
     graph.Fit("f1", (options.fit_options()+"BQS").c_str());
 
-    //cout << "Chi^2 = " << fit.GetChisquare()
-    //     << ", nDoF = " << fit.GetNDF() << endl;
-
-    RecursiveFilterOutliers(graph, fit, options);
-
-    //cout << "Chi^2 = " << fit.GetChisquare()
-    //     << ", nDoF = " << fit.GetNDF() << endl;
+    //RecursiveFilterOutliers(graph, fit, options);
 
     fit_results.FromFit(fit, options);
 
@@ -486,8 +503,8 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
 //   run. These parameters are used to derive the FCal lumi calibration.
 Expected<Void> Plotter::GeometricAnalysisOfFitResults(
                      const FitResultsMap& fit_results,
-                     const LumiCurrentPlotOptions& options) {
-
+                     const LumiCurrentPlotOptions& options)
+{
   auto phi_slices_slopes_sums = InitPhiSlicesSlopeSumsMap();
   for (const auto& this_channel_results: fit_results) {
     auto phi_slice =
@@ -534,8 +551,8 @@ Expected<Void> Plotter::GeometricAnalysisOfFitResults(
 //   run. These parameters are used to derive the FCal lumi calibration.
 Expected<Void> Plotter::WriteFitResultsToTree(
     const FitResultsMap& fit_results,
-    const LumiCurrentPlotOptions& options) {
-
+    const LumiCurrentPlotOptions& options)
+{
   const char *this_func_name = "WriteFitResultsToTree";
 
   auto output_dir = options.raw_fit_results_dir();
@@ -572,12 +589,12 @@ Expected<Void> Plotter::WriteFitResultsToTree(
 }
 
 // Writes the FCal lumi calibration data space-delimited in a plaintext file:
-//     
+//
 //     ChannelName slope intercept
 Expected<Void> Plotter::WriteCalibrationToText(
     const FitResultsMap &fit_results,
-    const LumiCurrentPlotOptions& options) {
-
+    const LumiCurrentPlotOptions& options)
+{
   const char *this_func_name = "WriteCalibrationToText";
 
   auto output_dir = options.calibration_results_dir();
@@ -607,7 +624,8 @@ Expected<Void> Plotter::WriteCalibrationToText(
 //   C-side, average between them, etc.) all on the same canvas.
 Expected<Void> Plotter::PlotMuStability(
     const std::map<string, SingleRunData> &runs_data,
-    const MuStabPlotOptions &options) {
+    const MuStabPlotOptions &options)
+{
   TCanvas canvas;
   canvas.cd();
   THStack stack("stack","");
@@ -617,11 +635,7 @@ Expected<Void> Plotter::PlotMuStability(
   legend.SetBorderSize(1);
   legend.SetNColumns(2);
 
-  // Plots and root files are saved in separate directories
-  auto base_output_dir = options.base_output_dir();
-  auto rootfiles_output_dir = base_output_dir+options.rootfiles_output_dir();
-
-  TRY( Util::mkdir(rootfiles_output_dir) )
+  TRY( Util::mkdir(options.rootfiles_output_dir()) )
 
   // This vector holds the plotting parameters for each region
   auto regions = InitRegionsData(options);
@@ -644,12 +658,13 @@ Expected<Void> Plotter::PlotMuStability(
   // Creates a TProfile for each region and adds it to the stack
   for (auto &region: regions) {
 
-    // TProfiles must be added to the stack via owning pointers
-    region.plot_ = std::make_unique<TProfile>(region.plot_name_.c_str(),
-                                region.plot_title_.c_str(),
-                                n_bins,
-                                low_bin,
-                                high_bin);
+    // TProfiles must be added to the THStack via owning pointers
+    region.plot_ = std::make_unique<TProfile>(
+        region.plot_name_.c_str(),
+        region.plot_title_.c_str(),
+        n_bins,
+        low_bin,
+        high_bin);
 
     TRY( PopulateTProfile(region.region_name_,
                           runs_data,
@@ -657,7 +672,7 @@ Expected<Void> Plotter::PlotMuStability(
 
 
     // Profiles are saved individually in root files
-    TFile file( (rootfiles_output_dir+region.plot_name_+".root").c_str(),
+    TFile file( (options.rootfiles_output_dir()+region.plot_name_+".root").c_str(),
                 "RECREATE" );
     region.plot_->Write();
     file.Close();
@@ -702,7 +717,7 @@ Expected<Void> Plotter::PlotMuStability(
   TLatex label_ATLAS = DrawATLASInternalLabel();
 
   canvas.Update();
-  canvas.Print( (base_output_dir+"mu_stability.pdf").c_str() );
+  canvas.Print( (options.base_output_dir()+"mu_stability.pdf").c_str() );
 
   return Void();
 }

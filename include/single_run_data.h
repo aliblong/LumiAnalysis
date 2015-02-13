@@ -19,6 +19,8 @@ class SingleRunData {
   SingleRunData(std::string run_name, const Analysis& analysis);
   ~SingleRunData() {}
 
+  Error::Expected<Void> Init();
+
   Error::Expected<Void> CreateLumiCurrentPlots() const;
   Error::Expected<Void> CreateSingleRunPlots() const;
   Error::Expected<Void> CalcFCalLumi();
