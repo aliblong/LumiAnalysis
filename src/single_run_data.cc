@@ -36,17 +36,19 @@ using Error::Expected;
 
 namespace {
 
-Expected<std::array<Int_t, 2>> FindStableLBBounds(const vector<string>* beam_mode) {
+Expected<std::array<Int_t, 2>> FindStableLBBounds(const vector<string>* beam_mode)
+{
   auto this_func_name = "FindStableLBBounds";
+
+  if (beam_mode->size() == 0) {
+    auto err_msg = "empty beam_mode vector";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
   Int_t first_stable_LB = 0;
   for (const auto& status: *beam_mode) {
     if (status == "STABLE BEAMS") break;
     ++first_stable_LB;
-  }
-
-  if (first_stable_LB == 0) {
-    auto err_msg = "stable beams at first lumi block";
-    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
   if (first_stable_LB == beam_mode->size()) {
@@ -66,6 +68,31 @@ Expected<std::array<Int_t, 2>> FindStableLBBounds(const vector<string>* beam_mod
   return std::array<Int_t, 2>{first_stable_LB, last_stable_LB};
 }
 
+Expected<Int_t> FindStartOfAdjustLB(const vector<string>* beam_mode)
+{
+  auto this_func_name = "FindStartOfAdjustLB";
+
+  if (beam_mode->size() == 0) {
+    auto err_msg = "empty beam_mode vector";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  auto initial_beam_mode = beam_mode->at(0);
+  if (initial_beam_mode == "STABLE BEAMS" ||
+      initial_beam_mode == "ADJUST") {
+    auto err_msg = "stable or adjust beams at first lumi block";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  Int_t start_of_adjust_LB = 0;
+  for (const auto& status: *beam_mode) {
+    if (status == "ADJUST") break;
+    ++start_of_adjust_LB;
+  }
+
+  return start_of_adjust_LB;
+}
+
 }
 
 SingleRunData::SingleRunData(std::string run_name, const Analysis& analysis)
@@ -80,9 +107,9 @@ SingleRunData::SingleRunData(std::string run_name, const Analysis& analysis)
 Expected<Void> SingleRunData::Init()
 {
   if (!analysis_.use_start_of_fill_pedestals()){
-    RETURN_IF_ERR( ReadPedestals() )
+    TRY( ReadPedestals() )
   }
-  RETURN_IF_ERR( ReadTree() )
+  TRY( ReadTree() )
   return Void();
 }
 
@@ -175,22 +202,52 @@ Expected<Void> SingleRunData::ReadTree()
   RETURN_IF_ERR( LB_bounds )
   auto first_stable_LB = LB_bounds->at(0);
   auto last_stable_LB = LB_bounds->at(1);
-  // LB indexing starts at 1, I think
+  // LB indexing starts at 1 within ATLAS, I think
+  // This is for use in creating Benedetto files
   LB_stability_offset_ = first_stable_LB + 1;
 
   if (analysis_.use_start_of_fill_pedestals()) {
     assert(pedestals_.size() == 0);
+
+    auto start_of_adjust_LB = FindStartOfAdjustLB(beam_mode);
+
+    RETURN_IF_ERR( start_of_adjust_LB )
+
     auto iChannel = 0;
     // Avoid reallocations by reusing the same vector
+    // I could do this sans vector, but idc about the memory usage of a < 100-
+    //   element vector
     vector<Float_t> pedestal_values;
-    pedestal_values.reserve(first_stable_LB);
+    pedestal_values.reserve(*start_of_adjust_LB);
     for (const auto& channel: analysis_.channel_calibrations()) {
       auto channel_name = channel.first;
-      for (Int_t iLB = 0; iLB < first_stable_LB; ++iLB) {
-        if (lumi_BCM_temp[iLB] > gBCMLumiCutoff) {
-          pedestal_values.push_back(currents_temp[iChannel][iLB]);
+      for (Int_t iLB = 0; iLB < *start_of_adjust_LB; ++iLB) {
+        //if (channel_name == "M80C0") cout << lumi_BCM_temp[iLB] << endl;
+        // We want LBs from the start of the fill before beam align
+        /*
+        if (channel_name == "M180C0") {
+          cout << beam_mode->at(iLB) << '\t'
+               << lumi_BCM_temp[iLB] << '\t'
+               << currents_temp[iChannel][iLB] << endl;
+        }
+        */
+        auto this_channel_LB_current = currents_temp[iChannel][iLB];
+        // Sometimes we get current of exactly 0 at the start of beam inject or
+        // setup. BCM lumi should always be ~0 before beam adjust
+        if (lumi_BCM_temp[iLB] < gBCMLumiCutoff &&
+            this_channel_LB_current > gEpsilon) {
+          pedestal_values.push_back(this_channel_LB_current);
         }
       }
+      // Arbitrary restriction on how many good pedestal readings there must be
+      const auto min_pedestal_values = 3;
+      if (pedestal_values.size() < min_pedestal_values) {
+        auto err_msg = "insufficient currents (< " +
+                       std::to_string(min_pedestal_values) +
+                       ") to form the avg pedestal calculation";
+        return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+      }
+
       auto pedestal_sum = std::accumulate(pedestal_values.begin(),
                                           pedestal_values.end(),
                                           0.0);
