@@ -29,6 +29,7 @@
 
 #include "boost/expected/expected.hpp"
 
+#include "ATLAS_label_options.h"
 #include "cutoffs.h"
 #include "error.h"
 #include "fcal_region_data.h"
@@ -305,15 +306,17 @@ void ApplyLCPlotOptionsToGraph(TGraphErrors& graph,
   graph.GetYaxis()->SetTitle(plot_options.y_title().c_str());
 }
 
-TLatex DrawATLASInternalLabel() {
+TLatex DrawATLASLabel(const ATLASLabelOptions& options) {
   TLatex label;
-  label.SetNDC(true);
-  label.SetTextSize(0.040);
+  label.SetNDC(options.use_NDC());
+  label.SetTextSize(options.text_size());
   label.SetTextFont(72);
-  label.DrawLatex(0.65,0.84,"ATLAS");
+  label.DrawLatex(options.x(),options.y(),"ATLAS");
   label.SetTextFont(42);
-  label.DrawLatex(0.65+0.10,0.84,"Internal");
-  label.SetTextSize(0.030);
+  label.DrawLatex(options.x()+options.subheading_offset(),
+                  options.y(),
+                  options.subheading().c_str());
+  //label.SetTextSize(options.text_size());
 
   return label;
 }
@@ -411,7 +414,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   TCanvas canvas;
   canvas.cd();
 
-  VectorP<Float_t> points_filtered(points);
+  auto points_filtered = points;
   for (auto& point: points_filtered) {
     point[0] *= options.x_scale();
     point[1] *= options.y_scale();
@@ -426,14 +429,6 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
           }
           ),
       points_filtered.end());
-
-  /*
-  for (auto& point: points_filtered) {
-    if (options.channel_name() == "M180C5") {
-      cout << point[0] << '\t' << point[1] << endl;
-    }
-  }
-  */
 
   // Use C-style dynamic arrays since ROOT doesn't support vectors
   auto num_points = points_filtered.size();
@@ -453,7 +448,6 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   graph.Draw(options.draw_options().c_str());
   SetErrors(graph, options.x_rel_error(), options.y_rel_error());
 
-  // Plot formatting
   ApplyLCPlotOptionsToGraph(graph, options);
 
   auto channel_name = options.channel_name();
@@ -489,7 +483,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
 
   fit_legend.Draw();
 
-  TLatex label_ATLAS = DrawATLASInternalLabel();
+  DrawATLASLabel(ATLASLabelOptions{"Internal"});
 
   canvas.Update();
   auto write_dir = options.plots_dir()+options.run_name()+"/";
@@ -714,7 +708,7 @@ Expected<Void> Plotter::PlotMuStability(
     sample_marker.Draw();
   }
 
-  TLatex label_ATLAS = DrawATLASInternalLabel();
+  DrawATLASLabel(ATLASLabelOptions{"Internal"});
 
   canvas.Update();
   canvas.Print( (options.base_output_dir()+"mu_stability.pdf").c_str() );
@@ -795,7 +789,7 @@ int Plotter::PlotLumiTotalCurrent(const VectorF &lumi_arg,
   if (plot_options.y_auto_range()) SetAxisAutoRange(graph_C.GetYaxis(), current_A);
 
   TLatex label_ATLAS;
-  DrawATLASInternalLabel(label_ATLAS);
+  DrawATLASLabel(label_ATLAS);
 
   canvas.Update();
   string write_dir = output_dir+"lumi_current/"+run_name+"/";
