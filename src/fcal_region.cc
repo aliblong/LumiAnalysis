@@ -91,6 +91,7 @@ ModuleHalfSet FCalRegion::CreateModuleHalfSet() {
   for (auto side: FCalRegion::Z_SIDES) {
     for (auto axis: FCalRegion::AXES) {
       for (auto sign: FCalRegion::SIGNS) {
+        // non-explicit std::tuple constructor is C++14
         result.insert(std::make_tuple(side, axis, sign));
       }
     }
@@ -119,7 +120,7 @@ void FCalRegion::DumpGeoRegion(const ModuleHalf &region) {
 }
 */
 
-Expected<string> FCalRegion::PhiSliceFromChannel(string channel_name) {
+Expected<string> FCalRegion::PhiSliceFromChannel(const string& channel_name) {
 // This is vaguely hack-y & only works with a very specific channel-naming scheme
 
   ZSide this_region = ZSide::A;
@@ -143,7 +144,7 @@ Expected<string> FCalRegion::PhiSliceFromChannel(string channel_name) {
   return PhiSliceFromID(LineID(region_ID, module_ID, channel_ID));
 }
 
-Sign FCalRegion::SignFromAxisAndPhiSlice(Axis axis, string phi_slice_name) {
+Sign FCalRegion::SignFromAxisAndPhiSlice(Axis axis, const string& phi_slice_name) {
   auto phi_slice_number = atoi(phi_slice_name.substr(3,2).c_str());
   if (axis == Axis::X) {
     if ((phi_slice_number < 4) || (phi_slice_number > 11)) {

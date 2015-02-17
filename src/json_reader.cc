@@ -12,12 +12,12 @@ using std::vector;
 
 using boost::property_tree::ptree;
 
-JSONReader::JSONReader(const string filename) {
+JSONReader::JSONReader(const string& filename) {
   boost::property_tree::json_parser::read_json(filename, pt);
 }
 
 template<>
-bool JSONReader::get<bool>(const string key) const {
+bool JSONReader::get<bool>(const string& key) const {
   string val = pt.get<string>(key);
   if (val == "true") {
     return true;

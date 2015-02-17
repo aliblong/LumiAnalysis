@@ -50,7 +50,7 @@ bool IsZeroes(const vector<Float_t> &vec) {
 } // Anonymous namespace
 
 // Initializes various quantities required to run the analysis
-Analysis::Analysis(string params_filepath)
+Analysis::Analysis(string&& params_filepath)
 {
   params_filepath_ = params_filepath;
   TRY_THROW( PrepareAnalysis() )

@@ -63,8 +63,8 @@ using Expected = boost::expected<T, std::shared_ptr<Base> >;
 class System : public Base {
  public:
   System(int err_code,
-         const std::string &command,
-         const std::string &func_name) {
+         const std::string& command,
+         const std::string& func_name) {
     Base::msg_ = "Error: in "+func_name+" - system command `"+command+
                    "` failed, returning error code "+std::to_string(err_code);
   }
@@ -72,16 +72,16 @@ class System : public Base {
 
 class Runtime : public Base {
  public:
-  Runtime(const std::string &msg,
-          const std::string &func_name) {
+  Runtime(const std::string& msg,
+          const std::string& func_name) {
     Base::msg_ = "Error: in "+func_name+" - "+msg;
   }
 };
 
 class File : public Base {
  public:
-  File(const std::string &filepath,
-       const std::string &func_name) {
+  File(const std::string& filepath,
+       const std::string& func_name) {
     Base::msg_ = ("Error: in "+func_name+" - file `"+filepath+
                     "` was not found or could not be opened");
   }
@@ -89,15 +89,15 @@ class File : public Base {
 
 class Nullptr : public Base {
  public:
-  Nullptr(const std::string &func_name) {
+  Nullptr(const std::string& func_name) {
     Base::msg_ = ("Error: "+func_name+" was passed a nullptr");
   }
 };
 
 class Logic : public Base {
  public:
-  Logic(const std::string description,
-        const std::string &func_name) {
+  Logic(const std::string& description,
+        const std::string& func_name) {
     Base::msg_ = ("Error: in "+func_name+" - "+description);
   }
 };

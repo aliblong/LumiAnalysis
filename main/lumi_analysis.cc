@@ -26,6 +26,6 @@ int main(int argc, char *argv[]) {
     params_filepath = "params/param_trees/default.json";
   }
 
-  Analysis analysis(params_filepath);
+  Analysis analysis(std::move(params_filepath));
   LOG_IF_ERR( analysis.RunAnalysis() )
 }

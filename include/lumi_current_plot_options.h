@@ -8,8 +8,8 @@ class LumiCurrentPlotOptions {
   LumiCurrentPlotOptions(const std::string& params_filepath);
   ~LumiCurrentPlotOptions(){};
 
-  auto& run_name(std::string run_name) { run_name_ = run_name; return *this; }
-  auto& channel_name(std::string channel_name) { channel_name_ = channel_name; return *this; }
+  auto& run_name(std::string&& run_name) { run_name_ = run_name; return *this; }
+  auto& channel_name(std::string&& channel_name) { channel_name_ = channel_name; return *this; }
 
   const auto& run_name() const { return run_name_; }
   const auto& channel_name() const { return channel_name_; }

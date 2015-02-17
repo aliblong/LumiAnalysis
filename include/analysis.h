@@ -15,10 +15,9 @@ class SingleRunData;
 //   flow of the analysis
 class Analysis {
  public:
-  Analysis(std::string params_filepath);
+  Analysis(std::string&& params_filepath);
   ~Analysis(){};
 
-  Error::Expected<SingleRunData> AnalyseTree(const std::string& run_name) const;
   void CreateAllRunPlots(const std::map<std::string, SingleRunData> &runs_data);
   Error::Expected<Void> PrepareAnalysis();
   Error::Expected<Void> ReadCalibrations();

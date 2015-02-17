@@ -10,8 +10,8 @@
 class FCalRegionData {
  public:
   FCalRegionData(FCalRegion::ZSide region,
-                 std::string name,
-                 std::string title,
+                 std::string&& name,
+                 std::string&& title,
                  unsigned color,
                  Float_t size,
                  unsigned style);

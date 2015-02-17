@@ -3,7 +3,7 @@
 
 class ATLASLabelOptions {
  public:
-  ATLASLabelOptions(std::string subheading) : subheading_(std::move(subheading)) {}
+  ATLASLabelOptions(std::string&& subheading) : subheading_(subheading) {}
   // TODO: write this implementation
   //ATLASLabelOptions(std::string params_filepath);
   ~ATLASLabelOptions(){};

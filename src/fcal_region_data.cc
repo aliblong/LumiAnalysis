@@ -2,12 +2,13 @@
 #include <string>
 #include "Rtypes.h"
 
-FCalRegionData::FCalRegionData(FCalRegion::ZSide region,
-                 std::string name,
-                 std::string title,
-                 unsigned color,
-                 Float_t size,
-                 unsigned style)
+FCalRegionData::FCalRegionData(
+    FCalRegion::ZSide region,
+    std::string&& name,
+    std::string&& title,
+    unsigned color,
+    Float_t size,
+    unsigned style)
     : region_name_(region),
       plot_name_(name),
       plot_title_(title),

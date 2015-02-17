@@ -146,7 +146,7 @@ Expected<Void> SingleRunData::ReadPedestals()
 //   and copies it to member variables.
 Expected<Void> SingleRunData::ReadTree()
 {
-  const char *this_func_name = "SingleRunData::ReadTree";
+  auto this_func_name = "SingleRunData::ReadTree";
 
   if (analysis_.verbose()) cout << "Analysing sample " << run_name_ << endl;
 
@@ -445,17 +445,17 @@ Expected<Void> SingleRunData::CalcFCalMu()
 
 Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
 {
-  const char* this_func_name = "SingleRunData::CreateLumiCurrentPlots";
+  auto this_func_name = "SingleRunData::CreateLumiCurrentPlots";
   if (analysis_.verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
 
   LumiCurrentPlotOptions plot_options(analysis_.params_filepath());
-  plot_options.run_name(run_name_);
+  plot_options.run_name(string(run_name_));
   std::map<string, FitResults> fit_results;
 
   if (plot_options.do_individual()) {
     for (const auto &channel: currents_) {
       auto this_channel_name = channel.first;
-      plot_options.channel_name(this_channel_name);
+      plot_options.channel_name(string(this_channel_name));
 
       auto lumi_current_points = PointVectorFromVectors(
           lumi_BCM_,
