@@ -57,14 +57,15 @@ class Analysis {
   const auto& channel_calibrations() const { return channel_calibrations_; }
 
  private:
-  bool verbose_;
+  bool verbose_ = false;
 
-  double f_rev_;
-  double x_sec_;
-  int ref_run_number_;
-  double corr_A_;
-  double corr_C_;
-  double corr_Avg_;
+  double f_rev_ = 0.0;
+  double x_sec_ = 0.0;
+
+  int ref_run_number_ = 0;
+  double corr_A_ = 0.0;
+  double corr_C_ = 0.0;
+  double corr_Avg_ = 0.0;
 
   std::string params_filepath_;
   std::string calibrations_filepath_;
@@ -75,14 +76,14 @@ class Analysis {
 
   std::vector<std::string> plot_types_;
 
-  bool retrieve_timestamps_;
-  bool retrieve_currents_;
-  bool retrieve_lumi_BCM_;
-  bool retrieve_lumi_FCal_;
+  bool retrieve_timestamps_ = false;
+  bool retrieve_currents_ = false;
+  bool retrieve_lumi_BCM_ = false;
+  bool retrieve_lumi_FCal_ = false;
 
-  bool use_start_of_fill_pedestals_;
+  bool use_start_of_fill_pedestals_ = false;
 
-  bool do_benedetto_;
+  bool do_benedetto_ = false;
   std::string benedetto_output_dir_;
 
   struct ChannelCalibration {

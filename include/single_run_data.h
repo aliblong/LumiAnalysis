@@ -52,11 +52,11 @@ class SingleRunData {
   //   directories.
   const Analysis& analysis_;
 
-  Int_t nLB_; // Number of lumi blocks
-  Int_t nCollisions_;
-  Int_t timestamp_;
+  Int_t nLB_= 0; // Number of lumi blocks
+  Int_t nCollisions_ = 0;
+  Int_t timestamp_ = 0;
 
-  Int_t LB_stability_offset_;
+  Int_t LB_stability_offset_ = 0;
 
   std::map<std::string, Float_t> pedestals_;
   std::map< std::string, std::vector<Float_t> > currents_;

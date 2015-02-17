@@ -26,9 +26,9 @@ class FCalRegionData {
 
   std::unique_ptr<TProfile> plot_;
 
-  unsigned marker_color_;
-  Float_t marker_size_;
-  unsigned marker_style_;
+  unsigned marker_color_ = 0;
+  Float_t marker_size_ = 1.0;
+  unsigned marker_style_ = 0;
 };
 
 #endif

@@ -7,7 +7,6 @@
 
 #include "boost/expected/expected.hpp"
 
-#include "enum.h"
 #include "error.h"
 
 using FCalRegion::ZSide;

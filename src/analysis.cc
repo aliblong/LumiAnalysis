@@ -51,22 +51,6 @@ bool IsZeroes(const vector<Float_t> &vec) {
 
 // Initializes various quantities required to run the analysis
 Analysis::Analysis(string params_filepath)
-  : verbose_(false),
-    use_start_of_fill_pedestals_(false),
-
-    f_rev_(0.0),
-    x_sec_(0.0),
-    ref_run_number_(0),
-    corr_A_(0.0),
-    corr_C_(0.0),
-    corr_Avg_(0.0),
-
-    retrieve_timestamps_(false),
-    retrieve_currents_(false),
-    retrieve_lumi_BCM_(false),
-    retrieve_lumi_FCal_(false),
-
-    do_benedetto_(false)
 {
   params_filepath_ = params_filepath;
   TRY_THROW( PrepareAnalysis() )

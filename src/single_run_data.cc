@@ -96,12 +96,8 @@ Expected<Int_t> FindStartOfAdjustLB(const vector<string>* beam_mode)
 }
 
 SingleRunData::SingleRunData(std::string run_name, const Analysis& analysis)
-  : run_name_(run_name),
-    analysis_(analysis),
-    nLB_(0),
-    nCollisions_(0),
-    timestamp_(0),
-    LB_stability_offset_(0)
+  : run_name_(std::move(run_name)),
+    analysis_(analysis)
 {}
 
 Expected<Void> SingleRunData::Init()
@@ -224,14 +220,15 @@ Expected<Void> SingleRunData::ReadTree()
       for (Int_t iLB = 0; iLB < *start_of_adjust_LB; ++iLB) {
         //if (channel_name == "M80C0") cout << lumi_BCM_temp[iLB] << endl;
         // We want LBs from the start of the fill before beam align
+        auto this_channel_LB_current = currents_temp[iChannel][iLB];
+
         /*
-        if (channel_name == "M180C0") {
+        if (channel_name == "M82C0" && (run_name_ == "206369" || run_name_ == "206409")) {
           cout << beam_mode->at(iLB) << '\t'
                << lumi_BCM_temp[iLB] << '\t'
-               << currents_temp[iChannel][iLB] << endl;
+               << this_channel_LB_current << endl;
         }
         */
-        auto this_channel_LB_current = currents_temp[iChannel][iLB];
         // Sometimes we get current of exactly 0 at the start of beam inject or
         // setup. BCM lumi should always be ~0 before beam adjust
         if (lumi_BCM_temp[iLB] < gBCMLumiCutoff &&
@@ -244,7 +241,8 @@ Expected<Void> SingleRunData::ReadTree()
       if (pedestal_values.size() < min_pedestal_values) {
         auto err_msg = "insufficient currents (< " +
                        std::to_string(min_pedestal_values) +
-                       ") to form the avg pedestal calculation";
+                       ") in channel " + channel_name +
+                       " to form the avg pedestal calculation";
         return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
       }
 
@@ -451,13 +449,13 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
   if (analysis_.verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
 
   LumiCurrentPlotOptions plot_options(analysis_.params_filepath());
-  plot_options.set_run_name(run_name_);
+  plot_options.run_name(run_name_);
   std::map<string, FitResults> fit_results;
 
   if (plot_options.do_individual()) {
     for (const auto &channel: currents_) {
       auto this_channel_name = channel.first;
-      plot_options.set_channel_name(this_channel_name);
+      plot_options.channel_name(this_channel_name);
 
       auto lumi_current_points = PointVectorFromVectors(
           lumi_BCM_,
@@ -517,14 +515,14 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
     // TODO: figure out how to deal with sums
     auto points_sum_A = PointVectorFromVectors(lumi_BCM_,
                                                channel_currents_sum_A);
-    plot_options.set_channel_name("Sum_A");
+    plot_options.channel_name("Sum_A");
     if (points_sum_A.valid()) {
       TRY( Plotter::PlotLumiCurrent(*points_sum_A, plot_options) )
     }
 
     auto points_sum_C = PointVectorFromVectors(lumi_BCM_,
                                                channel_currents_sum_C);
-    plot_options.set_channel_name("Sum_C");
+    plot_options.channel_name("Sum_C");
     if (points_sum_C.valid()) {
       TRY( Plotter::PlotLumiCurrent(*points_sum_C, plot_options) )
     }

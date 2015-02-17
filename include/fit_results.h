@@ -16,16 +16,16 @@ class FitResults {
 
   void FromFit(const TF1 &fit, const LumiCurrentPlotOptions &plot_options);
 
-  Float_t slope;
-  Float_t slope_err;
-  Float_t intercept;
-  Float_t intercept_err;
-  Float_t chi_squared;
-  UInt_t nDoF;
-  Bool_t is_short;
+  Float_t slope = 0.0;
+  Float_t slope_err = 0.0;
+  Float_t intercept = 0.0;
+  Float_t intercept_err = 0.0;
+  Float_t chi_squared = 0.0;
+  UInt_t nDoF = 0;
+  Bool_t is_short = false;
 
-  Float_t calibration_slope;
-  Float_t calibration_intercept;
+  Float_t calibration_slope = 0.0;
+  Float_t calibration_intercept = 0.0;
 };
 
 #endif
