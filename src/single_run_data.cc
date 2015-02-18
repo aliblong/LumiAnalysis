@@ -2,7 +2,6 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -10,12 +9,15 @@
 #include "Rtypes.h"
 #include "TFile.h"
 #include "TTree.h"
+
 #include "boost/expected/expected.hpp"
+#include "boost/container/flat_map.hpp"
 
 #include "analysis.h"
 #include "branch_array_buffer_sizes.h"
 #include "cutoffs.h"
 #include "error.h"
+#include "fcal_region.h"
 #include "plotter.h"
 #include "point.h"
 #include "util.h"
@@ -27,6 +29,9 @@ using std::vector;
 using std::cout;
 using std::cerr;
 using std::endl;
+
+template<typename K, typename V>
+using map = boost::container::flat_map<K, V>;
 
 using std::make_shared;
 
@@ -95,14 +100,14 @@ Expected<Int_t> FindStartOfAdjustLB(const vector<string>* beam_mode)
 
 }
 
-SingleRunData::SingleRunData(std::string run_name, const Analysis& analysis)
+SingleRunData::SingleRunData(std::string run_name, const Analysis* analysis)
   : run_name_(std::move(run_name)),
     analysis_(analysis)
 {}
 
 Expected<Void> SingleRunData::Init()
 {
-  if (!analysis_.use_start_of_fill_pedestals()){
+  if (!analysis_->use_start_of_fill_pedestals()){
     TRY( ReadPedestals() )
   }
   TRY( ReadTree() )
@@ -114,7 +119,7 @@ Expected<Void> SingleRunData::ReadPedestals()
 {
   auto this_func_name = "SingleRunData::ReadPedestals";
 
-  auto pedestals_filepath = analysis_.pedestals_dir() + run_name_ + ".dat";
+  auto pedestals_filepath = analysis_->pedestals_dir() + run_name_ + ".dat";
   std::ifstream pedestals_file(pedestals_filepath);
   if (!pedestals_file) {
     return make_unexpected(make_shared<Error::File>(pedestals_filepath, this_func_name));
@@ -124,17 +129,17 @@ Expected<Void> SingleRunData::ReadPedestals()
   Float_t pedestal;
   Float_t rms_noise;
   while (pedestals_file >> channel_name >> pedestal >> rms_noise) {
-    const auto& channels_list = analysis_.channel_calibrations();
+    const auto& channels_list = analysis_->channel_calibrations();
     if ( std::find_if(channels_list.begin(), channels_list.end(),
                       [&channel_name](const auto& run) {
                         return channel_name == run.first;
                       })
         != channels_list.end() ) {
-      pedestals_.insert({channel_name, pedestal});
+      pedestals_.insert({{channel_name, pedestal}});
     }
   }
 
-  if (analysis_.channel_calibrations().size() != pedestals_.size()) {
+  if (analysis_->channel_calibrations().size() != pedestals_.size()) {
     auto err_msg = "missing pedestal for a channel";
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
@@ -142,15 +147,15 @@ Expected<Void> SingleRunData::ReadPedestals()
   return Void();
 }
 
-// Reads relevant data in from the file {analysis_.trees_dir()}/{run_name_}.root
+// Reads relevant data in from the file {analysis_->trees_dir()}/{run_name_}.root
 //   and copies it to member variables.
 Expected<Void> SingleRunData::ReadTree()
 {
   auto this_func_name = "SingleRunData::ReadTree";
 
-  if (analysis_.verbose()) cout << "Analysing sample " << run_name_ << endl;
+  if (analysis_->verbose()) cout << "Analysing sample " << run_name_ << endl;
 
-  string filepath = analysis_.trees_dir()+run_name_+".root";
+  string filepath = analysis_->trees_dir()+run_name_+".root";
   TFile *this_file = TFile::Open(filepath.c_str());
   if (!this_file) {
     return make_unexpected(make_shared<Error::File>(filepath, this_func_name));
@@ -171,15 +176,15 @@ Expected<Void> SingleRunData::ReadTree()
   //   because of how TTrees work)
   Float_t currents_temp[gMaxNumChannels][gMaxNumLB];
   Float_t lumi_BCM_temp[gMaxNumLB];
-  if (analysis_.retrieve_currents()) {
+  if (analysis_->retrieve_currents()) {
     unsigned iChannel = 0;
-    for (const auto &channel: analysis_.channel_calibrations()) {
+    for (const auto &channel: analysis_->channel_calibrations()) {
       auto branch_name = "current_"+channel.first;
       this_tree->SetBranchAddress((branch_name).c_str(), &currents_temp[iChannel]);
       ++iChannel;
     }
   }
-  if (analysis_.retrieve_lumi_BCM()) {
+  if (analysis_->retrieve_lumi_BCM()) {
     this_tree->SetBranchAddress("ofl_lumi_pref",&lumi_BCM_temp);
   }
 
@@ -202,7 +207,7 @@ Expected<Void> SingleRunData::ReadTree()
   // This is for use in creating Benedetto files
   LB_stability_offset_ = first_stable_LB + 1;
 
-  if (analysis_.use_start_of_fill_pedestals()) {
+  if (analysis_->use_start_of_fill_pedestals()) {
     assert(pedestals_.size() == 0);
 
     auto start_of_adjust_LB = FindStartOfAdjustLB(beam_mode);
@@ -215,7 +220,7 @@ Expected<Void> SingleRunData::ReadTree()
     //   element vector
     vector<Float_t> pedestal_values;
     pedestal_values.reserve(*start_of_adjust_LB);
-    for (const auto& channel: analysis_.channel_calibrations()) {
+    for (const auto& channel: analysis_->channel_calibrations()) {
       auto channel_name = channel.first;
       for (Int_t iLB = 0; iLB < *start_of_adjust_LB; ++iLB) {
         //if (channel_name == "M80C0") cout << lumi_BCM_temp[iLB] << endl;
@@ -250,14 +255,14 @@ Expected<Void> SingleRunData::ReadTree()
                                           pedestal_values.end(),
                                           0.0);
       auto pedestal_avg = pedestal_sum / pedestal_values.size();
-      pedestals_.insert({channel_name, pedestal_avg});
+      pedestals_.insert({{channel_name, pedestal_avg}});
 
       ++iChannel;
       pedestal_values.clear();
     }
   }
 
-  if (analysis_.retrieve_currents()) {
+  if (analysis_->retrieve_currents()) {
     assert(currents_.size() == 0);
 
     auto iChannel = 0;
@@ -273,14 +278,14 @@ Expected<Void> SingleRunData::ReadTree()
         this_channel_currents.push_back(this_current);
       }
 
-      currents_.insert({std::move(this_channel_name),
-                        std::move(this_channel_currents)});
+      currents_.insert({{std::move(this_channel_name),
+                         std::move(this_channel_currents)}});
       ++iChannel;
       this_channel_currents.clear();
     }
   }
 
-  if (analysis_.retrieve_lumi_BCM()) {
+  if (analysis_->retrieve_lumi_BCM()) {
     assert(lumi_BCM_.size() == 0);
 
     for (int iLB = first_stable_LB; iLB <= last_stable_LB; ++iLB) {
@@ -295,7 +300,7 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
 {
   auto this_func_name = "SingleRunData::CreateBenedettoOutput";
 
-  auto output_dir = analysis_.benedetto_output_dir();
+  auto output_dir = analysis_->benedetto_output_dir();
   TRY( Util::mkdir(output_dir) )
   auto output_filepath = output_dir+run_name_+".dat";
   std::ofstream output_file(output_filepath);
@@ -321,7 +326,7 @@ void SingleRunData::HardcodenLBIfMissingFromTree()
                                 return run_name_ == run.first;
                               });
   if (run_ptr != MISSING_nLB.end()) {
-    if (analysis_.verbose()) {
+    if (analysis_->verbose()) {
       cout << "Manually setting nColl for run " << run_name_ << endl;
     }
     nCollisions_ = run_ptr->second;
@@ -332,7 +337,7 @@ void SingleRunData::HardcodenLBIfMissingFromTree()
 Expected<Void> SingleRunData::CalcFCalLumi()
 {
   auto this_func_name = "SingleRunData::CalcFCalLumi";
-  if (analysis_.verbose()) cout << "Calculating FCal luminosity" << endl;
+  if (analysis_->verbose()) cout << "Calculating FCal luminosity" << endl;
 
   // Checks that these values were not previously calculated
   if (lumi_FCal_A_.size() > 0 || lumi_FCal_C_.size() > 0) {
@@ -370,11 +375,10 @@ Expected<Void> SingleRunData::CalcFCalLumi()
       // Skip channel if current is ~0
       if (current < gFCalCurrentCutoff) continue;
 
-      // Perf sore point? (like it matters)
-      auto intercept = analysis_.channel_calibrations().at(channel_name).intercept;
-      auto slope = analysis_.channel_calibrations().at(channel_name).slope;
+      auto intercept = analysis_->channel_calibrations().at(channel_name).intercept;
+      auto slope = analysis_->channel_calibrations().at(channel_name).slope;
 
-      if (channel_name.at(1) == '1') { // channel from C-side
+      if (FCalRegion::ToZSide(channel_name) == FCalRegion::ZSide::C) {
         lumi_C_temp += current*slope + intercept;
         ++num_channels_C;
       }
@@ -390,13 +394,13 @@ Expected<Void> SingleRunData::CalcFCalLumi()
       lumi_FCal_A_.push_back(0.0);
     }
     else {
-      lumi_FCal_A_.push_back(analysis_.corr_A()*lumi_A_temp / num_channels_A);
+      lumi_FCal_A_.push_back(analysis_->corr_A()*lumi_A_temp / num_channels_A);
     }
     if (num_channels_C == 0) {
       lumi_FCal_C_.push_back(0.0);
     }
     else {
-      lumi_FCal_C_.push_back(analysis_.corr_C()*lumi_C_temp / num_channels_C);
+      lumi_FCal_C_.push_back(analysis_->corr_C()*lumi_C_temp / num_channels_C);
     }
   }
 
@@ -408,7 +412,7 @@ Expected<Void> SingleRunData::CalcFCalMu()
 {
   auto this_func_name = "SingleRunData::CalcFCalMu";
 
-  if (analysis_.verbose()) cout << "Calculating FCal <mu>" << endl;
+  if (analysis_->verbose()) cout << "Calculating FCal <mu>" << endl;
 
   // Checks that FCal lumi data exists
   if (lumi_FCal_A_.size() == 0 && lumi_FCal_C_.size() == 0) {
@@ -426,7 +430,7 @@ Expected<Void> SingleRunData::CalcFCalMu()
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
-  Float_t conversion_factor = analysis_.x_sec() / (nCollisions_ * analysis_.f_rev());
+  Float_t conversion_factor = analysis_->x_sec() / (nCollisions_ * analysis_->f_rev());
   // Cross-section conversion factor from 7 -> 8 TeV
   if (run_name_.at(0) == '2') conversion_factor /= 1.05;
 
@@ -446,11 +450,11 @@ Expected<Void> SingleRunData::CalcFCalMu()
 Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
 {
   auto this_func_name = "SingleRunData::CreateLumiCurrentPlots";
-  if (analysis_.verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
+  if (analysis_->verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
 
-  LumiCurrentPlotOptions plot_options(analysis_.params_filepath());
+  LumiCurrentPlotOptions plot_options(analysis_->params_filepath());
   plot_options.run_name(string(run_name_));
-  std::map<string, FitResults> fit_results;
+  map<string, FitResults> fit_results;
 
   if (plot_options.do_individual()) {
     for (const auto &channel: currents_) {
@@ -477,7 +481,7 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
       }
 
       if (plot_options.do_fit()) {
-        fit_results.insert({this_channel_name, *this_channel_fit_results});
+        fit_results.insert({{this_channel_name, *this_channel_fit_results}});
       }
     } //channels loop
   }
@@ -485,7 +489,7 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
   if (plot_options.do_sum()) {
     vector<Float_t> channel_currents_sum_A;
     vector<Float_t> channel_currents_sum_C;
-    for (const auto &channel: analysis_.channel_calibrations()) {
+    for (const auto &channel: analysis_->channel_calibrations()) {
       auto this_channel_name = channel.first;
       auto this_channel_current = currents_.at(this_channel_name);
 
@@ -545,9 +549,9 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
 // Create those plots which use data from only a single sample
 Expected<Void> SingleRunData::CreateSingleRunPlots() const
 {
-  for (const auto &plot_type: analysis_.plot_types()) {
+  for (const auto &plot_type: analysis_->plot_types()) {
     if (plot_type == "lumi_current") {
-      if (analysis_.verbose()) {
+      if (analysis_->verbose()) {
         cout << "Creating plots for sample " << run_name_ << endl;
       }
       TRY( CreateLumiCurrentPlots() )

@@ -6,7 +6,8 @@
 //#include <boost/property_tree/json_parser.hpp>
 #include <string>
 #include <vector>
-#include <map>
+
+#include "boost/container/flat_map.hpp"
 
 class JSONReader {
   typedef typename boost::property_tree::ptree ptree;
@@ -30,7 +31,7 @@ class JSONReader {
 
   template<typename T>
   auto get_map(const std::string& key) const {
-    std::map<std::string, T> result;
+    boost::container::flat_map<std::string, T> result;
     BOOST_FOREACH(const ptree::value_type &child, pt.get_child(key)) {
      result.insert(std::make_pair(child.first, child.second.get_value<T>()));
     }

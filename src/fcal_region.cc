@@ -1,11 +1,11 @@
 #include "fcal_region.h"
 
 #include <iostream>
-#include <map>
 #include <sstream>
 #include <string>
 
 #include "boost/expected/expected.hpp"
+#include "boost/container/flat_map.hpp"
 
 #include "error.h"
 
@@ -13,6 +13,9 @@ using FCalRegion::ZSide;
 using FCalRegion::Axis;
 using FCalRegion::Sign;
 using FCalRegion::ModuleHalfSet;
+
+template<typename K, typename V>
+using map = boost::container::flat_map<K, V>;
 
 using std::string;
 using std::make_shared;
@@ -32,16 +35,16 @@ struct LineID {
   char channel_ID;
 };
 
-const std::map<ZSide, std::string> Z_SIDE_STR_REP { {ZSide::A, "A"},
+const map<ZSide, std::string> Z_SIDE_STR_REP { {ZSide::A, "A"},
                                                     {ZSide::C, "C"},
                                                     {ZSide::Both, "Total"} };
-const std::map<Axis, std::string> axis_str_rep { {Axis::X, "X"},
+const map<Axis, std::string> axis_str_rep { {Axis::X, "X"},
                                                  {Axis::Y, "Y"} };
-const std::map<Sign, std::string> sign_str_rep { {Sign::Pos, "+"},
+const map<Sign, std::string> sign_str_rep { {Sign::Pos, "+"},
                                                  {Sign::Neg, "-"} };
 
 template <typename T>
-std::string MsgFromDict(const T &key, std::map<T, std::string> dict) {
+std::string MsgFromDict(const T &key, map<T, std::string> dict) {
   auto msg_it = dict.find(key);
   if (msg_it == dict.end()) {
     return "ERROR: entry for enum not found";
@@ -171,4 +174,13 @@ bool FCalRegion::IsValidChannel(const string& channel_name) {
   if (channel_name[0] != 'M') return false;
   if (channel_name[1] != '1' && channel_name[1] != '8') return false;
   return true;
+}
+
+ZSide FCalRegion::ToZSide(const std::string& channel_name) {
+  if (channel_name.at(1) == '1') {
+    return ZSide::C;
+  }
+  else {
+    return ZSide::A;
+  }
 }

@@ -7,7 +7,6 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <string>
 #include <sstream>
@@ -28,6 +27,7 @@
 #include "TTree.h"
 
 #include "boost/expected/expected.hpp"
+#include "boost/container/flat_map.hpp"
 
 #include "ATLAS_label_options.h"
 #include "cutoffs.h"
@@ -50,6 +50,9 @@ using std::vector;
 
 using std::make_shared;
 
+template<typename K, typename V>
+using map = boost::container::flat_map<K, V>;
+
 using boost::expected;
 using boost::make_expected;
 using boost::make_unexpected;
@@ -61,18 +64,18 @@ using FCalRegion::Sign;
 using Error::Expected;
 
 typedef vector<Float_t> VectorF;
-typedef std::map<string, FitResults> FitResultsMap;
+typedef map<string, FitResults> FitResultsMap;
 
 namespace {
 
-typedef std::map<FCalRegion::ModuleHalf, Float_t>
+typedef map<FCalRegion::ModuleHalf, Float_t>
           ModuleHalfMap;
 
 ModuleHalfMap InitRegionsSlopeSumsMap() {
   ModuleHalfMap result;
   auto module_half_set = FCalRegion::CreateModuleHalfSet();
   for (const auto& region: module_half_set) {
-    result.insert(std::make_pair(region, 0.0));
+    result.emplace_hint(end(result), region, 0.0);
   }
   return result;
 }
@@ -86,7 +89,7 @@ string StringFromInt(int i, unsigned width) {
 }
 
 Expected<Void> WriteGeometricAnalysisToText(
-      const std::map<string, Float_t>& phi_slices_slopes_sums,
+      const map<string, Float_t>& phi_slices_slopes_sums,
       const ModuleHalfMap& regions_slopes_sums,
       const LumiCurrentPlotOptions& options) {
 
@@ -128,15 +131,15 @@ Expected<Void> WriteGeometricAnalysisToText(
   return Void();
 }
 
-std::map<string, Float_t> InitPhiSlicesSlopeSumsMap() {
-  std::map<string, Float_t> result;
+map<string, Float_t> InitPhiSlicesSlopeSumsMap() {
+  map<string, Float_t> result;
   vector<string> phi_slice_names;
   for (unsigned i = 0; i < 16; ++i) {
     phi_slice_names.emplace_back("A1." + StringFromInt(i, 2));
     phi_slice_names.emplace_back("C1." + StringFromInt(i, 2));
   }
   for (const auto& phi_slice: phi_slice_names) {
-    result.insert(std::make_pair(phi_slice, 0.0));
+    result.emplace_hint(end(result), phi_slice, 0.0);
   }
   return result;
 }
@@ -194,12 +197,12 @@ vector<FCalRegionData> InitRegionsData(const MuStabPlotOptions& plot_options) {
 // Fills the TProfile for a given side using run data
 Expected<Void> PopulateTProfile(
     FCalRegion::ZSide side,
-    const std::map<string, SingleRunData>& runs_data,
+    const map<string, SingleRunData>& runs_data,
     TProfile *profile)
 {
-  auto func_name = "PopulateTProfile";
+  auto this_func_name = "PopulateTProfile";
   if (profile == nullptr) {
-    return make_unexpected(make_shared<Error::Nullptr>(func_name));
+    return make_unexpected(make_shared<Error::Nullptr>(this_func_name));
   }
 
   Int_t last_bin = -999;
@@ -213,17 +216,11 @@ Expected<Void> PopulateTProfile(
 
     assert(this_run_lumi_BCM.size() == this_run_lumi_FCal_A.size());
     assert(this_run_lumi_FCal_A.size() == this_run_lumi_FCal_C.size());
-    /*
-    cout << "*******************************" << endl;
-    cout << run_name << endl;
-    cout << this_run_lumi_BCM.at(0) << endl;
-    cout << this_run_lumi_FCal_A.at(0) << endl;
-    cout << this_run_lumi_FCal_C.at(0) << endl;
-    */
 
     auto this_bin = profile->GetXaxis()->FindBin(timestamp);
     if (this_bin == last_bin) {
-      cerr << "Warning: bin collision for run " << run_name << endl;
+      auto err_msg = "Error: bin collision for run " + run_name + ". Skipping this run.";
+      return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
     }
     else {
       last_bin = this_bin;
@@ -617,7 +614,7 @@ Expected<Void> Plotter::WriteCalibrationToText(
 // Plots TProfiles of <mu> time stability for select FCal regions (A-side,
 //   C-side, average between them, etc.) all on the same canvas.
 Expected<Void> Plotter::PlotMuStability(
-    const std::map<string, SingleRunData> &runs_data,
+    const map<string, SingleRunData> &runs_data,
     const MuStabPlotOptions &options)
 {
   TCanvas canvas;

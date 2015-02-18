@@ -3,8 +3,8 @@
 
 #include <string>
 #include <vector>
-#include <map>
 
+#include "boost/container/flat_map.hpp"
 #include "boost/expected/expected.hpp"
 
 #include "error.h"
@@ -16,7 +16,7 @@
 
 namespace Plotter {
   Error::Expected<Void> GeometricAnalysisOfFitResults(
-      const std::map<std::string, FitResults>& fit_results,
+      const boost::container::flat_map<std::string, FitResults>& fit_results,
       const LumiCurrentPlotOptions& options);
 
   Error::Expected<FitResults> PlotLumiCurrent(
@@ -24,15 +24,15 @@ namespace Plotter {
       const LumiCurrentPlotOptions& options);
 
   Error::Expected<Void> PlotMuStability(
-      const std::map<std::string, SingleRunData>& runs_data,
+      const boost::container::flat_map<std::string, SingleRunData>& runs_data,
       const MuStabPlotOptions& plot_options);
 
   Error::Expected<Void> WriteFitResultsToTree(
-      const std::map<std::string, FitResults>& fit_results,
+      const boost::container::flat_map<std::string, FitResults>& fit_results,
       const LumiCurrentPlotOptions& options);
 
   Error::Expected<Void> WriteCalibrationToText(
-      const std::map<std::string, FitResults>& fit_results,
+      const boost::container::flat_map<std::string, FitResults>& fit_results,
       const LumiCurrentPlotOptions& options);
 }
 

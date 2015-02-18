@@ -16,7 +16,7 @@ solution "default"
       flags   { "Symbols", "ExtraWarnings" }
 
     configuration { "Release*" }
-      buildoptions { "-std=c++1y", "$(shell root-config --cflags)" }
+      buildoptions { "-std=c++1y", "-Wno-unused-local-typedefs", "-pthread", "-m64" }
       linkoptions { "$(shell root-config --libs)", "-lMinuit" }
       defines { "NDEBUG" }
       flags   { "Optimize" }

@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -7,6 +8,7 @@
 #include "Rtypes.h"
 
 #include "boost/expected/expected.hpp"
+#include "boost/container/flat_map.hpp"
 
 #include "analysis.h"
 #include "cutoffs.h"
@@ -19,7 +21,8 @@
 
 using std::string;
 using std::vector;
-using std::map;
+template<typename K, typename V>
+using map = boost::container::flat_map<K, V>;
 
 using std::cout;
 using std::cerr;
@@ -34,6 +37,7 @@ using Error::Expected;
 
 namespace {
 
+  /*
 void DumpVector(const vector<Float_t> &vec) {
   // Prints newline-separated vector elements to cout.
   for (auto element: vec) cout << element << endl;
@@ -46,6 +50,7 @@ bool IsZeroes(const vector<Float_t> &vec) {
   }
   return true;
 }
+*/
 
 } // Anonymous namespace
 
@@ -56,7 +61,8 @@ Analysis::Analysis(string&& params_filepath)
   TRY_THROW( PrepareAnalysis() )
 }
 
-void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data) {
+void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
+{
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "mu_stability") {
       if (verbose_) cout << "Making mu stability plot" << endl;
@@ -136,7 +142,8 @@ Expected<Void> Analysis::ReadCalibrations()
 
 // Reads the list of channels to be used in the analysis, and stores them in a
 //   map
-Expected<Void> Analysis::ReadChannels() {
+Expected<Void> Analysis::ReadChannels()
+{
   auto this_func_name = "Analysis::ReadChannels";
 
   std::ifstream channels_list_file(channels_list_filepath_);
@@ -150,7 +157,8 @@ Expected<Void> Analysis::ReadChannels() {
       if (verbose_) cout << "Skipping channel " << channel_name << endl;
       continue;
     }
-    channel_calibrations_.insert({channel_name, {0.0, 0.0}});
+    channel_calibrations_.emplace_hint(end(channel_calibrations_),
+                          std::move(channel_name), ChannelCalibration{0.0, 0.0});
   }
   channels_list_file.close();
 
@@ -199,8 +207,8 @@ void Analysis::ReadParams()
 }
 
 // Control flow for the analysis of samples and creation of plots
-Expected<Void> Analysis::RunAnalysis() {
-
+Expected<Void> Analysis::RunAnalysis()
+{
   auto this_func_name = "Analysis::RunAnalysis()";
 
   std::ifstream run_names_file(run_list_dir_);
@@ -223,7 +231,7 @@ Expected<Void> Analysis::RunAnalysis() {
   map<string, SingleRunData> runs_data;
 
   for (const auto &run_name: run_names_vec) {
-    auto this_run = SingleRunData(run_name, *this);
+    auto this_run = SingleRunData(run_name, this);
     TRY_CONTINUE( this_run.Init() )
 
     TRY_CONTINUE( this_run.CreateSingleRunPlots() )
@@ -236,44 +244,11 @@ Expected<Void> Analysis::RunAnalysis() {
       TRY_CONTINUE( this_run.CreateBenedettoOutput() )
     }
 
-    runs_data.insert({run_name, std::move(this_run)});
+    runs_data.emplace_hint(end(runs_data),  //convert to cend(...) in C++14
+                           string(run_name), std::move(this_run));
   }
 
   CreateAllRunPlots(runs_data);
 
   return Void();
 }
-
-/*
-int WriteCurrentsToFile(vector<Float_t> currents, string run_name) {
-  std::ofstream out_file(out_filepath);
-  if (!out_file.is_open()) {
-    cerr << "ERROR: Could not open file \'" << out_filepath << "\'" << endl;
-    return 1;
-  }
-  for (auto iEvent: currents_) {
-    for (auto iCurrent: iEvent) out_file << iCurrent << ' ';
-    out_file << '\n';
-  }
-  out_file.close();
-  return 0;
-}
-
-template <typename T>
-int WriteVectorToFile(const vector<T> &vec, string filepath) {
-  // Writes each element of a vector to a file at the specified path;
-  //   elements are separated by newlines.
-
-  std::ofstream out_file(filepath);
-  if (!out_file.is_open()) {
-    cerr << "ERROR: could not open file \'" << filepath << "\'" << endl;
-    return 1;
-  }
-
-  for (auto iElement: vec) out_file << iElement << '\n';
-  out_file.close();
-
-  return 0;
-}
-
-*/

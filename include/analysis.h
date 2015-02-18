@@ -3,7 +3,8 @@
 
 #include <string>
 #include <vector>
-#include <map>
+
+#include "boost/container/flat_map.hpp"
 
 #include "error.h"
 #include "fit_results.h"
@@ -18,7 +19,7 @@ class Analysis {
   Analysis(std::string&& params_filepath);
   ~Analysis(){};
 
-  void CreateAllRunPlots(const std::map<std::string, SingleRunData> &runs_data);
+  void CreateAllRunPlots(const boost::container::flat_map<std::string, SingleRunData> &runs_data);
   Error::Expected<Void> PrepareAnalysis();
   Error::Expected<Void> ReadCalibrations();
   Error::Expected<Void> ReadChannels();
@@ -90,7 +91,7 @@ class Analysis {
     Float_t intercept;
   };
 
-  std::map<std::string, ChannelCalibration> channel_calibrations_;
+  boost::container::flat_map<std::string, ChannelCalibration> channel_calibrations_;
 };
 
 #endif

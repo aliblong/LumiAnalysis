@@ -34,6 +34,8 @@ Sign SignFromAxisAndPhiSlice(Axis axis, const std::string& phi_slice_name);
 
 bool IsValidChannel(const std::string& channel_name);
 
+ZSide ToZSide(const std::string& channel_name);
+
 }
 
 #endif

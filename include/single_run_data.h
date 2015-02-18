@@ -3,7 +3,8 @@
 
 #include <string>
 #include <vector>
-#include <map>
+
+#include "boost/container/flat_map.hpp"
 
 #include "Rtypes.h"
 
@@ -14,9 +15,9 @@ class Analysis;
 
 class SingleRunData {
  public:
-  friend class Analysis;
+  //friend class Analysis;
 
-  SingleRunData(std::string run_name, const Analysis& analysis);
+  SingleRunData(std::string run_name, const Analysis* analysis);
   ~SingleRunData() {}
 
   Error::Expected<Void> Init();
@@ -50,7 +51,7 @@ class SingleRunData {
   std::string run_name_;
   // This reference allows access to analysis-wide parameters such as output
   //   directories.
-  const Analysis& analysis_;
+  const Analysis* analysis_;
 
   Int_t nLB_= 0; // Number of lumi blocks
   Int_t nCollisions_ = 0;
@@ -58,8 +59,8 @@ class SingleRunData {
 
   Int_t LB_stability_offset_ = 0;
 
-  std::map<std::string, Float_t> pedestals_;
-  std::map< std::string, std::vector<Float_t> > currents_;
+  boost::container::flat_map<std::string, Float_t> pedestals_;
+  boost::container::flat_map< std::string, std::vector<Float_t> > currents_;
   std::vector<Float_t> lumi_BCM_;
   std::vector<Float_t> lumi_FCal_A_;
   std::vector<Float_t> lumi_FCal_C_;
