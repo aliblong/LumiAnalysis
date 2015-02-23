@@ -22,6 +22,7 @@ class LumiCurrentPlotOptions {
   auto do_individual() const { return do_individual_; }
   auto do_sum() const { return do_sum_; }
   auto do_fit() const { return do_fit_; }
+  auto print_plots() const { return print_plots_; }
 
   auto fit_fix_intercept() const { return fit_fix_intercept_; }
   const auto& fit_options() const { return fit_options_; }
@@ -61,6 +62,7 @@ class LumiCurrentPlotOptions {
   bool do_individual_;
   bool do_sum_;
   bool do_fit_;
+  bool print_plots_;
 
   bool fit_fix_intercept_;
   std::string fit_options_;

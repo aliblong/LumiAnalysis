@@ -32,7 +32,6 @@
 #include "ATLAS_label_options.h"
 #include "cutoffs.h"
 #include "error.h"
-#include "fcal_region_data.h"
 #include "fcal_region.h"
 #include "fit_results.h"
 #include "lumi_current_plot_options.h"
@@ -68,10 +67,21 @@ typedef map<string, FitResults> FitResultsMap;
 
 namespace {
 
+struct FCalRegionData {
+  FCalRegion::ZSide region_name;
+  std::string plot_name;
+  std::string plot_title;
+  unsigned marker_color;
+  Float_t marker_size;
+  unsigned marker_style;
+  std::unique_ptr<TProfile> plot;
+};
+
 typedef map<FCalRegion::ModuleHalf, Float_t>
           ModuleHalfMap;
 
-ModuleHalfMap InitRegionsSlopeSumsMap() {
+ModuleHalfMap InitRegionsSlopeSumsMap()
+{
   ModuleHalfMap result;
   auto module_half_set = FCalRegion::CreateModuleHalfSet();
   for (const auto& region: module_half_set) {
@@ -80,7 +90,8 @@ ModuleHalfMap InitRegionsSlopeSumsMap() {
   return result;
 }
 
-string StringFromInt(int i, unsigned width) {
+string StringFromInt(int i, unsigned width)
+{
   std::stringstream result;
   result.width(2);
   result.fill('0');
@@ -91,10 +102,11 @@ string StringFromInt(int i, unsigned width) {
 Expected<Void> WriteGeometricAnalysisToText(
       const map<string, Float_t>& phi_slices_slopes_sums,
       const ModuleHalfMap& regions_slopes_sums,
-      const LumiCurrentPlotOptions& options) {
+      const LumiCurrentPlotOptions& options)
+{
 
   // For error reporting. Replace with reflection framework?
-  const char *this_func_name = "WriteGeometricAnalysisToText";
+  auto this_func_name = "WriteGeometricAnalysisToText";
 
   auto output_dir = options.geometric_results_dir();
   TRY( Util::mkdir(output_dir) )
@@ -131,7 +143,8 @@ Expected<Void> WriteGeometricAnalysisToText(
   return Void();
 }
 
-map<string, Float_t> InitPhiSlicesSlopeSumsMap() {
+map<string, Float_t> InitPhiSlicesSlopeSumsMap()
+{
   map<string, Float_t> result;
   vector<string> phi_slice_names;
   for (unsigned i = 0; i < 16; ++i) {
@@ -145,7 +158,8 @@ map<string, Float_t> InitPhiSlicesSlopeSumsMap() {
 }
 
 void FormatTHStack(const MuStabPlotOptions& plot_options,
-                   THStack& stack) {
+                   THStack& stack)
+{
   Double_t ratio_max;
   Double_t ratio_min;
 
@@ -166,23 +180,25 @@ void FormatTHStack(const MuStabPlotOptions& plot_options,
   stack.SetMaximum(ratio_max);
 }
 
-vector<FCalRegionData> InitRegionsData(const MuStabPlotOptions& plot_options) {
 // Creates a vector of plotting parameters for the A- and C- side <mu>
 //   stability profiles, as well as the average
-
+vector<FCalRegionData> InitRegionsData(const MuStabPlotOptions& plot_options)
+{
   vector<FCalRegionData> regions;
-  regions.emplace_back(FCalRegion::ZSide::A,
-                       "mu_stab_A",
-                       "FCal A1",
-                       plot_options.marker_color_A(),
-                       plot_options.marker_size_A(),
-                       plot_options.marker_style_A());
-  regions.emplace_back(FCalRegion::ZSide::C,
-                       "mu_stab_C",
-                       "FCal C1",
-                       plot_options.marker_color_C(),
-                       plot_options.marker_size_C(),
-                       plot_options.marker_style_C());
+  regions.push_back({FCalRegion::ZSide::A,
+                     "mu_stab_A",
+                     "FCal A1",
+                     plot_options.marker_color_A(),
+                     plot_options.marker_size_A(),
+                     plot_options.marker_style_A(),
+                     nullptr});
+  regions.push_back({FCalRegion::ZSide::C,
+                     "mu_stab_C",
+                     "FCal C1",
+                     plot_options.marker_color_C(),
+                     plot_options.marker_size_C(),
+                     plot_options.marker_style_C(),
+                     nullptr});
   /*
   regions.emplace_back(FCalRegion::ZSide::Avg,
                        "mu_stab_Avg",
@@ -258,19 +274,22 @@ Expected<Void> PopulateTProfile(
   return Void();
 }
 
-void SetAxisAutoRange(TAxis *axis) {
+void SetAxisAutoRange(TAxis *axis)
+{
   auto max = axis->GetXmax();
   auto min = axis->GetXmin();
   axis->SetRangeUser(0.8*min, 1.2*max);
 }
 
-string TruncateFloatToString(Float_t value, unsigned n_decimal_places) {
+string TruncateFloatToString(Float_t value, unsigned n_decimal_places)
+{
   std::stringstream stream;
   stream << std::fixed << std::setprecision(n_decimal_places) << value;
   return stream.str();
 }
 
-void FormatLegend(TPaveText& fit_legend, const FitResults& fit_results) {
+void FormatLegend(TPaveText& fit_legend, const FitResults& fit_results)
+{
   Float_t goodness_of_fit = fit_results.chi_squared / fit_results.nDoF;
   string GoF = TruncateFloatToString(goodness_of_fit, 2);
   string slope = TruncateFloatToString(fit_results.slope, 3);
@@ -291,7 +310,8 @@ void FormatLegend(TPaveText& fit_legend, const FitResults& fit_results) {
 }
 
 void ApplyLCPlotOptionsToGraph(TGraphErrors& graph,
-                               const LumiCurrentPlotOptions& plot_options) {
+                               const LumiCurrentPlotOptions& plot_options)
+{
   graph.SetMarkerColor(plot_options.marker_color());
   graph.SetMarkerStyle(plot_options.marker_style());
   graph.SetMarkerSize(plot_options.marker_size());
@@ -303,7 +323,8 @@ void ApplyLCPlotOptionsToGraph(TGraphErrors& graph,
   graph.GetYaxis()->SetTitle(plot_options.y_title().c_str());
 }
 
-TLatex DrawATLASLabel(const ATLASLabelOptions& options) {
+TLatex DrawATLASLabel(const ATLASLabelOptions& options)
+{
   TLatex label;
   label.SetNDC(options.use_NDC());
   label.SetTextSize(options.text_size());
@@ -319,7 +340,8 @@ TLatex DrawATLASLabel(const ATLASLabelOptions& options) {
 }
 
 void FilterOutliers(TGraphErrors& graph, const TF1& fit,
-                    const LumiCurrentPlotOptions& plot_options) {
+                    const LumiCurrentPlotOptions& plot_options)
+{
   Double_t slope = fit.GetParameter(1);
   Double_t intercept = fit.GetParameter(0);
 
@@ -353,7 +375,8 @@ void FilterOutliers(TGraphErrors& graph, const TF1& fit,
 }
 
 void RecursiveFilterOutliers(TGraphErrors& graph, const TF1& fit,
-                             const LumiCurrentPlotOptions& plot_options) {
+                             const LumiCurrentPlotOptions& plot_options)
+{
   Int_t nPoints = graph.GetN();
   Int_t new_nPoints = 1;
   while (new_nPoints < nPoints && new_nPoints) {
@@ -364,7 +387,8 @@ void RecursiveFilterOutliers(TGraphErrors& graph, const TF1& fit,
   }
 }
 
-void SetErrors(TGraphErrors& graph, Double_t x_rel_error, Double_t y_rel_error) {
+void SetErrors(TGraphErrors& graph, Double_t x_rel_error, Double_t y_rel_error)
+{
   Int_t nPoints = graph.GetN();
   Double_t x;
   Double_t y;
@@ -406,7 +430,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
     const VectorP<Float_t>& points,
     const LumiCurrentPlotOptions& options)
 {
-  const char *this_func_name = "PlotLumiCurrent";
+  auto this_func_name = "PlotLumiCurrent";
 
   TCanvas canvas;
   canvas.cd();
@@ -448,8 +472,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   ApplyLCPlotOptionsToGraph(graph, options);
 
   auto channel_name = options.channel_name();
-  string graph_title = "Run "+options.run_name() +
-                         ", Channel "+channel_name;
+  string graph_title = "Run "+options.run_name()+", Channel "+channel_name;
   graph.SetTitle( graph_title.c_str() );
 
   auto is_valid_channel = FCalRegion::IsValidChannel(channel_name);
@@ -486,7 +509,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   auto write_dir = options.plots_dir()+options.run_name()+"/";
   TRY( Util::mkdir(write_dir) )
 
-  canvas.Print( (write_dir+options.channel_name()+".png").c_str() );
+  if (options.print_plots()) canvas.Print( (write_dir+channel_name+".png").c_str() );
   return fit_results;
 }
 
@@ -544,12 +567,14 @@ Expected<Void> Plotter::WriteFitResultsToTree(
     const FitResultsMap& fit_results,
     const LumiCurrentPlotOptions& options)
 {
-  const char *this_func_name = "WriteFitResultsToTree";
+  auto this_func_name = "WriteFitResultsToTree";
 
   auto output_dir = options.raw_fit_results_dir();
   TRY( Util::mkdir(output_dir) )
-  TFile file((output_dir+options.run_name()+".root").c_str(),
-              "recreate");
+  auto filepath = output_dir+options.run_name()+".root";
+  TFile file(filepath.c_str(), "recreate");
+  cout << "        Writing fit results to " << filepath << endl;
+
   TTree tree;
 
   string channel_name;
@@ -586,7 +611,7 @@ Expected<Void> Plotter::WriteCalibrationToText(
     const FitResultsMap &fit_results,
     const LumiCurrentPlotOptions& options)
 {
-  const char *this_func_name = "WriteCalibrationToText";
+  auto this_func_name = "WriteCalibrationToText";
 
   auto output_dir = options.calibration_results_dir();
   TRY( Util::mkdir(output_dir) )
@@ -596,6 +621,7 @@ Expected<Void> Plotter::WriteCalibrationToText(
   if (!out_file.is_open()) {
     return make_unexpected(make_shared<Error::File>(out_filepath, this_func_name));
   }
+  cout << "        Writing calibration parameters to " << out_filepath << endl;
 
   for (const auto& this_channel_results: fit_results) {
     const auto& result = this_channel_results.second;
@@ -650,30 +676,30 @@ Expected<Void> Plotter::PlotMuStability(
   for (auto &region: regions) {
 
     // TProfiles must be added to the THStack via owning pointers
-    region.plot_ = std::make_unique<TProfile>(
-        region.plot_name_.c_str(),
-        region.plot_title_.c_str(),
+    region.plot = std::make_unique<TProfile>(
+        region.plot_name.c_str(),
+        region.plot_title.c_str(),
         n_bins,
         low_bin,
         high_bin);
 
-    TRY( PopulateTProfile(region.region_name_,
+    TRY( PopulateTProfile(region.region_name,
                           runs_data,
-                          region.plot_.get()) )
+                          region.plot.get()) )
 
 
     // Profiles are saved individually in root files
-    TFile file( (options.rootfiles_output_dir()+region.plot_name_+".root").c_str(),
+    TFile file( (options.rootfiles_output_dir()+region.plot_name+".root").c_str(),
                 "RECREATE" );
-    region.plot_->Write();
+    region.plot->Write();
     file.Close();
 
-    region.plot_->SetMarkerColor(region.marker_color_);
-    region.plot_->SetMarkerSize(region.marker_size_);
-    region.plot_->SetMarkerStyle(region.marker_style_);
+    region.plot->SetMarkerColor(region.marker_color);
+    region.plot->SetMarkerSize(region.marker_size);
+    region.plot->SetMarkerStyle(region.marker_style);
 
-    stack.Add(region.plot_.get(), "AP");
-    legend.AddEntry(region.plot_.get(), region.plot_title_.c_str(), "p");
+    stack.Add(region.plot.get(), "AP");
+    legend.AddEntry(region.plot.get(), region.plot_title.c_str(), "p");
   }
 
   // Draw must be called before Format! ROOT's fault, not mine
@@ -682,6 +708,8 @@ Expected<Void> Plotter::PlotMuStability(
 
   legend.Draw();
 
+  // Would prefer to move this to its own function, but there's no way to make
+  // the plot take ownership of the lines
   std::vector<string> interest_samples = {"202668",
                                           "202712",
                                           "208179",

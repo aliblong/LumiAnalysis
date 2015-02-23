@@ -222,20 +222,13 @@ Expected<Void> SingleRunData::ReadTree()
     pedestal_values.reserve(*start_of_adjust_LB);
     for (const auto& channel: analysis_->channel_calibrations()) {
       auto channel_name = channel.first;
-      for (Int_t iLB = 0; iLB < *start_of_adjust_LB; ++iLB) {
+      for (Int_t iLB = 0; iLB < first_stable_LB; ++iLB) {
         //if (channel_name == "M80C0") cout << lumi_BCM_temp[iLB] << endl;
         // We want LBs from the start of the fill before beam align
         auto this_channel_LB_current = currents_temp[iChannel][iLB];
 
-        /*
-        if (channel_name == "M82C0" && (run_name_ == "206369" || run_name_ == "206409")) {
-          cout << beam_mode->at(iLB) << '\t'
-               << lumi_BCM_temp[iLB] << '\t'
-               << this_channel_LB_current << endl;
-        }
-        */
         // Sometimes we get current of exactly 0 at the start of beam inject or
-        // setup. BCM lumi should always be ~0 before beam adjust
+        // setup. BCM offline lumi should always be ~0 before beam adjust
         if (lumi_BCM_temp[iLB] < gBCMLumiCutoff &&
             this_channel_LB_current > gEpsilon) {
           pedestal_values.push_back(this_channel_LB_current);
@@ -307,6 +300,7 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
   if (!output_file.is_open()) {
     return make_unexpected(make_shared<Error::File>(output_filepath, this_func_name));
   }
+  cout << "        Writing FCal mu data to " << output_filepath << endl;
 
   auto num_points = mu_FCal_A_.size();
   for (unsigned iLB = 0; iLB < num_points; ++iLB) {
@@ -337,7 +331,7 @@ void SingleRunData::HardcodenLBIfMissingFromTree()
 Expected<Void> SingleRunData::CalcFCalLumi()
 {
   auto this_func_name = "SingleRunData::CalcFCalLumi";
-  if (analysis_->verbose()) cout << "Calculating FCal luminosity" << endl;
+  //if (analysis_->verbose()) cout << "Calculating FCal luminosity" << endl;
 
   // Checks that these values were not previously calculated
   if (lumi_FCal_A_.size() > 0 || lumi_FCal_C_.size() > 0) {
@@ -412,7 +406,7 @@ Expected<Void> SingleRunData::CalcFCalMu()
 {
   auto this_func_name = "SingleRunData::CalcFCalMu";
 
-  if (analysis_->verbose()) cout << "Calculating FCal <mu>" << endl;
+  //if (analysis_->verbose()) cout << "Calculating FCal <mu>" << endl;
 
   // Checks that FCal lumi data exists
   if (lumi_FCal_A_.size() == 0 && lumi_FCal_C_.size() == 0) {
@@ -533,14 +527,9 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
   }
 
   if (plot_options.do_fit()) {
-    LOG_IF_ERR( Plotter::WriteFitResultsToTree(fit_results,
-                                   plot_options) )
-
-    LOG_IF_ERR( Plotter::WriteCalibrationToText(fit_results,
-                                    plot_options) );
-
-    LOG_IF_ERR( Plotter::GeometricAnalysisOfFitResults(fit_results,
-                                           plot_options) );
+    LOG_IF_ERR( Plotter::WriteFitResultsToTree(fit_results, plot_options) )
+    LOG_IF_ERR( Plotter::WriteCalibrationToText(fit_results, plot_options) )
+    LOG_IF_ERR( Plotter::GeometricAnalysisOfFitResults(fit_results, plot_options) )
   }
 
   return Void();

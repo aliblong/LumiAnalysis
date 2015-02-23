@@ -35,6 +35,7 @@ LumiCurrentPlotOptions::LumiCurrentPlotOptions(const string& params_filepath) {
   do_individual_ = parameter_file.get<bool>(LC_options_node+"do_individual");
   do_sum_ = parameter_file.get<bool>(LC_options_node+"do_sum");
   do_fit_ = parameter_file.get<bool>(LC_options_node+"fit.do");
+  print_plots_ = parameter_file.get<bool>(LC_options_node+"print_plots");
 
   // Fit options
   string fit_verbosity_option;

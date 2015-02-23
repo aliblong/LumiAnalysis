@@ -202,8 +202,8 @@ void Analysis::ReadParams()
 
   // Text output file for Benedetto
   do_benedetto_ = parameter_file.get<bool>("do_benedetto");
-  benedetto_output_dir_ = parameter_file.get<string>("output_dirs.benedetto");
-
+  benedetto_output_dir_ = parameter_file.get<string>("output_dirs.base") +
+                          parameter_file.get<string>("output_dirs.benedetto");
 }
 
 // Control flow for the analysis of samples and creation of plots
@@ -235,7 +235,6 @@ Expected<Void> Analysis::RunAnalysis()
     TRY_CONTINUE( this_run.Init() )
 
     TRY_CONTINUE( this_run.CreateSingleRunPlots() )
-
     if (retrieve_lumi_FCal_) {
       TRY_CONTINUE( this_run.CalcFCalLumi() )
       TRY_CONTINUE( this_run.CalcFCalMu() )
