@@ -310,7 +310,23 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
   return Void();
 }
 
-const std::vector<std::pair<string, Int_t>> MISSING_nLB { {"206955", 1368},
+const std::vector<std::pair<string, Int_t>> MISSING_nLB { {"203169", 471},
+                                                          {"203256", 1331},
+                                                          {"203605", 1377},
+                                                          {"204707", 1377},
+                                                          {"205012", 1377},
+                                                          {"205113", 1368},
+                                                          {"207214", 16}, //no, this isn't a typo
+                                                          {"207528", 1368},
+                                                          {"207530", 1368},
+                                                          {"207929", 1368},
+                                                          {"209353", 1368},
+                                                          {"209644", 1368},
+                                                          {"209909", 1368},
+                                                          {"211902", 1224},
+                                                          {"212103", 1368},
+                                                          {"212809", 1368},
+                                                          {"206955", 1368},
                                                           {"208642", 465},
                                                           {"211620", 801} };
 void SingleRunData::HardcodenLBIfMissingFromTree()
@@ -549,4 +565,3 @@ Expected<Void> SingleRunData::CreateSingleRunPlots() const
   // Remove the TRY above if other single run plots are added
   return Void();
 }
-
