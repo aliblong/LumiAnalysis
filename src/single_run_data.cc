@@ -487,8 +487,6 @@ Expected<Void> SingleRunData::CalcFCalMu()
   }
 
   Float_t conversion_factor = analysis_->x_sec() / (nCollisions_ * analysis_->f_rev());
-  // Cross-section conversion factor from 7 -> 8 TeV
-  if (run_name_.at(0) == '2') conversion_factor /= 1.05;
 
   // Calculates <mu> for each lumi block
   auto nLB_stable = lumi_BCM_.size();
