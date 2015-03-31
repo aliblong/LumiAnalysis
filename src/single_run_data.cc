@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cassert>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -40,6 +41,51 @@ using boost::make_unexpected;
 using Error::Expected;
 
 namespace {
+
+void DumpFCalAndBCMLumiComparison(const SingleRunData& run)
+{
+  const auto& lumi_BCM = run.lumi_BCM();
+  const auto& lumi_FCal_A = run.lumi_FCal_A();
+  const auto& lumi_FCal_C = run.lumi_FCal_C();
+
+  cout << lumi_BCM.size() << endl;
+  cout << lumi_FCal_A.size() << endl;
+  cout << lumi_FCal_C.size() << endl;
+
+  assert(lumi_BCM.size() == lumi_FCal_A.size());
+  assert(lumi_BCM.size() == lumi_FCal_C.size());
+
+  const auto nLB = lumi_BCM.size();
+  double A_ratio_avg = 0.;
+  double C_ratio_avg = 0.;
+  int num_LB_used_in_A_avg = 0;
+  int num_LB_used_in_C_avg = 0;
+
+  for (int i = 0; i < nLB; ++i) {
+    auto this_LB_lumi_BCM = lumi_BCM.at(i);
+    auto A_diff = std::abs(lumi_FCal_A.at(i) - this_LB_lumi_BCM);
+    auto A_ratio = A_diff / this_LB_lumi_BCM * 100;
+    auto C_diff = std::abs(lumi_FCal_C.at(i) - this_LB_lumi_BCM);
+    auto C_ratio = C_diff / this_LB_lumi_BCM * 100;
+    auto width = 8;
+    cout << std::fixed << std::setw(4) << std::setprecision(0) << i+run.LB_stability_offset() << ' '
+                       << std::setw(width) << std::setprecision(2) << this_LB_lumi_BCM << ' '
+                       << std::setw(width) << std::setprecision(4) << A_ratio << ' '
+                       << std::setw(width) << std::setprecision(4) << C_ratio << ' ' << endl;
+    if (A_ratio < 5) {
+      A_ratio_avg += A_ratio;
+      ++num_LB_used_in_A_avg;
+    }
+    if (C_ratio < 5) {
+      C_ratio_avg += C_ratio;
+      ++num_LB_used_in_C_avg;
+    }
+  }
+  cout << "A ratio average (excluding extreme outliers): "
+       << A_ratio_avg/num_LB_used_in_A_avg << endl;
+  cout << "C ratio average (excluding extreme outliers): "
+       << C_ratio_avg/num_LB_used_in_C_avg << endl;
+}
 
 Expected<std::array<Int_t, 2>> FindStableLBBounds(const vector<string>* beam_mode)
 {
