@@ -226,11 +226,11 @@ Expected<Void> PopulateTProfile(
     const auto& run_name = run.first;
     const auto& this_run_data = run.second;
     auto timestamp = this_run_data.timestamp();
-    const auto& this_run_lumi_BCM = this_run_data.lumi_BCM();
+    const auto& this_run_lumi_ofl = this_run_data.lumi_ofl();
     const auto& this_run_lumi_FCal_A = this_run_data.lumi_FCal_A();
     const auto& this_run_lumi_FCal_C = this_run_data.lumi_FCal_C();
 
-    assert(this_run_lumi_BCM.size() == this_run_lumi_FCal_A.size());
+    assert(this_run_lumi_ofl.size() == this_run_lumi_FCal_A.size());
     assert(this_run_lumi_FCal_A.size() == this_run_lumi_FCal_C.size());
 
     auto this_bin = profile->GetXaxis()->FindBin(timestamp);
@@ -242,11 +242,11 @@ Expected<Void> PopulateTProfile(
       last_bin = this_bin;
     }
 
-    auto n_events = this_run_lumi_BCM.size();
+    auto n_events = this_run_lumi_ofl.size();
 
     for (unsigned iEvent = 0; iEvent < n_events; ++iEvent) {
-      auto event_lumi_BCM = this_run_lumi_BCM[iEvent];
-      if (event_lumi_BCM < gBCMLumiCutoff) continue;
+      auto event_lumi_ofl = this_run_lumi_ofl[iEvent];
+      if (event_lumi_ofl < gOflLumiCutoff) continue;
 
       Float_t event_lumi_FCal = 0.0;
       if (side == ZSide::A) {
@@ -262,7 +262,7 @@ Expected<Void> PopulateTProfile(
             this_run_lumi_FCal_C[iEvent] < gFCalLumiCutoff) continue;
       }
       if (event_lumi_FCal < gFCalLumiCutoff) continue;
-      Float_t this_event_diff = ((event_lumi_FCal/event_lumi_BCM) - 1)*100;
+      Float_t this_event_diff = ((event_lumi_FCal/event_lumi_ofl) - 1)*100;
       //if (this_event_diff < gPercentDiffMin ||
       //    this_event_diff > gPercentDiffMax) continue;
 
@@ -399,7 +399,6 @@ void SetErrors(TGraphErrors& graph, Double_t x_rel_error, Double_t y_rel_error)
   }
 }
 
-/* Unused functions
 template<typename T>
 struct BinaryAverage {
   Float_t operator() (const T& T1, const T& T2) { return (T1 + T2) / 2.0; }
@@ -409,6 +408,7 @@ void DumpVector(const VectorF& vec) {
   for (auto element: vec) cout << element << endl;
 }
 
+/* Unused functions
 bool MinNonZero(Float_t i, Float_t j) {
   Float_t min_allowable = 0.1;
   if (j < min_allowable) {
@@ -446,7 +446,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
           points_filtered.begin(),
           points_filtered.end(),
           [] (auto point) {
-            return point[0] < gFCalLumiCutoff || point[1] < gFCalCurrentCutoff;
+            return point[0] < gOflLumiCutoff || point[1] < gFCalCurrentCutoff;
           }
           ),
       points_filtered.end());
@@ -513,7 +513,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   return fit_results;
 }
 
-// Writes FCal current vs. BCM lumi fit parameters to a root file for a given
+// Writes FCal current vs. offline preferred lumi fit parameters to a root file for a given
 //   run. These parameters are used to derive the FCal lumi calibration.
 Expected<Void> Plotter::GeometricAnalysisOfFitResults(
                      const FitResultsMap& fit_results,
@@ -561,7 +561,7 @@ Expected<Void> Plotter::GeometricAnalysisOfFitResults(
                                       options);
 }
 
-// Writes FCal current vs. BCM lumi fit parameters to a root file for a given
+// Writes FCal current vs. offline preferred lumi fit parameters to a root file for a given
 //   run. These parameters are used to derive the FCal lumi calibration.
 Expected<Void> Plotter::WriteFitResultsToTree(
     const FitResultsMap& fit_results,
@@ -834,7 +834,7 @@ int Plotter::PlotLumiTotalCurrent(const VectorF &lumi_arg,
 
 int Plotter::GeometricAnalysisFromFitResultsTree(string run_name,
                                                  string output_dir) {
-// Writes FCal current vs. BCM lumi fit parameters to a root file for a given
+// Writes FCal current vs. ofl lumi fit parameters to a root file for a given
 //   run. These parameters are used to derive the FCal lumi calibration.
 
   string read_dir = output_dir+"fit_results/";

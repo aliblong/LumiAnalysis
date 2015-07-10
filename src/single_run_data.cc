@@ -42,34 +42,34 @@ using Error::Expected;
 
 namespace {
 
-void DumpFCalAndBCMLumiComparison(const SingleRunData& run)
+void DumpFCalAndOflLumiComparison(const SingleRunData& run)
 {
-  const auto& lumi_BCM = run.lumi_BCM();
+  const auto& lumi_ofl = run.lumi_ofl();
   const auto& lumi_FCal_A = run.lumi_FCal_A();
   const auto& lumi_FCal_C = run.lumi_FCal_C();
 
-  cout << lumi_BCM.size() << endl;
+  cout << lumi_ofl.size() << endl;
   cout << lumi_FCal_A.size() << endl;
   cout << lumi_FCal_C.size() << endl;
 
-  assert(lumi_BCM.size() == lumi_FCal_A.size());
-  assert(lumi_BCM.size() == lumi_FCal_C.size());
+  assert(lumi_ofl.size() == lumi_FCal_A.size());
+  assert(lumi_ofl.size() == lumi_FCal_C.size());
 
-  const auto nLB = lumi_BCM.size();
+  const auto nLB = lumi_ofl.size();
   double A_ratio_avg = 0.;
   double C_ratio_avg = 0.;
   int num_LB_used_in_A_avg = 0;
   int num_LB_used_in_C_avg = 0;
 
   for (int i = 0; i < nLB; ++i) {
-    auto this_LB_lumi_BCM = lumi_BCM.at(i);
-    auto A_diff = std::abs(lumi_FCal_A.at(i) - this_LB_lumi_BCM);
-    auto A_ratio = A_diff / this_LB_lumi_BCM * 100;
-    auto C_diff = std::abs(lumi_FCal_C.at(i) - this_LB_lumi_BCM);
-    auto C_ratio = C_diff / this_LB_lumi_BCM * 100;
+    auto this_LB_lumi_ofl = lumi_ofl.at(i);
+    auto A_diff = std::abs(lumi_FCal_A.at(i) - this_LB_lumi_ofl);
+    auto A_ratio = A_diff / this_LB_lumi_ofl * 100;
+    auto C_diff = std::abs(lumi_FCal_C.at(i) - this_LB_lumi_ofl);
+    auto C_ratio = C_diff / this_LB_lumi_ofl * 100;
     auto width = 8;
     cout << std::fixed << std::setw(4) << std::setprecision(0) << i+run.LB_stability_offset() << ' '
-                       << std::setw(width) << std::setprecision(2) << this_LB_lumi_BCM << ' '
+                       << std::setw(width) << std::setprecision(2) << this_LB_lumi_ofl << ' '
                        << std::setw(width) << std::setprecision(4) << A_ratio << ' '
                        << std::setw(width) << std::setprecision(4) << C_ratio << ' ' << endl;
     if (A_ratio < 5) {
@@ -221,7 +221,7 @@ Expected<Void> SingleRunData::ReadTree()
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work)
   Float_t currents_temp[gMaxNumChannels][gMaxNumLB];
-  Float_t lumi_BCM_temp[gMaxNumLB];
+  Float_t lumi_ofl_temp[gMaxNumLB];
   if (analysis_->retrieve_currents()) {
     unsigned iChannel = 0;
     for (const auto &channel: analysis_->channel_calibrations()) {
@@ -230,8 +230,8 @@ Expected<Void> SingleRunData::ReadTree()
       ++iChannel;
     }
   }
-  if (analysis_->retrieve_lumi_BCM()) {
-    this_tree->SetBranchAddress("ofl_lumi_pref",&lumi_BCM_temp);
+  if (analysis_->retrieve_lumi_ofl()) {
+    this_tree->SetBranchAddress("ofl_lumi_pref",&lumi_ofl_temp);
   }
 
   int quality[gMaxNumLB];
@@ -269,13 +269,13 @@ Expected<Void> SingleRunData::ReadTree()
     for (const auto& channel: analysis_->channel_calibrations()) {
       auto channel_name = channel.first;
       for (Int_t iLB = 0; iLB < first_stable_LB; ++iLB) {
-        //if (channel_name == "M80C0") cout << lumi_BCM_temp[iLB] << endl;
+        //if (channel_name == "M80C0") cout << lumi_ofl_temp[iLB] << endl;
         // We want LBs from the start of the fill before beam align
         auto this_channel_LB_current = currents_temp[iChannel][iLB];
 
         // Sometimes we get current of exactly 0 at the start of beam inject or
-        // setup. BCM offline lumi should always be ~0 before beam adjust
-        if (lumi_BCM_temp[iLB] < gBCMLumiCutoff &&
+        // setup. ofl offline lumi should always be ~0 before beam adjust
+        if (lumi_ofl_temp[iLB] < gOflLumiCutoff &&
             this_channel_LB_current > gEpsilon) {
           pedestal_values.push_back(this_channel_LB_current);
         }
@@ -324,11 +324,11 @@ Expected<Void> SingleRunData::ReadTree()
     }
   }
 
-  if (analysis_->retrieve_lumi_BCM()) {
-    assert(lumi_BCM_.size() == 0);
+  if (analysis_->retrieve_lumi_ofl()) {
+    assert(lumi_ofl_.size() == 0);
 
     for (int iLB = first_stable_LB; iLB <= last_stable_LB; ++iLB) {
-      lumi_BCM_.push_back( lumi_BCM_temp[iLB] );
+      lumi_ofl_.push_back( lumi_ofl_temp[iLB] );
     }
   }
 
@@ -349,9 +349,23 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
   cout << "        Writing FCal mu data to " << output_filepath << endl;
 
   auto num_points = mu_FCal_A_.size();
+  output_file.precision(4);
   for (unsigned iLB = 0; iLB < num_points; ++iLB) {
-    output_file << (iLB + LB_stability_offset_) << ' ' << mu_FCal_A_.at(iLB) << ' '
-                << mu_FCal_C_.at(iLB) << std::endl;
+    //output_file << (iLB + LB_stability_offset_) << ' ' << mu_FCal_A_.at(iLB) << ' '
+    //            << mu_FCal_C_.at(iLB) << std::endl;
+    //output_file << (iLB + LB_stability_offset_) << ' ' << lumi_ofl_.at(iLB)/nCollisions_ << std::endl;
+    //auto mu_A = mu_FCal_A_.at(iLB);
+    //auto mu_C = mu_FCal_C_.at(iLB);
+    //output_file << std::showpos << std::setw(3) << (iLB + LB_stability_offset_) << "   " << 100*(mu_A - mu_C)/(mu_A + mu_C) << std::endl;
+    auto mu_A = mu_FCal_A_.at(iLB);
+    auto mu_C = mu_FCal_C_.at(iLB);
+    auto mu_ofl = lumi_ofl_.at(iLB)/nCollisions_;
+    output_file << (iLB + LB_stability_offset_) << ' '
+                << std::setw(5) << std::setfill('0') << std::left << std::noshowpos << mu_ofl << ' '
+                << std::setw(5) << std::setfill('0') << std::left << mu_A << ' '
+                << std::setw(5) << std::setfill('0') << std::left << mu_C << ' '
+                << std::setw(5) << std::setfill('0') << std::left << std::showpos << 100*((mu_A + mu_C)/2 - mu_ofl) / mu_ofl << ' '
+                << std::setw(5) << std::setfill('0') << std::left << 100*(mu_A - mu_C)/mu_A << std::endl;
   }
   return Void();
 }
@@ -489,7 +503,7 @@ Expected<Void> SingleRunData::CalcFCalMu()
   Float_t conversion_factor = analysis_->x_sec() / (nCollisions_ * analysis_->f_rev());
 
   // Calculates <mu> for each lumi block
-  auto nLB_stable = lumi_BCM_.size();
+  auto nLB_stable = lumi_ofl_.size();
   mu_FCal_A_.reserve(nLB_stable);
   for (const auto &lumi: lumi_FCal_A_) {
     mu_FCal_A_.push_back(lumi*conversion_factor);
@@ -516,7 +530,7 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
       plot_options.channel_name(string(this_channel_name));
 
       auto lumi_current_points = PointVectorFromVectors(
-          lumi_BCM_,
+          lumi_ofl_,
           channel.second);
 
       CONTINUE_IF_ERR(lumi_current_points);
@@ -571,14 +585,14 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
     }
 
     // TODO: figure out how to deal with sums
-    auto points_sum_A = PointVectorFromVectors(lumi_BCM_,
+    auto points_sum_A = PointVectorFromVectors(lumi_ofl_,
                                                channel_currents_sum_A);
     plot_options.channel_name("Sum_A");
     if (points_sum_A.valid()) {
       TRY( Plotter::PlotLumiCurrent(*points_sum_A, plot_options) )
     }
 
-    auto points_sum_C = PointVectorFromVectors(lumi_BCM_,
+    auto points_sum_C = PointVectorFromVectors(lumi_ofl_,
                                                channel_currents_sum_C);
     plot_options.channel_name("Sum_C");
     if (points_sum_C.valid()) {

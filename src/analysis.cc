@@ -80,17 +80,19 @@ Expected<Void> Analysis::PrepareAnalysis()
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "lumi_current" ) {
       retrieve_currents_ = true;
-      retrieve_lumi_BCM_ = true;
+      retrieve_lumi_ofl_ = true;
     }
     else if (plot_type == "mu_stability") {
       retrieve_timestamps_ = true;
-      retrieve_lumi_BCM_ = true;
+      retrieve_lumi_ofl_ = true;
       retrieve_lumi_FCal_ = true;
     }
   }
 
   if (do_benedetto_) {
     retrieve_lumi_FCal_ = true;
+    //TODO: remove this
+    retrieve_lumi_ofl_ = true;
   }
 
   // FCal currents are required to calculate FCal lumi

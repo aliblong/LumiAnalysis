@@ -36,7 +36,7 @@ class SingleRunData {
 
   const auto& pedestals() const { return pedestals_; }
   const auto& currents() const { return currents_; }
-  const auto& lumi_BCM() const { return lumi_BCM_; }
+  const auto& lumi_ofl() const { return lumi_ofl_; }
   const auto& lumi_FCal_A() const { return lumi_FCal_A_; }
   const auto& lumi_FCal_C() const { return lumi_FCal_C_; }
   const auto& mu_FCal_A() const { return mu_FCal_A_; }
@@ -61,7 +61,7 @@ class SingleRunData {
 
   boost::container::flat_map<std::string, Float_t> pedestals_;
   boost::container::flat_map< std::string, std::vector<Float_t> > currents_;
-  std::vector<Float_t> lumi_BCM_;
+  std::vector<Float_t> lumi_ofl_;
   std::vector<Float_t> lumi_FCal_A_;
   std::vector<Float_t> lumi_FCal_C_;
   std::vector<Float_t> mu_FCal_A_;

@@ -46,7 +46,7 @@ class Analysis {
 
   auto retrieve_timestamps() const { return retrieve_timestamps_; }
   auto retrieve_currents() const { return retrieve_currents_; }
-  auto retrieve_lumi_BCM() const { return retrieve_lumi_BCM_; }
+  auto retrieve_lumi_ofl() const { return retrieve_lumi_ofl_; }
   auto retrieve_lumi_FCal() const { return retrieve_lumi_FCal_; }
 
   auto use_start_of_fill_pedestals() const { return use_start_of_fill_pedestals_; }
@@ -78,7 +78,7 @@ class Analysis {
 
   bool retrieve_timestamps_ = false;
   bool retrieve_currents_ = false;
-  bool retrieve_lumi_BCM_ = false;
+  bool retrieve_lumi_ofl_ = false;
   bool retrieve_lumi_FCal_ = false;
 
   bool use_start_of_fill_pedestals_ = false;
