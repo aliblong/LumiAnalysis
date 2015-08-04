@@ -24,26 +24,26 @@
   }
 
 // If `result` of type Expected<T> is an error, throws a std::runtime_error.
-#define THROW_IF_ERR(result)                         \
+#define THROW_IF_ERR(result) \
   if (!result.valid()) throw std::runtime_error(result.error()->what());
 
 // Executes `expression` of return type Expected<T> and returns result if it
 //   is an error.
-#define TRY(expression)                 \
-  {                                     \
-    auto result_TRY = expression;           \
+#define TRY(expression) \
+  { \
+    auto result_TRY = expression; \
     RETURN_IF_ERR(result_TRY); \
   }
 
-#define TRY_CONTINUE(expression)                 \
-  {                                     \
-    auto result_TRY = expression;           \
+#define TRY_CONTINUE(expression) \
+  { \
+    auto result_TRY = expression; \
     CONTINUE_IF_ERR(result_TRY); \
   }
 
-#define TRY_THROW(expression)                 \
-  {                                     \
-    auto result_TRY = expression;           \
+#define TRY_THROW(expression) \
+  { \
+    auto result_TRY = expression; \
     THROW_IF_ERR(result_TRY); \
   }
 

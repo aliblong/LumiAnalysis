@@ -1,3 +1,5 @@
+#include "analysis.h"
+
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -5,13 +7,13 @@
 #include <string>
 #include <vector>
 
-#include "Rtypes.h"
+#include <Rtypes.h>
 
-#include "boost/expected/expected.hpp"
-#include "boost/container/flat_map.hpp"
+#include <boost/expected/expected.hpp>
+#include <boost/container/flat_map.hpp>
 
-#include "analysis.h"
 #include "cutoffs.h"
+#include "detector.h"
 #include "json_reader.h"
 #include "plotter.h"
 #include "point.h"
@@ -37,6 +39,28 @@ using Error::Expected;
 
 namespace {
 
+Expected<vector<string>> VectorFromFile(const string& filepath)
+{
+  auto this_func_name = "VectorFromFile";
+
+  std::ifstream file(filepath);
+  if (!file) {
+    return make_unexpected(make_shared<Error::File>(filepath, this_func_name));
+  }
+
+  string item;
+  vector<string> items_vec;
+  while ( getline(file, item) ) {
+    // Skip samples commented out with #
+    if (item[0] == '#') {
+      cout << "Skipping " << item << endl;
+      continue;
+    }
+    items_vec.push_back(item);
+  }
+  return items_vec;
+}
+
   /*
 void DumpVector(const vector<Float_t> &vec) {
   // Prints newline-separated vector elements to cout.
@@ -61,6 +85,27 @@ Analysis::Analysis(string&& params_filepath)
   TRY_THROW( PrepareAnalysis() )
 }
 
+VectorP<Float_t> GenerateMuVsMuRatioPoints(const map<string, SingleRunData> &runs_data)
+{
+  VectorP<Float_t> points;
+  // Roughly 500 points per run
+  auto num_points_to_reserve = 500*2*runs_data.size();
+  points.reserve(num_points_to_reserve);
+  for (const auto& run: runs_data) {
+    const auto& run_data = run.second;
+    const auto& mu_A = run_data.mu_FCal_A();
+    const auto& mu_C = run_data.mu_FCal_C();
+    const auto& mu_ofl = run_data.mu_ofl();
+    auto num_points = mu_ofl.size();
+    for (auto i = 0; i < num_points; ++i) {
+      auto mu_avg = (mu_A[i]+mu_C[i])/2;
+      auto mu_ratio = (mu_avg/mu_ofl[i] - 1)*100;
+      points.push_back(Point<Float_t>{mu_ofl[i], mu_ratio});
+    }
+  }
+  return points;
+}
+
 void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
 {
   for (const auto &plot_type: plot_types_) {
@@ -69,6 +114,12 @@ void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
       MuStabPlotOptions plot_options(params_filepath_);
       LOG_IF_ERR( Plotter::PlotMuStability(runs_data, plot_options) );
     }
+    else if (plot_type == "mu_dependence") {
+      if (verbose_) cout << "Making mu dependence plot" << endl;
+      MuDepPlotOptions plot_options(params_filepath_);
+      auto points = GenerateMuVsMuRatioPoints(runs_data);
+      LOG_IF_ERR( Plotter::PlotMuDependence(points, plot_options) );
+    }
   }
 }
 
@@ -76,7 +127,7 @@ void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
 // Sets flags for which data to retrieve based on which plots to produce.
 Expected<Void> Analysis::PrepareAnalysis()
 {
-  ReadParams();
+  TRY( ReadParams() )
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "lumi_current" ) {
       retrieve_currents_ = true;
@@ -84,6 +135,10 @@ Expected<Void> Analysis::PrepareAnalysis()
     }
     else if (plot_type == "mu_stability") {
       retrieve_timestamps_ = true;
+      retrieve_lumi_ofl_ = true;
+      retrieve_lumi_FCal_ = true;
+    }
+    else if (plot_type == "mu_dependence") {
       retrieve_lumi_ofl_ = true;
       retrieve_lumi_FCal_ = true;
     }
@@ -169,9 +224,13 @@ Expected<Void> Analysis::ReadChannels()
 
 // Reads in parameters from json file and assigns their values to member
 //   variables
-void Analysis::ReadParams()
+Error::Expected<Void> Analysis::ReadParams()
 {
   JSONReader parameter_file(params_filepath_);
+
+  auto detector = Detector::FromString(parameter_file.get<string>("detector"));
+  RETURN_IF_ERR( detector )
+  detector_ = *detector;
 
   verbose_ = parameter_file.get<bool>("verbose");
 
@@ -206,33 +265,20 @@ void Analysis::ReadParams()
   do_benedetto_ = parameter_file.get<bool>("do_benedetto");
   benedetto_output_dir_ = parameter_file.get<string>("output_dirs.base") +
                           parameter_file.get<string>("output_dirs.benedetto");
+
+  return Void();
 }
 
 // Control flow for the analysis of samples and creation of plots
 Expected<Void> Analysis::RunAnalysis()
 {
-  auto this_func_name = "Analysis::RunAnalysis()";
-
-  std::ifstream run_names_file(run_list_dir_);
-  if (!run_names_file) {
-    return make_unexpected(make_shared<Error::File>(run_list_dir_, this_func_name));
-  }
-
-  string run_name;
-  vector<string> run_names_vec;
-  while ( getline(run_names_file, run_name) ) {
-    // Skip samples commented out with #
-    if (run_name[0] == '#') {
-      if (verbose_) cout << "Skipping run " << run_name << endl;
-      continue;
-    }
-    run_names_vec.push_back(run_name);
-  }
+  auto run_names_vec = VectorFromFile(run_list_dir_);
+  RETURN_IF_ERR( run_names_vec )
 
   // Iterate over samples
   map<string, SingleRunData> runs_data;
 
-  for (const auto &run_name: run_names_vec) {
+  for (const auto &run_name: *run_names_vec) {
     auto this_run = SingleRunData(run_name, this);
     TRY_CONTINUE( this_run.Init() )
 
@@ -245,7 +291,7 @@ Expected<Void> Analysis::RunAnalysis()
       TRY_CONTINUE( this_run.CreateBenedettoOutput() )
     }
 
-    runs_data.emplace_hint(end(runs_data),  //convert to cend(...) in C++14
+    runs_data.emplace_hint(end(runs_data),  //change this to cend in C++14
                            string(run_name), std::move(this_run));
   }
 

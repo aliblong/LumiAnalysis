@@ -35,6 +35,7 @@
 #include "fcal_region.h"
 #include "fit_results.h"
 #include "lumi_current_plot_options.h"
+#include "mu_dep_plot_options.h"
 #include "mu_stab_plot_options.h"
 #include "point.h"
 #include "util.h"
@@ -53,7 +54,6 @@ template<typename K, typename V>
 using map = boost::container::flat_map<K, V>;
 
 using boost::expected;
-using boost::make_expected;
 using boost::make_unexpected;
 
 using FCalRegion::ZSide;
@@ -323,6 +323,20 @@ void ApplyLCPlotOptionsToGraph(TGraphErrors& graph,
   graph.GetYaxis()->SetTitle(plot_options.y_title().c_str());
 }
 
+void ApplyMDPlotOptionsToGraph(TGraphErrors& graph,
+                               const MuDepPlotOptions& plot_options)
+{
+  graph.SetMarkerColor(plot_options.marker_color());
+  graph.SetMarkerStyle(plot_options.marker_style());
+  graph.SetMarkerSize(plot_options.marker_size());
+
+  graph.GetXaxis()->SetRangeUser(plot_options.x_min(), plot_options.x_max());
+  graph.GetYaxis()->SetRangeUser(plot_options.y_min(), plot_options.y_max());
+
+  graph.GetXaxis()->SetTitle(plot_options.x_title().c_str());
+  graph.GetYaxis()->SetTitle(plot_options.y_title().c_str());
+}
+
 TLatex DrawATLASLabel(const ATLASLabelOptions& options)
 {
   TLatex label;
@@ -511,6 +525,75 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
 
   if (options.print_plots()) canvas.Print( (write_dir+channel_name+".png").c_str() );
   return fit_results;
+}
+
+Expected<Void> Plotter::PlotMuDependence(
+    const VectorP<Float_t>& points,
+    const MuDepPlotOptions& options)
+{
+  auto this_func_name = "PlotMuDependence";
+
+  TCanvas canvas;
+  canvas.cd();
+
+  // Use C-style dynamic arrays since ROOT doesn't support vectors
+  auto num_points = points.size();
+  Float_t *mu_arr = new Float_t[num_points];
+  Float_t *ratio_arr = new Float_t[num_points];
+  for (unsigned iPoint=0; iPoint < num_points; ++iPoint) {
+    mu_arr[iPoint] = points[iPoint][0];
+    ratio_arr[iPoint] = points[iPoint][1];
+  }
+
+  TGraphErrors graph(num_points, mu_arr, ratio_arr);
+  delete [] mu_arr;
+  delete [] ratio_arr;
+
+  // Axes formatting
+  // Must call Draw before doing anything with the axes
+  graph.Draw(options.draw_options().c_str());
+  SetErrors(graph, options.x_rel_error(), options.y_rel_error());
+
+  ApplyMDPlotOptionsToGraph(graph, options);
+
+  string graph_title = "mu ratio vs. mu";
+  graph.SetTitle( graph_title.c_str() );
+
+  if (options.x_auto_range()) SetAxisAutoRange(graph.GetXaxis());
+  if (options.y_auto_range()) SetAxisAutoRange(graph.GetYaxis());
+
+  // Write fit results and format fit legend
+  TPaveText fit_legend;
+  FitResults fit_results;
+
+  //if (options.do_fit()) {
+  //  TF1 fit("f1", "[0]+[1]*x", graph.GetXaxis()->GetXmin(), graph.GetXaxis()->GetXmax());
+
+  //  if (options.fit_fix_intercept()) fit.FixParameter(0, 0.0);
+  //  fit.SetLineColor(options.fit_line_color());
+  //  fit.SetLineWidth(options.fit_line_width());
+
+  //  graph.Fit("f1", (options.fit_options()+"BQS").c_str());
+
+  //  //RecursiveFilterOutliers(graph, fit, options);
+
+  //  fit_results.FromFit(fit, options);
+
+  //  if (options.fit_show_legend()) {
+  //    FormatLegend(fit_legend, fit_results);
+  //  }
+  //}
+
+  fit_legend.Draw();
+
+  DrawATLASLabel(ATLASLabelOptions{"Internal"});
+
+  canvas.Update();
+  auto write_dir = options.plots_dir();
+  TRY( Util::mkdir(write_dir) )
+
+  canvas.Print( (write_dir+"mu_dependence.png").c_str() );
+  return Void();
 }
 
 // Writes FCal current vs. offline preferred lumi fit parameters to a root file for a given

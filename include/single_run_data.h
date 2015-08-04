@@ -39,6 +39,7 @@ class SingleRunData {
   const auto& lumi_ofl() const { return lumi_ofl_; }
   const auto& lumi_FCal_A() const { return lumi_FCal_A_; }
   const auto& lumi_FCal_C() const { return lumi_FCal_C_; }
+  const auto& mu_ofl() const { return mu_ofl_; }
   const auto& mu_FCal_A() const { return mu_FCal_A_; }
   const auto& mu_FCal_C() const { return mu_FCal_C_; }
 
@@ -64,6 +65,7 @@ class SingleRunData {
   std::vector<Float_t> lumi_ofl_;
   std::vector<Float_t> lumi_FCal_A_;
   std::vector<Float_t> lumi_FCal_C_;
+  std::vector<Float_t> mu_ofl_;
   std::vector<Float_t> mu_FCal_A_;
   std::vector<Float_t> mu_FCal_C_;
 };

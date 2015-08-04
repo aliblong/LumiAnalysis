@@ -6,6 +6,7 @@
 
 #include "boost/container/flat_map.hpp"
 
+#include "detector.h"
 #include "error.h"
 #include "fit_results.h"
 #include "void.h"
@@ -23,9 +24,10 @@ class Analysis {
   Error::Expected<Void> PrepareAnalysis();
   Error::Expected<Void> ReadCalibrations();
   Error::Expected<Void> ReadChannels();
-  void ReadParams();
+  Error::Expected<Void> ReadParams();
   Error::Expected<Void> RunAnalysis();
 
+  auto detector() const { return detector_; }
   auto verbose() const { return verbose_; }
 
   auto f_rev() const { return f_rev_; }
@@ -57,6 +59,7 @@ class Analysis {
   const auto& channel_calibrations() const { return channel_calibrations_; }
 
  private:
+  Detector::Name detector_ = Detector::Name::FCal;
   bool verbose_ = false;
 
   double f_rev_ = 0.0;

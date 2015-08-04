@@ -505,12 +505,16 @@ Expected<Void> SingleRunData::CalcFCalMu()
   // Calculates <mu> for each lumi block
   auto nLB_stable = lumi_ofl_.size();
   mu_FCal_A_.reserve(nLB_stable);
-  for (const auto &lumi: lumi_FCal_A_) {
+  for (auto lumi: lumi_FCal_A_) {
     mu_FCal_A_.push_back(lumi*conversion_factor);
   }
   mu_FCal_C_.reserve(nLB_stable);
-  for (const auto &lumi: lumi_FCal_C_) {
+  for (auto lumi: lumi_FCal_C_) {
     mu_FCal_C_.push_back(lumi*conversion_factor);
+  }
+  mu_ofl_.reserve(nLB_stable);
+  for (auto lumi: lumi_ofl_) {
+    mu_ofl_.push_back(lumi*conversion_factor);
   }
   return Void();
 }
@@ -603,7 +607,7 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
   if (plot_options.do_fit()) {
     LOG_IF_ERR( Plotter::WriteFitResultsToTree(fit_results, plot_options) )
     LOG_IF_ERR( Plotter::WriteCalibrationToText(fit_results, plot_options) )
-    LOG_IF_ERR( Plotter::GeometricAnalysisOfFitResults(fit_results, plot_options) )
+    //LOG_IF_ERR( Plotter::GeometricAnalysisOfFitResults(fit_results, plot_options) )
   }
 
   return Void();
