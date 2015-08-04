@@ -533,14 +533,33 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
       auto this_channel_name = channel.first;
       plot_options.channel_name(string(this_channel_name));
 
+      auto channel_name = plot_options.channel_name();
+      plot_options.title("Run "+plot_options.run_name()+", Channel "+channel_name);
+
       auto lumi_current_points = PointVectorFromVectors(
           lumi_ofl_,
           channel.second);
 
       CONTINUE_IF_ERR(lumi_current_points);
 
+      auto points_filtered = *lumi_current_points;
+      for (auto& point: points_filtered) {
+        point[0] *= plot_options.x_scale();
+        point[1] *= plot_options.y_scale();
+      }
+
+      points_filtered.erase(
+          std::remove_if(
+              points_filtered.begin(),
+              points_filtered.end(),
+              [] (auto point) {
+                return point[0] < gOflLumiCutoff || point[1] < gFCalCurrentCutoff;
+              }
+              ),
+          points_filtered.end());
+
       auto this_channel_fit_results =
-        Plotter::PlotLumiCurrent(*lumi_current_points,
+        Plotter::PlotLumiCurrent(points_filtered,
                                  plot_options);
 
       CONTINUE_IF_ERR(this_channel_fit_results)
@@ -558,51 +577,51 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
     } //channels loop
   }
 
-  if (plot_options.do_sum()) {
-    vector<Float_t> channel_currents_sum_A;
-    vector<Float_t> channel_currents_sum_C;
-    for (const auto &channel: analysis_->channel_calibrations()) {
-      auto this_channel_name = channel.first;
-      auto this_channel_current = currents_.at(this_channel_name);
+  //if (plot_options.do_sum()) {
+  //  vector<Float_t> channel_currents_sum_A;
+  //  vector<Float_t> channel_currents_sum_C;
+  //  for (const auto &channel: analysis_->channel_calibrations()) {
+  //    auto this_channel_name = channel.first;
+  //    auto this_channel_current = currents_.at(this_channel_name);
 
-      vector<Float_t> *this_side_channel_currents_sum;
-      if (this_channel_name.at(1) == '1') {
-        this_side_channel_currents_sum = &channel_currents_sum_A;
-      }
-      else if (this_channel_name.at(1) == '8') {
-        this_side_channel_currents_sum = &channel_currents_sum_C;
-      }
-      else {
-        return make_unexpected(make_shared<Error::Logic>("Invalid channel name", this_func_name));
-      }
+  //    vector<Float_t> *this_side_channel_currents_sum;
+  //    if (this_channel_name.at(1) == '1') {
+  //      this_side_channel_currents_sum = &channel_currents_sum_A;
+  //    }
+  //    else if (this_channel_name.at(1) == '8') {
+  //      this_side_channel_currents_sum = &channel_currents_sum_C;
+  //    }
+  //    else {
+  //      return make_unexpected(make_shared<Error::Logic>("Invalid channel name", this_func_name));
+  //    }
 
-      if (this_side_channel_currents_sum->size() == 0) {
-        *this_side_channel_currents_sum = this_channel_current;
-      }
-      else {
-        std::transform(this_side_channel_currents_sum->begin(),
-                       this_side_channel_currents_sum->end(),
-                       this_channel_current.begin(),
-                       this_side_channel_currents_sum->begin(),
-                       std::plus<Float_t>());
-      }
-    }
+  //    if (this_side_channel_currents_sum->size() == 0) {
+  //      *this_side_channel_currents_sum = this_channel_current;
+  //    }
+  //    else {
+  //      std::transform(this_side_channel_currents_sum->begin(),
+  //                     this_side_channel_currents_sum->end(),
+  //                     this_channel_current.begin(),
+  //                     this_side_channel_currents_sum->begin(),
+  //                     std::plus<Float_t>());
+  //    }
+  //  }
 
-    // TODO: figure out how to deal with sums
-    auto points_sum_A = PointVectorFromVectors(lumi_ofl_,
-                                               channel_currents_sum_A);
-    plot_options.channel_name("Sum_A");
-    if (points_sum_A.valid()) {
-      TRY( Plotter::PlotLumiCurrent(*points_sum_A, plot_options) )
-    }
+  //  // TODO: figure out how to deal with sums
+  //  auto points_sum_A = PointVectorFromVectors(lumi_ofl_,
+  //                                             channel_currents_sum_A);
+  //  plot_options.channel_name("Sum_A");
+  //  if (points_sum_A.valid()) {
+  //    TRY( Plotter::PlotLumiCurrent(*points_sum_A, plot_options) )
+  //  }
 
-    auto points_sum_C = PointVectorFromVectors(lumi_ofl_,
-                                               channel_currents_sum_C);
-    plot_options.channel_name("Sum_C");
-    if (points_sum_C.valid()) {
-      TRY( Plotter::PlotLumiCurrent(*points_sum_C, plot_options) )
-    }
-  }
+  //  auto points_sum_C = PointVectorFromVectors(lumi_ofl_,
+  //                                             channel_currents_sum_C);
+  //  plot_options.channel_name("Sum_C");
+  //  if (points_sum_C.valid()) {
+  //    TRY( Plotter::PlotLumiCurrent(*points_sum_C, plot_options) )
+  //  }
+  //}
 
   if (plot_options.do_fit()) {
     LOG_IF_ERR( Plotter::WriteFitResultsToTree(fit_results, plot_options) )

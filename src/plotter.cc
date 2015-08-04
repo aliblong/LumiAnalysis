@@ -38,6 +38,7 @@
 #include "mu_dep_plot_options.h"
 #include "mu_stab_plot_options.h"
 #include "point.h"
+#include "scatter_plot_options.h"
 #include "util.h"
 #include "void.h"
 
@@ -323,20 +324,6 @@ void ApplyLCPlotOptionsToGraph(TGraphErrors& graph,
   graph.GetYaxis()->SetTitle(plot_options.y_title().c_str());
 }
 
-void ApplyMDPlotOptionsToGraph(TGraphErrors& graph,
-                               const MuDepPlotOptions& plot_options)
-{
-  graph.SetMarkerColor(plot_options.marker_color());
-  graph.SetMarkerStyle(plot_options.marker_style());
-  graph.SetMarkerSize(plot_options.marker_size());
-
-  graph.GetXaxis()->SetRangeUser(plot_options.x_min(), plot_options.x_max());
-  graph.GetYaxis()->SetRangeUser(plot_options.y_min(), plot_options.y_max());
-
-  graph.GetXaxis()->SetTitle(plot_options.x_title().c_str());
-  graph.GetYaxis()->SetTitle(plot_options.y_title().c_str());
-}
-
 TLatex DrawATLASLabel(const ATLASLabelOptions& options)
 {
   TLatex label;
@@ -438,62 +425,59 @@ bool MinNonZero(Float_t i, Float_t j) {
 }
 */
 
-}
-
-Expected<FitResults> Plotter::PlotLumiCurrent(
-    const VectorP<Float_t>& points,
-    const LumiCurrentPlotOptions& options)
+TGraphErrors CreateScatterPlot( const VectorP<Float_t>& points)
 {
-  auto this_func_name = "PlotLumiCurrent";
-
-  TCanvas canvas;
-  canvas.cd();
-
-  auto points_filtered = points;
-  for (auto& point: points_filtered) {
-    point[0] *= options.x_scale();
-    point[1] *= options.y_scale();
-  }
-
-  points_filtered.erase(
-      std::remove_if(
-          points_filtered.begin(),
-          points_filtered.end(),
-          [] (auto point) {
-            return point[0] < gOflLumiCutoff || point[1] < gFCalCurrentCutoff;
-          }
-          ),
-      points_filtered.end());
-
   // Use C-style dynamic arrays since ROOT doesn't support vectors
-  auto num_points = points_filtered.size();
+  auto num_points = points.size();
   Float_t *lumi_arr = new Float_t[num_points];
   Float_t *current_arr = new Float_t[num_points];
   for (unsigned iPoint=0; iPoint < num_points; ++iPoint) {
-    lumi_arr[iPoint] = points_filtered[iPoint][0];
-    current_arr[iPoint] = points_filtered[iPoint][1];
+    lumi_arr[iPoint] = points[iPoint][0];
+    current_arr[iPoint] = points[iPoint][1];
   }
 
   TGraphErrors graph(num_points, lumi_arr, current_arr);
   delete [] lumi_arr;
   delete [] current_arr;
 
-  // Axes formatting
-  // Must call Draw before doing anything with the axes
+  return graph;
+}
+
+void ApplyScatterPlotOptions(
+    TGraphErrors* graph,
+    const ScatterPlotOptions* options)
+{
+  if (graph == nullptr) return;
+
+  SetErrors(*graph, options->x_rel_error(), options->y_rel_error());
+
+  graph->SetMarkerColor(options->marker_color());
+  graph->SetMarkerStyle(options->marker_style());
+  graph->SetMarkerSize(options->marker_size());
+
+  graph->GetXaxis()->SetRangeUser(options->x_min(), options->x_max());
+  graph->GetYaxis()->SetRangeUser(options->y_min(), options->y_max());
+
+  graph->SetTitle(options->title().c_str());
+  graph->GetXaxis()->SetTitle(options->x_title().c_str());
+  graph->GetYaxis()->SetTitle(options->y_title().c_str());
+  if (options->x_auto_range()) SetAxisAutoRange(graph->GetXaxis());
+  if (options->y_auto_range()) SetAxisAutoRange(graph->GetYaxis());
+}
+
+}
+
+Expected<FitResults> Plotter::PlotLumiCurrent(
+    const VectorP<Float_t>& points,
+    const LumiCurrentPlotOptions& options)
+{
+  auto graph = CreateScatterPlot(points);
+  ApplyScatterPlotOptions(&graph, &options);
+
+  TCanvas canvas;
+  canvas.cd();
   graph.Draw(options.draw_options().c_str());
-  SetErrors(graph, options.x_rel_error(), options.y_rel_error());
 
-  ApplyLCPlotOptionsToGraph(graph, options);
-
-  auto channel_name = options.channel_name();
-  string graph_title = "Run "+options.run_name()+", Channel "+channel_name;
-  graph.SetTitle( graph_title.c_str() );
-
-  auto is_valid_channel = FCalRegion::IsValidChannel(channel_name);
-  if (options.x_auto_range() || !is_valid_channel) SetAxisAutoRange(graph.GetXaxis());
-  if (options.y_auto_range() || !is_valid_channel) SetAxisAutoRange(graph.GetYaxis());
-
-  // Write fit results and format fit legend
   TPaveText fit_legend;
   FitResults fit_results;
 
@@ -523,7 +507,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   auto write_dir = options.plots_dir()+options.run_name()+"/";
   TRY( Util::mkdir(write_dir) )
 
-  if (options.print_plots()) canvas.Print( (write_dir+channel_name+".png").c_str() );
+  if (options.print_plots()) canvas.Print( (write_dir+options.channel_name()+".png").c_str() );
   return fit_results;
 }
 
@@ -531,58 +515,16 @@ Expected<Void> Plotter::PlotMuDependence(
     const VectorP<Float_t>& points,
     const MuDepPlotOptions& options)
 {
-  auto this_func_name = "PlotMuDependence";
+  auto graph = CreateScatterPlot(points);
+  ApplyScatterPlotOptions(&graph, &options);
 
   TCanvas canvas;
   canvas.cd();
-
-  // Use C-style dynamic arrays since ROOT doesn't support vectors
-  auto num_points = points.size();
-  Float_t *mu_arr = new Float_t[num_points];
-  Float_t *ratio_arr = new Float_t[num_points];
-  for (unsigned iPoint=0; iPoint < num_points; ++iPoint) {
-    mu_arr[iPoint] = points[iPoint][0];
-    ratio_arr[iPoint] = points[iPoint][1];
-  }
-
-  TGraphErrors graph(num_points, mu_arr, ratio_arr);
-  delete [] mu_arr;
-  delete [] ratio_arr;
-
-  // Axes formatting
-  // Must call Draw before doing anything with the axes
   graph.Draw(options.draw_options().c_str());
-  SetErrors(graph, options.x_rel_error(), options.y_rel_error());
-
-  ApplyMDPlotOptionsToGraph(graph, options);
-
-  string graph_title = "mu ratio vs. mu";
-  graph.SetTitle( graph_title.c_str() );
-
-  if (options.x_auto_range()) SetAxisAutoRange(graph.GetXaxis());
-  if (options.y_auto_range()) SetAxisAutoRange(graph.GetYaxis());
 
   // Write fit results and format fit legend
   TPaveText fit_legend;
   FitResults fit_results;
-
-  //if (options.do_fit()) {
-  //  TF1 fit("f1", "[0]+[1]*x", graph.GetXaxis()->GetXmin(), graph.GetXaxis()->GetXmax());
-
-  //  if (options.fit_fix_intercept()) fit.FixParameter(0, 0.0);
-  //  fit.SetLineColor(options.fit_line_color());
-  //  fit.SetLineWidth(options.fit_line_width());
-
-  //  graph.Fit("f1", (options.fit_options()+"BQS").c_str());
-
-  //  //RecursiveFilterOutliers(graph, fit, options);
-
-  //  fit_results.FromFit(fit, options);
-
-  //  if (options.fit_show_legend()) {
-  //    FormatLegend(fit_legend, fit_results);
-  //  }
-  //}
 
   fit_legend.Draw();
 

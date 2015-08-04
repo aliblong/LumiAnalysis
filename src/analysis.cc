@@ -118,6 +118,8 @@ void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
       if (verbose_) cout << "Making mu dependence plot" << endl;
       MuDepPlotOptions plot_options(params_filepath_);
       auto points = GenerateMuVsMuRatioPoints(runs_data);
+      string graph_title = "mu ratio vs. mu";
+      plot_options.title(std::move(graph_title));
       LOG_IF_ERR( Plotter::PlotMuDependence(points, plot_options) );
     }
   }

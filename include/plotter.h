@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "TGraphErrors.h"
+
 #include "boost/container/flat_map.hpp"
 #include "boost/expected/expected.hpp"
 
