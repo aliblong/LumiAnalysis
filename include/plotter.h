@@ -12,7 +12,7 @@
 #include "error.h"
 #include "fit_results.h"
 #include "lumi_current_plot_options.h"
-#include "mu_dep_plot_options.h"
+#include "mu_lumi_dep_plot_options.h"
 #include "mu_stab_plot_options.h"
 #include "single_run_data.h"
 #include "void.h"
@@ -26,9 +26,9 @@ namespace Plotter {
       const std::vector<std::array<Float_t, 2>>& points,
       const LumiCurrentPlotOptions& options);
 
-  Error::Expected<Void> PlotMuDependence(
+  Error::Expected<Void> PlotMuLumiDependence(
       const std::vector<std::array<Float_t, 2>>& points,
-      const MuDepPlotOptions& options);
+      const MuLumiDepPlotOptions& options);
 
   Error::Expected<Void> PlotMuStability(
       const boost::container::flat_map<std::string, SingleRunData>& runs_data,

@@ -35,7 +35,7 @@
 #include "fcal_region.h"
 #include "fit_results.h"
 #include "lumi_current_plot_options.h"
-#include "mu_dep_plot_options.h"
+#include "mu_lumi_dep_plot_options.h"
 #include "mu_stab_plot_options.h"
 #include "point.h"
 #include "scatter_plot_options.h"
@@ -511,22 +511,16 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   return fit_results;
 }
 
-Expected<Void> Plotter::PlotMuDependence(
+Expected<Void> Plotter::PlotMuLumiDependence(
     const VectorP<Float_t>& points,
-    const MuDepPlotOptions& options)
+    const MuLumiDepPlotOptions& options)
 {
   auto graph = CreateScatterPlot(points);
-  ApplyScatterPlotOptions(&graph, &options);
-
   TCanvas canvas;
   canvas.cd();
   graph.Draw(options.draw_options().c_str());
 
-  // Write fit results and format fit legend
-  TPaveText fit_legend;
-  FitResults fit_results;
-
-  fit_legend.Draw();
+  ApplyScatterPlotOptions(&graph, &options);
 
   DrawATLASLabel(ATLASLabelOptions{"Internal"});
 
@@ -534,7 +528,7 @@ Expected<Void> Plotter::PlotMuDependence(
   auto write_dir = options.plots_dir();
   TRY( Util::mkdir(write_dir) )
 
-  canvas.Print( (write_dir+"mu_dependence.png").c_str() );
+  canvas.Print( (write_dir+options.file_name()+".png").c_str() );
   return Void();
 }
 

@@ -85,7 +85,7 @@ Analysis::Analysis(string&& params_filepath)
   TRY_THROW( PrepareAnalysis() )
 }
 
-VectorP<Float_t> GenerateMuVsMuRatioPoints(const map<string, SingleRunData> &runs_data)
+VectorP<Float_t> GenerateMuRatioVsMuPoints(const map<string, SingleRunData> &runs_data)
 {
   VectorP<Float_t> points;
   // Roughly 500 points per run
@@ -106,6 +106,27 @@ VectorP<Float_t> GenerateMuVsMuRatioPoints(const map<string, SingleRunData> &run
   return points;
 }
 
+VectorP<Float_t> GenerateMuRatioVsLumiPoints(const map<string, SingleRunData> &runs_data)
+{
+  VectorP<Float_t> points;
+  // Roughly 500 points per run
+  auto num_points_to_reserve = 500*2*runs_data.size();
+  points.reserve(num_points_to_reserve);
+  for (const auto& run: runs_data) {
+    const auto& run_data = run.second;
+    const auto& lumi_A = run_data.lumi_FCal_A();
+    const auto& lumi_C = run_data.lumi_FCal_C();
+    const auto& lumi_ofl = run_data.lumi_ofl();
+    auto num_points = lumi_ofl.size();
+    for (auto i = 0; i < num_points; ++i) {
+      auto lumi_avg = (lumi_A[i]+lumi_C[i])/2;
+      auto lumi_ratio = (lumi_avg/lumi_ofl[i] - 1)*100;
+      points.push_back(Point<Float_t>{lumi_ofl[i], lumi_ratio});
+    }
+  }
+  return points;
+}
+
 void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
 {
   for (const auto &plot_type: plot_types_) {
@@ -114,13 +135,17 @@ void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
       MuStabPlotOptions plot_options(params_filepath_);
       LOG_IF_ERR( Plotter::PlotMuStability(runs_data, plot_options) );
     }
-    else if (plot_type == "mu_dependence") {
-      if (verbose_) cout << "Making mu dependence plot" << endl;
-      MuDepPlotOptions plot_options(params_filepath_);
-      auto points = GenerateMuVsMuRatioPoints(runs_data);
-      string graph_title = "mu ratio vs. mu";
-      plot_options.title(std::move(graph_title));
-      LOG_IF_ERR( Plotter::PlotMuDependence(points, plot_options) );
+    else if (plot_type == "mu_lumi_dependence") {
+      if (verbose_) cout << "Making mu and lumi dependence plots" << endl;
+      auto mu_dep_node = "plot_options.mu_dependence.";
+      MuLumiDepPlotOptions mu_dep_plot_options(params_filepath_, mu_dep_node);
+      auto mu_dep_points = GenerateMuRatioVsMuPoints(runs_data);
+      LOG_IF_ERR( Plotter::PlotMuLumiDependence(mu_dep_points, mu_dep_plot_options) );
+
+      auto lumi_dep_node = "plot_options.lumi_dependence.";
+      MuLumiDepPlotOptions lumi_dep_plot_options(params_filepath_, lumi_dep_node);
+      auto lumi_dep_points = GenerateMuRatioVsLumiPoints(runs_data);
+      LOG_IF_ERR( Plotter::PlotMuLumiDependence(lumi_dep_points, lumi_dep_plot_options) );
     }
   }
 }
@@ -140,7 +165,7 @@ Expected<Void> Analysis::PrepareAnalysis()
       retrieve_lumi_ofl_ = true;
       retrieve_lumi_FCal_ = true;
     }
-    else if (plot_type == "mu_dependence") {
+    else if (plot_type == "mu_lumi_dependence") {
       retrieve_lumi_ofl_ = true;
       retrieve_lumi_FCal_ = true;
     }

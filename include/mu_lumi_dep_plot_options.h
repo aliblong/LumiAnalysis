@@ -1,16 +1,18 @@
-#ifndef LUMIANALYSIS_INCLUDE_MU_DEP_PLOTOPTIONS_H_
-#define LUMIANALYSIS_INCLUDE_MU_DEP_PLOTOPTIONS_H_
+#ifndef LUMIANALYSIS_INCLUDE_MU_LUMI_DEP_PLOTOPTIONS_H_
+#define LUMIANALYSIS_INCLUDE_MU_LUMI_DEP_PLOTOPTIONS_H_
 
 #include <string>
 
 #include "scatter_plot_options.h"
 
-class MuDepPlotOptions : public ScatterPlotOptions {
+class MuLumiDepPlotOptions : public ScatterPlotOptions {
  public:
-  MuDepPlotOptions(const std::string& params_filepath);
-  ~MuDepPlotOptions(){};
+  MuLumiDepPlotOptions(const std::string& params_filepath, const std::string& node);
+  ~MuLumiDepPlotOptions(){};
 
   const std::string& plots_dir() const { return plots_dir_; }
+  const std::string& file_name() const { return file_name_; }
+  //auto& file_name(std::string&& file_name) { file_name_ = file_name; return *this; }
 
   const std::string& draw_options() const { return draw_options_; }
 
@@ -37,6 +39,7 @@ class MuDepPlotOptions : public ScatterPlotOptions {
 
  private:
   std::string plots_dir_;
+  std::string file_name_;
 
   bool fit_fix_intercept_;
   std::string fit_options_;

@@ -1,16 +1,17 @@
+#include "mu_lumi_dep_plot_options.h"
+
 #include <string>
 
 #include "Rtypes.h"
 
 #include "json_reader.h"
-#include "mu_dep_plot_options.h"
 
 using std::string;
 
-MuDepPlotOptions::MuDepPlotOptions(const string& params_filepath) {
+MuLumiDepPlotOptions::MuLumiDepPlotOptions(const string& params_filepath, const std::string& node) {
   JSONReader parameter_file(params_filepath);
 
-  string LC_options_node = "plot_options.mu_dependence.";
+  string LC_options_node = node;
 
   auto base_output_dir = parameter_file.get<string>("output_dirs.base") +
                          parameter_file.get<string>("output_dirs.mu_dependence");
@@ -18,7 +19,9 @@ MuDepPlotOptions::MuDepPlotOptions(const string& params_filepath) {
   plots_dir_ = base_output_dir +
                parameter_file.get<string>(LC_options_node+"output_dirs.plots");
 
+  file_name_ = parameter_file.get<string>(LC_options_node+"file_name");
   draw_options_ = parameter_file.get<string>(LC_options_node+"draw_options");
+  title_ = parameter_file.get<string>(LC_options_node+"title");
 
   marker_color_ = parameter_file.get<int>(LC_options_node+"marker.color");
   marker_style_ = parameter_file.get<int>(LC_options_node+"marker.style");
