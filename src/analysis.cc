@@ -39,6 +39,18 @@ using Error::Expected;
 
 namespace {
 
+Expected<Void> VerifyLBBounds(map<string, vector<int>> bounds)
+{
+  auto this_func_name = "VerifyLBBounds";
+  for (const auto& item: bounds) {
+    if (item.second.size() != 2) {
+      auto err_msg = "Illegal number (!=2) of LB bounds for run " + item.first;
+      return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+    }
+  }
+  return Void();
+}
+
 Expected<vector<string>> VectorFromFile(const string& filepath)
 {
   auto this_func_name = "VectorFromFile";
@@ -76,15 +88,6 @@ bool IsZeroes(const vector<Float_t> &vec) {
 }
 */
 
-} // Anonymous namespace
-
-// Initializes various quantities required to run the analysis
-Analysis::Analysis(string&& params_filepath)
-{
-  params_filepath_ = params_filepath;
-  TRY_THROW( PrepareAnalysis() )
-}
-
 VectorP<Float_t> GenerateMuRatioVsMuPoints(const map<string, SingleRunData> &runs_data)
 {
   VectorP<Float_t> points;
@@ -98,9 +101,21 @@ VectorP<Float_t> GenerateMuRatioVsMuPoints(const map<string, SingleRunData> &run
     const auto& mu_ofl = run_data.mu_ofl();
     auto num_points = mu_ofl.size();
     for (auto i = 0; i < num_points; ++i) {
-      auto mu_avg = (mu_A[i]+mu_C[i])/2;
-      auto mu_ratio = (mu_avg/mu_ofl[i] - 1)*100;
-      points.push_back(Point<Float_t>{mu_ofl[i], mu_ratio});
+      auto mu_A_this_LB = mu_A[i];
+      auto mu_C_this_LB = mu_C[i];
+      auto mu_avg_this_LB = 0.0;
+      if (mu_A_this_LB < gEpsilon) {
+        mu_avg_this_LB = mu_C_this_LB;
+      }
+      else if (mu_C_this_LB < gEpsilon) {
+        mu_avg_this_LB = mu_A_this_LB;
+      }
+      else {
+        mu_avg_this_LB = (mu_A_this_LB + mu_C_this_LB)/2;
+      }
+      auto mu_ofl_this_LB = mu_ofl[i];
+      auto mu_ratio_this_LB = (mu_avg_this_LB/mu_ofl_this_LB - 1)*100;
+      points.push_back(Point<Float_t>{mu_ofl_this_LB, mu_ratio_this_LB});
     }
   }
   return points;
@@ -119,12 +134,33 @@ VectorP<Float_t> GenerateMuRatioVsLumiPoints(const map<string, SingleRunData> &r
     const auto& lumi_ofl = run_data.lumi_ofl();
     auto num_points = lumi_ofl.size();
     for (auto i = 0; i < num_points; ++i) {
-      auto lumi_avg = (lumi_A[i]+lumi_C[i])/2;
-      auto lumi_ratio = (lumi_avg/lumi_ofl[i] - 1)*100;
-      points.push_back(Point<Float_t>{lumi_ofl[i], lumi_ratio});
+      auto lumi_A_this_LB = lumi_A[i];
+      auto lumi_C_this_LB = lumi_C[i];
+      auto lumi_avg_this_LB = 0.0;
+      if (lumi_A_this_LB < gEpsilon) {
+        lumi_avg_this_LB = lumi_C_this_LB;
+      }
+      else if (lumi_C_this_LB < gEpsilon) {
+        lumi_avg_this_LB = lumi_A_this_LB;
+      }
+      else {
+        lumi_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
+      }
+      auto lumi_ofl_this_LB = lumi_ofl[i];
+      auto lumi_ratio_this_LB = (lumi_avg_this_LB/lumi_ofl_this_LB - 1)*100;
+      points.push_back(Point<Float_t>{lumi_ofl_this_LB, lumi_ratio_this_LB});
     }
   }
   return points;
+}
+
+} // Anonymous namespace
+
+// Initializes various quantities required to run the analysis
+Analysis::Analysis(string&& params_filepath)
+{
+  params_filepath_ = params_filepath;
+  TRY_THROW( PrepareAnalysis() )
 }
 
 void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
@@ -287,6 +323,12 @@ Error::Expected<Void> Analysis::ReadParams()
   }
 
   use_start_of_fill_pedestals_ = parameter_file.get<bool>("use_start_of_fill_pedestals");
+
+  JSONReader LB_bounds_file(parameter_file.get<string>("input_filepaths.custom_LB_bounds"));
+  auto custom_LB_bounds = LB_bounds_file.get_map_of_vectors<int>("");
+
+  TRY( VerifyLBBounds(custom_LB_bounds) )
+  custom_LB_bounds_ = custom_LB_bounds;
 
   // Text output file for Benedetto
   do_benedetto_ = parameter_file.get<bool>("do_benedetto");

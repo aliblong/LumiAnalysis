@@ -38,6 +38,17 @@ class JSONReader {
     return result;
   }
 
+  template<typename T>
+  auto get_map_of_vectors(const std::string& key) const {
+    boost::container::flat_map<std::string, std::vector<T>> result;
+    for (const auto& child: pt.get_child(key)) {
+      auto key_to_insert = child.first;
+      auto val_to_insert = get_vector<T>(key+key_to_insert);
+      result.insert(std::make_pair(key_to_insert, val_to_insert));
+    }
+    return result;
+  }
+
  private:
   ptree pt;
 };

@@ -119,6 +119,49 @@ Expected<std::array<Int_t, 2>> FindStableLBBounds(const vector<string>* beam_mod
   return std::array<Int_t, 2>{first_stable_LB, last_stable_LB};
 }
 
+Expected<std::array<Int_t, 2>> FindReadyForPhysicsLBBounds(const vector<int>& quality)
+{
+  auto this_func_name = "FindReadyForPhysicsLBBounds";
+
+  if (quality.size() == 0) {
+    auto err_msg = "empty quality vector";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  Int_t first_stable_LB = 0;
+  for (const auto& status: quality) {
+    if (status == 1) break;
+    ++first_stable_LB;
+  }
+
+  if (first_stable_LB == quality.size()) {
+    auto err_msg = "no Ready-for-Physics LBs found";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  Int_t last_stable_LB = quality.size() - 1;
+  for (auto status_it = quality.rbegin();
+       status_it != quality.rend();
+       ++status_it) {
+    if (*status_it == 1) break;
+    --last_stable_LB;
+  }
+
+  assert(first_stable_LB <= last_stable_LB);
+  return std::array<Int_t, 2>{first_stable_LB, last_stable_LB};
+}
+
+template<class T>
+vector<T> CArrayToVec(T* c_array, size_t size)
+{
+  vector<T> vec;
+  vec.reserve(size);
+  for (auto i = 0; i < size; ++i) {
+    vec.push_back(c_array[i]);
+  }
+  return vec;
+}
+
 Expected<Int_t> FindStartOfAdjustLB(const vector<string>* beam_mode)
 {
   auto this_func_name = "FindStartOfAdjustLB";
@@ -219,7 +262,7 @@ Expected<Void> SingleRunData::ReadTree()
   this_tree->SetBranchAddress("ncoll", &nCollisions_);
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
-  //   because of how TTrees work)
+  //   because of how TTrees work (I think))
   Float_t currents_temp[gMaxNumChannels][gMaxNumLB];
   Float_t lumi_ofl_temp[gMaxNumLB];
   if (analysis_->retrieve_currents()) {
@@ -234,9 +277,11 @@ Expected<Void> SingleRunData::ReadTree()
     this_tree->SetBranchAddress("ofl_lumi_pref",&lumi_ofl_temp);
   }
 
-  int quality[gMaxNumLB];
+  // Ready for physics flag state for each LB
+  int RFP_flag_arr[gMaxNumLB];
+  // Ramp, Stable, etc.
   vector<string> *beam_mode = nullptr;
-  this_tree->SetBranchAddress("quality", &quality);
+  this_tree->SetBranchAddress("quality", &RFP_flag_arr);
   this_tree->SetBranchAddress("mode", &beam_mode);
 
   // Populate those variables which have been set to branches
@@ -245,13 +290,15 @@ Expected<Void> SingleRunData::ReadTree()
 
   HardcodenLBIfMissingFromTree();
 
-  auto LB_bounds = FindStableLBBounds(beam_mode);
+  RFP_flag_vec_ = CArrayToVec<int>(RFP_flag_arr, nLB_);
+
+  auto LB_bounds = GetLBBounds();
   RETURN_IF_ERR( LB_bounds )
-  auto first_stable_LB = LB_bounds->at(0);
-  auto last_stable_LB = LB_bounds->at(1);
+  auto lower_LB_bound = LB_bounds->at(0);
+  auto upper_LB_bound = LB_bounds->at(1);
   // LB indexing starts at 1 within ATLAS, I think
   // This is for use in creating Benedetto files
-  LB_stability_offset_ = first_stable_LB + 1;
+  LB_stability_offset_ = lower_LB_bound + 1;
 
   if (analysis_->use_start_of_fill_pedestals()) {
     assert(pedestals_.size() == 0);
@@ -268,7 +315,7 @@ Expected<Void> SingleRunData::ReadTree()
     pedestal_values.reserve(*start_of_adjust_LB);
     for (const auto& channel: analysis_->channel_calibrations()) {
       auto channel_name = channel.first;
-      for (Int_t iLB = 0; iLB < first_stable_LB; ++iLB) {
+      for (Int_t iLB = 0; iLB < lower_LB_bound; ++iLB) {
         //if (channel_name == "M80C0") cout << lumi_ofl_temp[iLB] << endl;
         // We want LBs from the start of the fill before beam align
         auto this_channel_LB_current = currents_temp[iChannel][iLB];
@@ -306,12 +353,12 @@ Expected<Void> SingleRunData::ReadTree()
 
     auto iChannel = 0;
     auto this_channel_currents = vector<Float_t>();
-    this_channel_currents.reserve(last_stable_LB - first_stable_LB + 1);
+    this_channel_currents.reserve(upper_LB_bound - lower_LB_bound + 1);
     for (const auto& channel: pedestals_) {
       auto this_channel_name = channel.first;
       auto this_channel_pedestal = channel.second;
 
-      for (int iLB = first_stable_LB; iLB <= last_stable_LB; ++iLB) {
+      for (int iLB = lower_LB_bound; iLB <= upper_LB_bound; ++iLB) {
         auto this_current = currents_temp[iChannel][iLB] -
                             this_channel_pedestal;
         this_channel_currents.push_back(this_current);
@@ -327,12 +374,44 @@ Expected<Void> SingleRunData::ReadTree()
   if (analysis_->retrieve_lumi_ofl()) {
     assert(lumi_ofl_.size() == 0);
 
-    for (int iLB = first_stable_LB; iLB <= last_stable_LB; ++iLB) {
+    for (int iLB = lower_LB_bound; iLB <= upper_LB_bound; ++iLB) {
       lumi_ofl_.push_back( lumi_ofl_temp[iLB] );
     }
   }
 
   return Void();
+}
+
+Expected<std::array<Int_t,2>> SingleRunData::GetLBBounds() const
+{
+  // Use quality (ready for physics) flag instead of stable beams flag
+  //auto LB_bounds = FindStableLBBounds(beam_mode);
+  std::array<Int_t, 2> LB_bounds;
+  const auto& custom_LB_bounds = analysis_->custom_LB_bounds();
+  const auto target_LB_bounds = custom_LB_bounds.find(run_name_);
+  if (target_LB_bounds != custom_LB_bounds.end()) {
+    // LB number is 1-indexed, but we use 0-indexing to store it in memory
+    auto lower_bound =  target_LB_bounds->second.at(0) - 1;
+    auto upper_bound =  target_LB_bounds->second.at(1) - 1;
+    if (lower_bound < 0 || upper_bound < lower_bound) {
+      auto RFP_LB_bounds = FindReadyForPhysicsLBBounds(RFP_flag_vec_);
+      RETURN_IF_ERR( RFP_LB_bounds )
+      if (lower_bound < 0) {
+        lower_bound = RFP_LB_bounds->at(0);
+      }
+      if (upper_bound < lower_bound) {
+        upper_bound = RFP_LB_bounds->at(1);
+      }
+    }
+    LB_bounds[0] = lower_bound;
+    LB_bounds[1] = upper_bound;
+  }
+  else {
+    auto RFP_LB_bounds = FindReadyForPhysicsLBBounds(RFP_flag_vec_);
+    RETURN_IF_ERR( RFP_LB_bounds )
+    LB_bounds = *RFP_LB_bounds;
+  }
+  return LB_bounds;
 }
 
 Expected<Void> SingleRunData::CreateBenedettoOutput() const

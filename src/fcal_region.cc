@@ -177,10 +177,10 @@ bool FCalRegion::IsValidChannel(const string& channel_name) {
 }
 
 ZSide FCalRegion::ToZSide(const std::string& channel_name) {
-  if (channel_name.at(1) == '1') {
-    return ZSide::C;
+  if (channel_name.at(3) == 'C') {
+    return ZSide::A;
   }
   else {
-    return ZSide::A;
+    return ZSide::C;
   }
 }

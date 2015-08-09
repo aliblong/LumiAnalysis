@@ -46,6 +46,7 @@ class SingleRunData {
  private:
   Error::Expected<Void> ReadPedestals();
   Error::Expected<Void> ReadTree();
+  Error::Expected<std::array<Int_t,2>> GetLBBounds() const;
   void InitCurrentsMap();
   void HardcodenLBIfMissingFromTree();
 
@@ -68,6 +69,7 @@ class SingleRunData {
   std::vector<Float_t> mu_ofl_;
   std::vector<Float_t> mu_FCal_A_;
   std::vector<Float_t> mu_FCal_C_;
+  std::vector<int> RFP_flag_vec_;
 };
 
 #endif
