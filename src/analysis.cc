@@ -136,19 +136,51 @@ VectorP<Float_t> GenerateMuRatioVsLumiPoints(const map<string, SingleRunData> &r
     for (auto i = 0; i < num_points; ++i) {
       auto lumi_A_this_LB = lumi_A[i];
       auto lumi_C_this_LB = lumi_C[i];
-      auto lumi_avg_this_LB = 0.0;
+      auto lumi_FCal_avg_this_LB = 0.0;
       if (lumi_A_this_LB < gEpsilon) {
-        lumi_avg_this_LB = lumi_C_this_LB;
+        lumi_FCal_avg_this_LB = lumi_C_this_LB;
       }
       else if (lumi_C_this_LB < gEpsilon) {
-        lumi_avg_this_LB = lumi_A_this_LB;
+        lumi_FCal_avg_this_LB = lumi_A_this_LB;
       }
       else {
-        lumi_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
+        lumi_FCal_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
       }
       auto lumi_ofl_this_LB = lumi_ofl[i];
-      auto lumi_ratio_this_LB = (lumi_avg_this_LB/lumi_ofl_this_LB - 1)*100;
+      auto lumi_ratio_this_LB = (lumi_FCal_avg_this_LB/lumi_ofl_this_LB - 1)*100;
       points.push_back(Point<Float_t>{lumi_ofl_this_LB, lumi_ratio_this_LB});
+    }
+  }
+  return points;
+}
+
+VectorP<Float_t> GenerateLumiVsCurrentPoints(const map<string, SingleRunData> &runs_data)
+{
+  VectorP<Float_t> points;
+  // Roughly 500 points per run
+  auto num_points_to_reserve = 500*2*runs_data.size();
+  points.reserve(num_points_to_reserve);
+  for (const auto& run: runs_data) {
+    const auto& run_data = run.second;
+    const auto& lumi_A = run_data.lumi_FCal_A();
+    const auto& lumi_C = run_data.lumi_FCal_C();
+    const auto& lumi_ofl = run_data.lumi_ofl();
+    auto num_points = lumi_ofl.size();
+    for (auto i = 0; i < num_points; ++i) {
+      auto lumi_A_this_LB = lumi_A[i];
+      auto lumi_C_this_LB = lumi_C[i];
+      auto lumi_FCal_avg_this_LB = 0.0;
+      if (lumi_A_this_LB < gEpsilon) {
+        lumi_FCal_avg_this_LB = lumi_C_this_LB;
+      }
+      else if (lumi_C_this_LB < gEpsilon) {
+        lumi_FCal_avg_this_LB = lumi_A_this_LB;
+      }
+      else {
+        lumi_FCal_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
+      }
+      auto lumi_ofl_this_LB = lumi_ofl[i];
+      points.push_back(Point<Float_t>{lumi_ofl_this_LB, lumi_FCal_avg_this_LB});
     }
   }
   return points;

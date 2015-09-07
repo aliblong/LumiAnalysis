@@ -432,42 +432,48 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
   for (unsigned iLB = 0; iLB < num_points; ++iLB) {
     //output_file << (iLB + LB_stability_offset_) << ' ' << mu_FCal_A_.at(iLB) << ' '
     //            << mu_FCal_C_.at(iLB) << std::endl;
-    //output_file << (iLB + LB_stability_offset_) << ' ' << lumi_ofl_.at(iLB)/nCollisions_ << std::endl;
-    //auto mu_A = mu_FCal_A_.at(iLB);
-    //auto mu_C = mu_FCal_C_.at(iLB);
-    //output_file << std::showpos << std::setw(3) << (iLB + LB_stability_offset_) << "   " << 100*(mu_A - mu_C)/(mu_A + mu_C) << std::endl;
+
     auto mu_A = mu_FCal_A_.at(iLB);
     auto mu_C = mu_FCal_C_.at(iLB);
-    auto mu_ofl = lumi_ofl_.at(iLB)/nCollisions_;
+    Float_t conversion_factor = analysis_->x_sec() / (nCollisions_ * analysis_->f_rev());
+    auto mu_ofl = lumi_ofl_.at(iLB) * conversion_factor;
     output_file << (iLB + LB_stability_offset_) << ' '
                 << std::setw(5) << std::setfill('0') << std::left << std::noshowpos << mu_ofl << ' '
                 << std::setw(5) << std::setfill('0') << std::left << mu_A << ' '
                 << std::setw(5) << std::setfill('0') << std::left << mu_C << ' '
                 << std::setw(5) << std::setfill('0') << std::left << std::showpos << 100*((mu_A + mu_C)/2 - mu_ofl) / mu_ofl << ' '
                 << std::setw(5) << std::setfill('0') << std::left << 100*(mu_A - mu_C)/mu_A << std::endl;
+
+    //output_file << (iLB + LB_stability_offset_) << ' ' << lumi_ofl_.at(iLB)/nCollisions_ << std::endl;
+    //auto mu_A = mu_FCal_A_.at(iLB);
+    //auto mu_C = mu_FCal_C_.at(iLB);
+    //output_file << std::showpos << std::setw(3) << (iLB + LB_stability_offset_) << "   " << 100*(mu_A - mu_C)/(mu_A + mu_C) << std::endl;
   }
   return Void();
 }
 
-const std::vector<std::pair<string, Int_t>> MISSING_nLB { {"203169", 471},
-                                                          {"203256", 1331},
-                                                          {"203605", 1377},
-                                                          {"204707", 1377},
-                                                          {"205012", 1377},
-                                                          {"205113", 1368},
-                                                          {"207214", 16}, //no, this isn't a typo
-                                                          {"207528", 1368},
-                                                          {"207530", 1368},
-                                                          {"207929", 1368},
-                                                          {"209353", 1368},
-                                                          {"209644", 1368},
-                                                          {"209909", 1368},
-                                                          {"211902", 1224},
-                                                          {"212103", 1368},
-                                                          {"212809", 1368},
-                                                          {"206955", 1368},
-                                                          {"208642", 465},
-                                                          {"211620", 801} };
+const std::vector<std::pair<string, Int_t>> MISSING_nLB {
+    {"203169", 471},
+    {"203256", 1331},
+    {"203605", 1377},
+    {"204707", 1377},
+    {"205012", 1377},
+    {"205113", 1368},
+    {"207214", 16}, //no, this isn't a typo
+    {"207528", 1368},
+    {"207530", 1368},
+    {"207929", 1368},
+    {"209353", 1368},
+    {"209644", 1368},
+    {"209909", 1368},
+    {"211902", 1224},
+    {"212103", 1368},
+    {"212809", 1368},
+    {"206955", 1368},
+    {"208642", 465},
+    {"211620", 801},
+    {"276790", 446}
+};
 void SingleRunData::HardcodenLBIfMissingFromTree()
 {
   auto run_ptr = std::find_if(MISSING_nLB.begin(), MISSING_nLB.end(),
