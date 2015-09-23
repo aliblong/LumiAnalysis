@@ -154,7 +154,9 @@ VectorP<Float_t> GenerateMuRatioVsLumiPoints(const map<string, SingleRunData> &r
   return points;
 }
 
-VectorP<Float_t> GenerateLumiVsCurrentPoints(const map<string, SingleRunData> &runs_data)
+VectorP<Float_t> GenerateLumiVsCurrentPoints(
+    const map<string, SingleRunData> &runs_data,
+    const string& channel_name)
 {
   VectorP<Float_t> points;
   // Roughly 500 points per run
@@ -162,25 +164,11 @@ VectorP<Float_t> GenerateLumiVsCurrentPoints(const map<string, SingleRunData> &r
   points.reserve(num_points_to_reserve);
   for (const auto& run: runs_data) {
     const auto& run_data = run.second;
-    const auto& lumi_A = run_data.lumi_FCal_A();
-    const auto& lumi_C = run_data.lumi_FCal_C();
+    const auto& current = run_data.currents().at(channel_name);
     const auto& lumi_ofl = run_data.lumi_ofl();
     auto num_points = lumi_ofl.size();
     for (auto i = 0; i < num_points; ++i) {
-      auto lumi_A_this_LB = lumi_A[i];
-      auto lumi_C_this_LB = lumi_C[i];
-      auto lumi_FCal_avg_this_LB = 0.0;
-      if (lumi_A_this_LB < gEpsilon) {
-        lumi_FCal_avg_this_LB = lumi_C_this_LB;
-      }
-      else if (lumi_C_this_LB < gEpsilon) {
-        lumi_FCal_avg_this_LB = lumi_A_this_LB;
-      }
-      else {
-        lumi_FCal_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
-      }
-      auto lumi_ofl_this_LB = lumi_ofl[i];
-      points.push_back(Point<Float_t>{lumi_ofl_this_LB, lumi_FCal_avg_this_LB});
+      points.push_back(Point<Float_t>{lumi_ofl[i], current[i]});
     }
   }
   return points;
@@ -215,6 +203,17 @@ void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
       auto lumi_dep_points = GenerateMuRatioVsLumiPoints(runs_data);
       LOG_IF_ERR( Plotter::PlotMuLumiDependence(lumi_dep_points, lumi_dep_plot_options) );
     }
+    else if (plot_type == "lumi_current_multirun") {
+      if (verbose_) cout << "Making current vs. luminosity plot for multiple runs" << endl;
+      LumiCurrentPlotOptions lumi_current_plot_options(params_filepath_);
+      lumi_current_plot_options.run_name("multirun");
+      for (const auto& channel: channel_calibrations_) {
+        auto channel_name = channel.first;
+        auto lumi_current_points = GenerateLumiVsCurrentPoints(runs_data, channel_name);
+        lumi_current_plot_options.channel_name(std::move(channel_name));
+        LOG_IF_ERR( Plotter::PlotLumiCurrent(lumi_current_points, lumi_current_plot_options) );
+      }
+    }
   }
 }
 
@@ -224,7 +223,7 @@ Expected<Void> Analysis::PrepareAnalysis()
 {
   TRY( ReadParams() )
   for (const auto &plot_type: plot_types_) {
-    if (plot_type == "lumi_current" ) {
+    if (plot_type == "lumi_current" || plot_type == "lumi_current_multirun") {
       retrieve_currents_ = true;
       retrieve_lumi_ofl_ = true;
     }
@@ -251,7 +250,12 @@ Expected<Void> Analysis::PrepareAnalysis()
   TRY( ReadChannels() )
 
   if (retrieve_lumi_FCal_) {
-    TRY( ReadCalibrations() )
+    TRY( ReadCalibrations(&channel_calibrations_, primary_calibrations_filepath_) )
+    if (use_baseline_subtraction_from_fit_) {
+      for (auto& channel: channel_calibrations_) {
+        channel.second.intercept = 0.0;
+      }
+    }
   }
 
   return Void();
@@ -259,13 +263,18 @@ Expected<Void> Analysis::PrepareAnalysis()
 
 // Reads in calibration values for each of the channels being used (those
 //   read in with ReadChannels)
-Expected<Void> Analysis::ReadCalibrations()
+Expected<Void> Analysis::ReadCalibrations(
+    map<string, Analysis::ChannelCalibration>* channel_calibrations,
+    string primary_calibrations_filepath)
 {
   auto this_func_name = "Analysis::ReadCalibrations";
-  for (auto &channel: channel_calibrations_) {
-    std::ifstream calibrations_file(calibrations_filepath_);
+  if (channel_calibrations == nullptr) {
+    return make_unexpected(make_shared<Error::Nullptr>(this_func_name));
+  }
+  for (auto &channel: *channel_calibrations) {
+    std::ifstream calibrations_file(primary_calibrations_filepath);
     if (!calibrations_file) {
-      return make_unexpected(make_shared<Error::File>(calibrations_filepath_, this_func_name));
+      return make_unexpected(make_shared<Error::File>(primary_calibrations_filepath, this_func_name));
     }
 
     string channel_name;
@@ -342,7 +351,8 @@ Error::Expected<Void> Analysis::ReadParams()
   corr_C_ = parameter_file.get<double>("corrections."+ref_run_str+".C");
   corr_Avg_ = parameter_file.get<double>("corrections."+ref_run_str+".Avg");
 
-  calibrations_filepath_ = parameter_file.get<string>("input_filepaths.calibrations");
+  primary_calibrations_filepath_ = parameter_file.get<string>("input_filepaths.primary_calibrations");
+  calibrations_dir_ = parameter_file.get<string>("input_filepaths.calibrations_dir");
   channels_list_filepath_ =
     parameter_file.get<string>("input_filepaths.channels_list");
   pedestals_dir_ = parameter_file.get<string>("input_filepaths.pedestals");
@@ -355,6 +365,7 @@ Error::Expected<Void> Analysis::ReadParams()
   }
 
   use_start_of_fill_pedestals_ = parameter_file.get<bool>("use_start_of_fill_pedestals");
+  use_baseline_subtraction_from_fit_ = parameter_file.get<bool>("use_baseline_subtraction_from_fit");
 
   JSONReader LB_bounds_file(parameter_file.get<string>("input_filepaths.custom_LB_bounds"));
   auto custom_LB_bounds = LB_bounds_file.get_map_of_vectors<int>("");

@@ -8,10 +8,9 @@
 
 #include "Rtypes.h"
 
+#include "analysis.h"
 #include "error.h"
 #include "void.h"
-
-class Analysis;
 
 class SingleRunData {
  public:
@@ -42,6 +41,7 @@ class SingleRunData {
   const auto& mu_ofl() const { return mu_ofl_; }
   const auto& mu_FCal_A() const { return mu_FCal_A_; }
   const auto& mu_FCal_C() const { return mu_FCal_C_; }
+  const auto& channel_calibrations() const { return channel_calibrations_; }
 
  private:
   Error::Expected<Void> ReadPedestals();
@@ -51,15 +51,14 @@ class SingleRunData {
   void HardcodenLBIfMissingFromTree();
 
   std::string run_name_;
-  // This reference allows access to analysis-wide parameters such as output
-  //   directories.
+  // This allows access to analysis-wide parameters such as output directories.
   const Analysis* analysis_;
 
   Int_t nLB_= 0; // Number of lumi blocks
-  Int_t nCollisions_ = 0;
+  Int_t nCollisions_ = 0; // Number of colliding bunches
   Int_t timestamp_ = 0;
 
-  Int_t LB_stability_offset_ = 0;
+  Int_t LB_stability_offset_ = 0; // First ready-for-physics (RFP) LB number
 
   boost::container::flat_map<std::string, Float_t> pedestals_;
   boost::container::flat_map< std::string, std::vector<Float_t> > currents_;
@@ -70,6 +69,7 @@ class SingleRunData {
   std::vector<Float_t> mu_FCal_A_;
   std::vector<Float_t> mu_FCal_C_;
   std::vector<int> RFP_flag_vec_;
+  boost::container::flat_map<std::string, Analysis::ChannelCalibration> channel_calibrations_;
 };
 
 #endif

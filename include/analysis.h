@@ -20,9 +20,17 @@ class Analysis {
   Analysis(std::string&& params_filepath);
   ~Analysis(){};
 
+  struct ChannelCalibration {
+    Float_t slope;
+    Float_t intercept;
+  };
+
   void CreateAllRunPlots(const boost::container::flat_map<std::string, SingleRunData> &runs_data);
   Error::Expected<Void> PrepareAnalysis();
-  Error::Expected<Void> ReadCalibrations();
+  static Error::Expected<Void> ReadCalibrations(
+      boost::container::flat_map<std::string, ChannelCalibration>* channel_calibrations,
+      std::string primary_calibrations_filepath
+  );
   Error::Expected<Void> ReadChannels();
   Error::Expected<Void> ReadParams();
   Error::Expected<Void> RunAnalysis();
@@ -38,7 +46,8 @@ class Analysis {
   auto corr_Avg() const { return corr_Avg_; }
 
   const auto& params_filepath() const { return params_filepath_; }
-  const auto& calibrations_filepath() const { return calibrations_filepath_; }
+  const auto& primary_calibrations_filepath() const { return primary_calibrations_filepath_; }
+  const auto& calibrations_dir() const { return calibrations_dir_; }
   const auto& channels_list_filepath() const { return channels_list_filepath_; }
   const auto& pedestals_dir() const { return pedestals_dir_; }
   const auto& trees_dir() const { return trees_dir_; }
@@ -52,6 +61,7 @@ class Analysis {
   auto retrieve_lumi_FCal() const { return retrieve_lumi_FCal_; }
 
   auto use_start_of_fill_pedestals() const { return use_start_of_fill_pedestals_; }
+  auto use_baseline_subtraction_from_fit() const { return use_baseline_subtraction_from_fit_; }
 
   auto do_benedetto() const { return do_benedetto_; }
   const auto& benedetto_output_dir() const { return benedetto_output_dir_; }
@@ -72,7 +82,8 @@ class Analysis {
   double corr_Avg_ = 0.0;
 
   std::string params_filepath_;
-  std::string calibrations_filepath_;
+  std::string primary_calibrations_filepath_;
+  std::string calibrations_dir_;
   std::string channels_list_filepath_;
   std::string pedestals_dir_;
   std::string trees_dir_;
@@ -86,14 +97,10 @@ class Analysis {
   bool retrieve_lumi_FCal_ = false;
 
   bool use_start_of_fill_pedestals_ = false;
+  bool use_baseline_subtraction_from_fit_ = false;
 
   bool do_benedetto_ = false;
   std::string benedetto_output_dir_;
-
-  struct ChannelCalibration {
-    Float_t slope;
-    Float_t intercept;
-  };
 
   boost::container::flat_map<std::string, ChannelCalibration> channel_calibrations_;
   boost::container::flat_map<std::string, std::vector<int>> custom_LB_bounds_;

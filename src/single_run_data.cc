@@ -199,6 +199,11 @@ Expected<Void> SingleRunData::Init()
   if (!analysis_->use_start_of_fill_pedestals()){
     TRY( ReadPedestals() )
   }
+  if (analysis_->use_baseline_subtraction_from_fit()) {
+    channel_calibrations_ = analysis_->channel_calibrations();
+    auto calibrations_filepath = analysis_->calibrations_dir()+run_name_+".dat";
+    TRY( Analysis::ReadCalibrations(&channel_calibrations_, calibrations_filepath) )
+  }
   TRY( ReadTree() )
   return Void();
 }
@@ -229,7 +234,7 @@ Expected<Void> SingleRunData::ReadPedestals()
   }
 
   if (analysis_->channel_calibrations().size() != pedestals_.size()) {
-    auto err_msg = "missing pedestal for a channel";
+    auto err_msg = "missing pedestal for channel " + run_name_;
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
@@ -357,6 +362,9 @@ Expected<Void> SingleRunData::ReadTree()
     for (const auto& channel: pedestals_) {
       auto this_channel_name = channel.first;
       auto this_channel_pedestal = channel.second;
+      if (analysis_->use_baseline_subtraction_from_fit()) {
+        this_channel_pedestal -= channel_calibrations_.at(this_channel_name).intercept/channel_calibrations_.at(this_channel_name).slope;
+      }
 
       for (int iLB = lower_LB_bound; iLB <= upper_LB_bound; ++iLB) {
         auto this_current = currents_temp[iChannel][iLB] -
@@ -430,19 +438,19 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
   auto num_points = mu_FCal_A_.size();
   output_file.precision(4);
   for (unsigned iLB = 0; iLB < num_points; ++iLB) {
-    //output_file << (iLB + LB_stability_offset_) << ' ' << mu_FCal_A_.at(iLB) << ' '
-    //            << mu_FCal_C_.at(iLB) << std::endl;
+    output_file << (iLB + LB_stability_offset_) << ' ' << mu_FCal_A_.at(iLB) << ' '
+                << mu_FCal_C_.at(iLB) << std::endl;
 
-    auto mu_A = mu_FCal_A_.at(iLB);
-    auto mu_C = mu_FCal_C_.at(iLB);
-    Float_t conversion_factor = analysis_->x_sec() / (nCollisions_ * analysis_->f_rev());
-    auto mu_ofl = lumi_ofl_.at(iLB) * conversion_factor;
-    output_file << (iLB + LB_stability_offset_) << ' '
-                << std::setw(5) << std::setfill('0') << std::left << std::noshowpos << mu_ofl << ' '
-                << std::setw(5) << std::setfill('0') << std::left << mu_A << ' '
-                << std::setw(5) << std::setfill('0') << std::left << mu_C << ' '
-                << std::setw(5) << std::setfill('0') << std::left << std::showpos << 100*((mu_A + mu_C)/2 - mu_ofl) / mu_ofl << ' '
-                << std::setw(5) << std::setfill('0') << std::left << 100*(mu_A - mu_C)/mu_A << std::endl;
+    //auto mu_A = mu_FCal_A_.at(iLB);
+    //auto mu_C = mu_FCal_C_.at(iLB);
+    //Float_t conversion_factor = analysis_->x_sec() / (nCollisions_ * analysis_->f_rev());
+    //auto mu_ofl = lumi_ofl_.at(iLB) * conversion_factor;
+    //output_file << (iLB + LB_stability_offset_) << ' '
+    //            << std::setw(5) << std::setfill('0') << std::left << std::noshowpos << mu_ofl << ' '
+    //            << std::setw(5) << std::setfill('0') << std::left << mu_A << ' '
+    //            << std::setw(5) << std::setfill('0') << std::left << mu_C << ' '
+    //            << std::setw(5) << std::setfill('0') << std::left << std::showpos << 100*((mu_A + mu_C)/2 - mu_ofl) / mu_ofl << ' '
+    //            << std::setw(5) << std::setfill('0') << std::left << 100*(mu_A - mu_C)/mu_A << std::endl;
 
     //output_file << (iLB + LB_stability_offset_) << ' ' << lumi_ofl_.at(iLB)/nCollisions_ << std::endl;
     //auto mu_A = mu_FCal_A_.at(iLB);

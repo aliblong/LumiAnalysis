@@ -237,7 +237,8 @@ Expected<Void> PopulateTProfile(
     auto this_bin = profile->GetXaxis()->FindBin(timestamp);
     if (this_bin == last_bin) {
       auto err_msg = "Error: bin collision for run " + run_name + ". Skipping this run.";
-      return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+      //return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+      continue;
     }
     else {
       last_bin = this_bin;
