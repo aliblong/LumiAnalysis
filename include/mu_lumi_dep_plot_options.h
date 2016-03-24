@@ -16,6 +16,13 @@ class MuLumiDepPlotOptions : public ScatterPlotOptions {
 
   const std::string& draw_options() const { return draw_options_; }
 
+  auto do_fit() const { return do_fit_; }
+  auto fit_fix_intercept() const { return fit_fix_intercept_; }
+  const auto& fit_options() const { return fit_options_; }
+  auto fit_show_legend() const { return fit_show_legend_; }
+  auto fit_line_color() const { return fit_line_color_; }
+  auto fit_line_width() const { return fit_line_width_; }
+
   auto& title(std::string&& title) { title_ = title; return *this; }
   const std::string& title() const { return title_; }
 
@@ -41,6 +48,7 @@ class MuLumiDepPlotOptions : public ScatterPlotOptions {
   std::string plots_dir_;
   std::string file_name_;
 
+  bool do_fit_;
   bool fit_fix_intercept_;
   std::string fit_options_;
   bool fit_show_legend_;

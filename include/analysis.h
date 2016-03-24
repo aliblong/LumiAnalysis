@@ -55,6 +55,9 @@ class Analysis {
 
   const auto& plot_types() const { return plot_types_; }
 
+  auto use_beamspot_corr() const { return use_beamspot_corr_; }
+  const auto& beamspot_corr_params() const { return beamspot_corr_params_; }
+
   auto retrieve_timestamps() const { return retrieve_timestamps_; }
   auto retrieve_currents() const { return retrieve_currents_; }
   auto retrieve_lumi_ofl() const { return retrieve_lumi_ofl_; }
@@ -90,6 +93,9 @@ class Analysis {
   std::string run_list_dir_;
 
   std::vector<std::string> plot_types_;
+
+  bool use_beamspot_corr_;
+  std::vector<Float_t> beamspot_corr_params_;
 
   bool retrieve_timestamps_ = false;
   bool retrieve_currents_ = false;

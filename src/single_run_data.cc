@@ -187,6 +187,28 @@ Expected<Int_t> FindStartOfAdjustLB(const vector<string>* beam_mode)
   return start_of_adjust_LB;
 }
 
+float CalculateAvgBeamspotZ(const vector<float>& beamspot_z)
+{
+  float sum = 0;
+  int n = 0;
+  for (auto this_beamspot_z: beamspot_z) {
+    if (this_beamspot_z == SingleRunData::BeamspotPlaceholderVal()) {
+      continue;
+    }
+    else {
+      sum += this_beamspot_z;
+      ++n;
+    }
+  }
+
+  if (n == 0) {
+    return SingleRunData::BeamspotPlaceholderVal();
+  }
+  else {
+    return sum/n;
+  }
+}
+
 }
 
 SingleRunData::SingleRunData(std::string run_name, const Analysis* analysis)
@@ -265,6 +287,7 @@ Expected<Void> SingleRunData::ReadTree()
   this_tree->SetBranchAddress("StartOfRun", &timestamp_);
   this_tree->SetBranchAddress("NLB", &nLB_);
   this_tree->SetBranchAddress("ncoll", &nCollisions_);
+  this_tree->SetBranchAddress("beamspot_z_avg", &avg_beamspot_z_);
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work (I think))
@@ -283,11 +306,14 @@ Expected<Void> SingleRunData::ReadTree()
   }
 
   // Ready for physics flag state for each LB
-  int RFP_flag_arr[gMaxNumLB];
+  Int_t RFP_flag_arr[gMaxNumLB];
+  Float_t beamspot_z_arr[gMaxNumLB];
   // Ramp, Stable, etc.
   vector<string> *beam_mode = nullptr;
+  Float_t beamspot_z[gMaxNumLB];
   this_tree->SetBranchAddress("quality", &RFP_flag_arr);
   this_tree->SetBranchAddress("mode", &beam_mode);
+  this_tree->SetBranchAddress("beamspot_z", &beamspot_z);
 
   // Populate those variables which have been set to branches
   this_tree->GetEntry(0);
@@ -295,7 +321,8 @@ Expected<Void> SingleRunData::ReadTree()
 
   HardcodenLBIfMissingFromTree();
 
-  RFP_flag_vec_ = CArrayToVec<int>(RFP_flag_arr, nLB_);
+  RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, nLB_);
+  beamspot_z_ = CArrayToVec<Float_t>(beamspot_z_arr, nLB_);
 
   auto LB_bounds = GetLBBounds();
   RETURN_IF_ERR( LB_bounds )
@@ -402,7 +429,7 @@ Expected<std::array<Int_t,2>> SingleRunData::GetLBBounds() const
     auto lower_bound =  target_LB_bounds->second.at(0) - 1;
     auto upper_bound =  target_LB_bounds->second.at(1) - 1;
     if (lower_bound < 0 || upper_bound < lower_bound) {
-      auto RFP_LB_bounds = FindReadyForPhysicsLBBounds(RFP_flag_vec_);
+      auto RFP_LB_bounds = FindReadyForPhysicsLBBounds(RFP_flag_);
       RETURN_IF_ERR( RFP_LB_bounds )
       if (lower_bound < 0) {
         lower_bound = RFP_LB_bounds->at(0);
@@ -415,7 +442,7 @@ Expected<std::array<Int_t,2>> SingleRunData::GetLBBounds() const
     LB_bounds[1] = upper_bound;
   }
   else {
-    auto RFP_LB_bounds = FindReadyForPhysicsLBBounds(RFP_flag_vec_);
+    auto RFP_LB_bounds = FindReadyForPhysicsLBBounds(RFP_flag_);
     RETURN_IF_ERR( RFP_LB_bounds )
     LB_bounds = *RFP_LB_bounds;
   }
@@ -521,6 +548,19 @@ Expected<Void> SingleRunData::CalcFCalLumi()
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
+  // Computes the beamspot correction based on given fit parameters and average beamspot z-position
+  auto beamspot_corr_A = 1.0;
+  auto beamspot_corr_C = 1.0;
+  if (analysis_->use_beamspot_corr()) {
+    auto intercept = analysis_->beamspot_corr_params().at(0);
+    auto slope = analysis_->beamspot_corr_params().at(1);
+    // beamspot correction parameters are in terms of % difference between A and C
+    auto AC_percent_diff = intercept + slope*avg_beamspot_z_;
+    beamspot_corr_C = AC_percent_diff/2/100 + 1;
+    beamspot_corr_A = beamspot_corr_C/(AC_percent_diff/100 + 1);
+    cout << beamspot_corr_C << '\t' << beamspot_corr_A << endl;
+  }
+
   // Averages lumi measurement from all channels for each side and for each
   //   lumi block
   for (unsigned iLB = 0; iLB < nLB_stable; ++iLB) {
@@ -557,13 +597,13 @@ Expected<Void> SingleRunData::CalcFCalLumi()
       lumi_FCal_A_.push_back(0.0);
     }
     else {
-      lumi_FCal_A_.push_back(analysis_->corr_A()*lumi_A_temp / num_channels_A);
+      lumi_FCal_A_.push_back(analysis_->corr_A()*beamspot_corr_A*lumi_A_temp / num_channels_A);
     }
     if (num_channels_C == 0) {
       lumi_FCal_C_.push_back(0.0);
     }
     else {
-      lumi_FCal_C_.push_back(analysis_->corr_C()*lumi_C_temp / num_channels_C);
+      lumi_FCal_C_.push_back(analysis_->corr_C()*beamspot_corr_C*lumi_C_temp / num_channels_C);
     }
   }
 
@@ -725,7 +765,7 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
   return Void();
 }
 
-// Create those plots which use data from only a single sample
+// Creates those plots which use data from only a single sample
 Expected<Void> SingleRunData::CreateSingleRunPlots() const
 {
   for (const auto &plot_type: analysis_->plot_types()) {

@@ -88,7 +88,10 @@ bool IsZeroes(const vector<Float_t> &vec) {
 }
 */
 
-VectorP<Float_t> GenerateMuRatioVsMuPoints(const map<string, SingleRunData> &runs_data)
+VectorP<Float_t> GenerateMuRatioVsMuPoints(
+    const map<string, SingleRunData> &runs_data,
+    double x_scale,
+    double y_scale)
 {
   VectorP<Float_t> points;
   // Roughly 500 points per run
@@ -121,7 +124,10 @@ VectorP<Float_t> GenerateMuRatioVsMuPoints(const map<string, SingleRunData> &run
   return points;
 }
 
-VectorP<Float_t> GenerateMuRatioVsLumiPoints(const map<string, SingleRunData> &runs_data)
+VectorP<Float_t> GenerateMuRatioVsLumiPoints(
+    const map<string, SingleRunData> &runs_data,
+    double x_scale,
+    double y_scale)
 {
   VectorP<Float_t> points;
   // Roughly 500 points per run
@@ -150,6 +156,138 @@ VectorP<Float_t> GenerateMuRatioVsLumiPoints(const map<string, SingleRunData> &r
       auto lumi_ratio_this_LB = (lumi_FCal_avg_this_LB/lumi_ofl_this_LB - 1)*100;
       points.push_back(Point<Float_t>{lumi_ofl_this_LB, lumi_ratio_this_LB});
     }
+  }
+  return points;
+}
+
+VectorP<Float_t> GenerateAvgMuRatioVsLumiPoints(
+    const map<string, SingleRunData> &runs_data,
+    double x_scale,
+    double y_scale)
+{
+  VectorP<Float_t> points;
+  // Roughly 500 points per run
+  auto num_points_to_reserve = runs_data.size();
+  points.reserve(num_points_to_reserve);
+  for (const auto& run: runs_data) {
+    const auto& run_data = run.second;
+    const auto& lumi_A = run_data.lumi_FCal_A();
+    const auto& lumi_C = run_data.lumi_FCal_C();
+    const auto& lumi_ofl = run_data.lumi_ofl();
+    auto num_points = lumi_ofl.size();
+    auto lumi_ofl_sum_this_run = 0.0;
+    auto lumi_ratio_sum_this_run = 0.0;
+    auto nLB_with_nonzero_lumi = 0;
+    for (auto i = 0; i < num_points; ++i) {
+      auto lumi_A_this_LB = lumi_A[i];
+      auto lumi_C_this_LB = lumi_C[i];
+      auto lumi_FCal_avg_this_LB = 0.0;
+      auto lumi_ofl_this_LB = lumi_ofl[i];
+      if (lumi_ofl_this_LB < gEpsilon) continue;
+      if (lumi_A_this_LB < gEpsilon && lumi_C_this_LB < gEpsilon) {
+        continue;
+      }
+      else if (lumi_A_this_LB < gEpsilon) {
+        lumi_FCal_avg_this_LB = lumi_C_this_LB;
+      }
+      else if (lumi_C_this_LB < gEpsilon) {
+        lumi_FCal_avg_this_LB = lumi_A_this_LB;
+      }
+      else {
+        lumi_FCal_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
+      }
+      auto lumi_ratio_this_LB = (lumi_FCal_avg_this_LB/lumi_ofl_this_LB - 1)*100;
+      lumi_ofl_sum_this_run += lumi_ofl_this_LB;
+      lumi_ratio_sum_this_run += lumi_ratio_this_LB;
+      ++nLB_with_nonzero_lumi;
+    }
+    if (nLB_with_nonzero_lumi == 0) continue;
+    auto avg_lumi_ofl_this_run = lumi_ofl_sum_this_run / nLB_with_nonzero_lumi;
+    auto avg_lumi_ratio_this_run = lumi_ratio_sum_this_run / nLB_with_nonzero_lumi;
+    points.push_back({avg_lumi_ofl_this_run*x_scale, avg_lumi_ratio_this_run*y_scale});
+  }
+  return points;
+}
+
+VectorP<Float_t> GenerateAvgMuRatioVsBeamspotZPoints(
+    const map<string, SingleRunData> &runs_data,
+    double x_scale,
+    double y_scale)
+{
+  VectorP<Float_t> points;
+  // Roughly 500 points per run
+  auto num_points_to_reserve = runs_data.size();
+  points.reserve(num_points_to_reserve);
+  for (const auto& run: runs_data) {
+    const auto& run_data = run.second;
+    const auto& lumi_A = run_data.lumi_FCal_A();
+    const auto& lumi_C = run_data.lumi_FCal_C();
+    const auto& lumi_ofl = run_data.lumi_ofl();
+    auto num_points = lumi_ofl.size();
+    auto lumi_ofl_sum_this_run = 0.0;
+    auto lumi_ratio_sum_this_run = 0.0;
+    auto nLB_with_nonzero_lumi = 0;
+    for (auto i = 0; i < num_points; ++i) {
+      auto lumi_A_this_LB = lumi_A[i];
+      auto lumi_C_this_LB = lumi_C[i];
+      auto lumi_FCal_avg_this_LB = 0.0;
+      auto lumi_ofl_this_LB = lumi_ofl[i];
+      if (lumi_ofl_this_LB < gEpsilon) continue;
+      if (lumi_A_this_LB < gEpsilon && lumi_C_this_LB < gEpsilon) {
+        continue;
+      }
+      else if (lumi_A_this_LB < gEpsilon) {
+        lumi_FCal_avg_this_LB = lumi_C_this_LB;
+      }
+      else if (lumi_C_this_LB < gEpsilon) {
+        lumi_FCal_avg_this_LB = lumi_A_this_LB;
+      }
+      else {
+        lumi_FCal_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
+      }
+      auto lumi_ratio_this_LB = (lumi_FCal_avg_this_LB/lumi_ofl_this_LB - 1)*100;
+      lumi_ofl_sum_this_run += lumi_ofl_this_LB;
+      lumi_ratio_sum_this_run += lumi_ratio_this_LB;
+      ++nLB_with_nonzero_lumi;
+    }
+    if (nLB_with_nonzero_lumi == 0) continue;
+    auto avg_lumi_ofl_this_run = lumi_ofl_sum_this_run / nLB_with_nonzero_lumi;
+    auto avg_lumi_ratio_this_run = lumi_ratio_sum_this_run / nLB_with_nonzero_lumi;
+    points.push_back({run_data.avg_beamspot_z()*x_scale, avg_lumi_ratio_this_run*y_scale});
+  }
+  return points;
+}
+
+VectorP<Float_t> GenerateACRatioVsBeamspotZPoints(
+    const map<string, SingleRunData> &runs_data,
+    double x_scale,
+    double y_scale)
+{
+  VectorP<Float_t> points;
+  auto num_points_to_reserve = runs_data.size();
+  points.reserve(num_points_to_reserve);
+  for (const auto& run: runs_data) {
+    const auto& run_data = run.second;
+    const auto& lumi_A = run_data.lumi_FCal_A();
+    const auto& lumi_C = run_data.lumi_FCal_C();
+    auto num_points = lumi_A.size();
+    auto AC_ratio_sum = 0.0;
+    auto nLB_with_nonzero_A_and_C_lumi = 0;
+    for (auto i = 0; i < num_points; ++i) {
+      auto lumi_A_this_LB = lumi_A[i];
+      auto lumi_C_this_LB = lumi_C[i];
+      //cout << lumi_A_this_LB << '\t' << lumi_C_this_LB << endl;
+      if (lumi_A_this_LB < gEpsilon || lumi_C_this_LB < gEpsilon) {
+        continue;
+      }
+      AC_ratio_sum +=  lumi_A_this_LB / lumi_C_this_LB;
+      ++nLB_with_nonzero_A_and_C_lumi;
+    }
+    //cout << nLB_with_nonzero_A_and_C_lumi << endl;
+    if (nLB_with_nonzero_A_and_C_lumi == 0) continue;
+    auto avg_AC_ratio_percent_diff = (AC_ratio_sum / nLB_with_nonzero_A_and_C_lumi - 1)*100;
+    cout << run_data.avg_beamspot_z() << '\t' << avg_AC_ratio_percent_diff << endl;
+    points.push_back({run_data.avg_beamspot_z()*x_scale, avg_AC_ratio_percent_diff*y_scale});
   }
   return points;
 }
@@ -193,15 +331,33 @@ void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
     }
     else if (plot_type == "mu_lumi_dependence") {
       if (verbose_) cout << "Making mu and lumi dependence plots" << endl;
-      auto mu_dep_node = "plot_options.mu_dependence.";
-      MuLumiDepPlotOptions mu_dep_plot_options(params_filepath_, mu_dep_node);
-      auto mu_dep_points = GenerateMuRatioVsMuPoints(runs_data);
-      LOG_IF_ERR( Plotter::PlotMuLumiDependence(mu_dep_points, mu_dep_plot_options) );
-
-      auto lumi_dep_node = "plot_options.lumi_dependence.";
-      MuLumiDepPlotOptions lumi_dep_plot_options(params_filepath_, lumi_dep_node);
-      auto lumi_dep_points = GenerateMuRatioVsLumiPoints(runs_data);
-      LOG_IF_ERR( Plotter::PlotMuLumiDependence(lumi_dep_points, lumi_dep_plot_options) );
+      {
+        auto node = "plot_options.mu_dependence.";
+        MuLumiDepPlotOptions plot_options(params_filepath_, node);
+        auto points = GenerateMuRatioVsMuPoints(
+            runs_data,
+            plot_options.x_scale(),
+            plot_options.y_scale());
+        LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
+      }
+      {
+        auto node = "plot_options.lumi_dependence.";
+        MuLumiDepPlotOptions plot_options(params_filepath_, node);
+        auto points = GenerateMuRatioVsLumiPoints(
+            runs_data,
+            plot_options.x_scale(),
+            plot_options.y_scale());
+        LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
+      }
+      {
+        auto node = "plot_options.avg_lumi_dependence.";
+        MuLumiDepPlotOptions plot_options(params_filepath_, node);
+        auto points = GenerateAvgMuRatioVsLumiPoints(
+            runs_data,
+            plot_options.x_scale(),
+            plot_options.y_scale());
+        LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
+      }
     }
     else if (plot_type == "lumi_current_multirun") {
       if (verbose_) cout << "Making current vs. luminosity plot for multiple runs" << endl;
@@ -211,8 +367,29 @@ void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
         auto channel_name = channel.first;
         auto lumi_current_points = GenerateLumiVsCurrentPoints(runs_data, channel_name);
         lumi_current_plot_options.channel_name(std::move(channel_name));
+        lumi_current_plot_options.title("Runs "+runs_data.begin()->first+" - "+runs_data.rbegin()->first+", Channel "+channel_name);
         LOG_IF_ERR( Plotter::PlotLumiCurrent(lumi_current_points, lumi_current_plot_options) );
       }
+    }
+    else if (plot_type == "beamspot_AC") {
+      if (verbose_) cout << "Making beamspot Z-position vs. A/C ratio plot" << endl;
+      auto node = "plot_options.beamspot_AC.";
+      MuLumiDepPlotOptions plot_options(params_filepath_, node);
+      auto points = GenerateACRatioVsBeamspotZPoints(
+          runs_data,
+          plot_options.x_scale(),
+          plot_options.y_scale());
+      LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
+    }
+    else if (plot_type == "beamspot_LAr-ofl") {
+      if (verbose_) cout << "Making beamspot Z-position vs. LAr/ofl ratio plot" << endl;
+      auto node = "plot_options.beamspot_LAr-ofl.";
+      MuLumiDepPlotOptions plot_options(params_filepath_, node);
+      auto points = GenerateAvgMuRatioVsBeamspotZPoints(
+          runs_data,
+          plot_options.x_scale(),
+          plot_options.y_scale());
+      LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
     }
   }
 }
@@ -233,6 +410,13 @@ Expected<Void> Analysis::PrepareAnalysis()
       retrieve_lumi_FCal_ = true;
     }
     else if (plot_type == "mu_lumi_dependence") {
+      retrieve_lumi_ofl_ = true;
+      retrieve_lumi_FCal_ = true;
+    }
+    else if (plot_type == "beamspot_AC") {
+      retrieve_lumi_FCal_ = true;
+    }
+    else if (plot_type == "beamspot_LAr-ofl") {
       retrieve_lumi_ofl_ = true;
       retrieve_lumi_FCal_ = true;
     }
@@ -363,6 +547,9 @@ Error::Expected<Void> Analysis::ReadParams()
   for (const auto &plot_type: plot_types_map) {
     if (plot_type.second == true) plot_types_.push_back(plot_type.first);
   }
+
+  use_beamspot_corr_ = parameter_file.get<bool>("beamspot_correction.use");
+  beamspot_corr_params_ = parameter_file.get_vector<Float_t>("beamspot_correction.params");
 
   use_start_of_fill_pedestals_ = parameter_file.get<bool>("use_start_of_fill_pedestals");
   use_baseline_subtraction_from_fit_ = parameter_file.get<bool>("use_baseline_subtraction_from_fit");

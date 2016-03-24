@@ -13,6 +13,7 @@ class MuStabPlotOptions {
   const auto& base_output_dir() const { return base_output_dir_; }
   const auto& rootfiles_output_dir() const { return base_output_dir_; }
 
+  const auto& detector_name() const { return detector_name_; }
   const auto& draw_options() const { return draw_options_; }
 
   auto marker_color_A() const { return marker_color_A_; }
@@ -39,6 +40,8 @@ class MuStabPlotOptions {
  private:
   std::string base_output_dir_;
   std::string rootfiles_output_dir_;
+
+  std::string detector_name_;
 
   std::string draw_options_;
 

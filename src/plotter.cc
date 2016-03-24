@@ -188,14 +188,14 @@ vector<FCalRegionData> InitRegionsData(const MuStabPlotOptions& plot_options)
   vector<FCalRegionData> regions;
   regions.push_back({FCalRegion::ZSide::A,
                      "mu_stab_A",
-                     "FCal A1",
+                     plot_options.detector_name()+" A",
                      plot_options.marker_color_A(),
                      plot_options.marker_size_A(),
                      plot_options.marker_style_A(),
                      nullptr});
   regions.push_back({FCalRegion::ZSide::C,
                      "mu_stab_C",
-                     "FCal C1",
+                     plot_options.detector_name()+" C",
                      plot_options.marker_color_C(),
                      plot_options.marker_size_C(),
                      plot_options.marker_style_C(),
@@ -489,11 +489,11 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
     fit.SetLineColor(options.fit_line_color());
     fit.SetLineWidth(options.fit_line_width());
 
-    graph.Fit("f1", (options.fit_options()+"BQS").c_str());
+    graph.Fit("f1", (options.fit_options()+"B").c_str());
 
     //RecursiveFilterOutliers(graph, fit, options);
 
-    fit_results.FromFit(fit, options);
+    fit_results.FromFit(fit, options.x_scale(), options.y_scale());
 
     if (options.fit_show_legend()) {
       FormatLegend(fit_legend, fit_results);
@@ -508,7 +508,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   auto write_dir = options.plots_dir()+options.run_name()+"/";
   TRY( Util::mkdir(write_dir) )
 
-  if (options.print_plots()) canvas.Print( (write_dir+options.channel_name()+".png").c_str() );
+  if (options.print_plots()) canvas.Print( (write_dir+options.channel_name()+".pdf").c_str() );
   return fit_results;
 }
 
@@ -521,6 +521,29 @@ Expected<Void> Plotter::PlotMuLumiDependence(
   canvas.cd();
   graph.Draw(options.draw_options().c_str());
 
+  TPaveText fit_legend;
+  FitResults fit_results;
+
+  if (options.do_fit()) {
+    TF1 fit("f1", "[0]+[1]*x", graph.GetXaxis()->GetXmin(), graph.GetXaxis()->GetXmax());
+
+    if (options.fit_fix_intercept()) fit.FixParameter(0, 0.0);
+    fit.SetLineColor(options.fit_line_color());
+    fit.SetLineWidth(options.fit_line_width());
+
+    graph.Fit(&fit, (options.fit_options()+"B").c_str());
+
+    //RecursiveFilterOutliers(graph, fit, options);
+
+    fit_results.FromFit(fit, options.x_scale(), options.y_scale());
+
+    if (options.fit_show_legend()) {
+      FormatLegend(fit_legend, fit_results);
+    }
+  }
+
+  fit_legend.Draw();
+
   ApplyScatterPlotOptions(&graph, &options);
 
   DrawATLASLabel(ATLASLabelOptions{"Internal"});
@@ -529,7 +552,7 @@ Expected<Void> Plotter::PlotMuLumiDependence(
   auto write_dir = options.plots_dir();
   TRY( Util::mkdir(write_dir) )
 
-  canvas.Print( (write_dir+options.file_name()+".png").c_str() );
+  canvas.Print( (write_dir+options.file_name()+".pdf").c_str() );
   return Void();
 }
 
@@ -757,6 +780,7 @@ Expected<Void> Plotter::PlotMuStability(
 
   canvas.Update();
   canvas.Print( (options.base_output_dir()+"mu_stability.pdf").c_str() );
+  canvas.Print( (options.base_output_dir()+"mu_stability.png").c_str() );
 
   return Void();
 }
@@ -840,7 +864,7 @@ int Plotter::PlotLumiTotalCurrent(const VectorF &lumi_arg,
   string write_dir = output_dir+"lumi_current/"+run_name+"/";
   int err_system = system( ("mkdir -p "+write_dir).c_str() );
 
-  canvas.Print( (write_dir+"sums.png").c_str() );
+  canvas.Print( (write_dir+"sums.pdf").c_str() );
   //TFile *this_file = TFile::Open("graph_A_file.root", "RECREATE");
   //graph.Write();
 

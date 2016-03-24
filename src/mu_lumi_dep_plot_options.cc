@@ -19,6 +19,34 @@ MuLumiDepPlotOptions::MuLumiDepPlotOptions(const string& params_filepath, const 
   plots_dir_ = base_output_dir +
                parameter_file.get<string>(LC_options_node+"output_dirs.plots");
 
+  // Fit options
+  do_fit_ = parameter_file.get<bool>(LC_options_node+"fit.do");
+  string fit_verbosity_option;
+  int fit_verbosity = parameter_file.get<int>(LC_options_node+"fit.verbose");
+  if (fit_verbosity == 2) {
+    fit_verbosity_option = "V";
+  }
+  else if (fit_verbosity == 1) {
+    fit_verbosity_option = "";
+  }
+  else { // verbosity 0
+    fit_verbosity_option = "Q";
+  }
+  string fit_show_option;
+  if (parameter_file.get<bool>(LC_options_node+"fit.show")) {
+    fit_show_option = "";
+  }
+  else {
+    fit_show_option = "0";
+  }
+  string additional_options = parameter_file.get<string>(LC_options_node+"fit.options");
+  fit_options_ = fit_verbosity_option + fit_show_option + additional_options;
+
+  fit_fix_intercept_ = parameter_file.get<bool>(LC_options_node+"fit.fix_intercept");
+  fit_show_legend_ = parameter_file.get<bool>(LC_options_node+"fit.show_legend");
+  fit_line_color_ = parameter_file.get<int>(LC_options_node+"fit.line_color");
+  fit_line_width_ = parameter_file.get<Float_t>(LC_options_node+"fit.line_width");
+
   file_name_ = parameter_file.get<string>(LC_options_node+"file_name");
   draw_options_ = parameter_file.get<string>(LC_options_node+"draw_options");
   title_ = parameter_file.get<string>(LC_options_node+"title");

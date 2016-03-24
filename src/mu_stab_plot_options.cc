@@ -19,6 +19,7 @@ MuStabPlotOptions::MuStabPlotOptions(string params_filepath) {
                               node_name+"output_dirs.rootfiles");
 
   draw_options_ = parameter_file.get<string>(node_name+"draw_options");
+  detector_name_ = parameter_file.get<string>("detector");
 
   marker_color_A_ = parameter_file.get<int>(node_name+"marker.A.color");
   marker_size_A_ = parameter_file.get<Float_t>(node_name+"marker.A.size");

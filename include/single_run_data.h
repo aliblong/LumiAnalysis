@@ -32,6 +32,9 @@ class SingleRunData {
   auto nCollisions() const { return nCollisions_; }
   auto nLB() const { return nLB_; }
   auto LB_stability_offset() const { return LB_stability_offset_; }
+  float avg_beamspot_z() const { return avg_beamspot_z_; }
+  static auto BeamspotPlaceholderVal() { return -9999.0; }
+  //Default val for beamspot in LB where it is absent
 
   const auto& pedestals() const { return pedestals_; }
   const auto& currents() const { return currents_; }
@@ -42,6 +45,7 @@ class SingleRunData {
   const auto& mu_FCal_A() const { return mu_FCal_A_; }
   const auto& mu_FCal_C() const { return mu_FCal_C_; }
   const auto& channel_calibrations() const { return channel_calibrations_; }
+  const auto& beamspot_z() const { return beamspot_z_; }
 
  private:
   Error::Expected<Void> ReadPedestals();
@@ -68,7 +72,9 @@ class SingleRunData {
   std::vector<Float_t> mu_ofl_;
   std::vector<Float_t> mu_FCal_A_;
   std::vector<Float_t> mu_FCal_C_;
-  std::vector<int> RFP_flag_vec_;
+  std::vector<Int_t> RFP_flag_;
+  std::vector<Float_t> beamspot_z_;
+  Float_t avg_beamspot_z_ = -999.0;
   boost::container::flat_map<std::string, Analysis::ChannelCalibration> channel_calibrations_;
 };
 

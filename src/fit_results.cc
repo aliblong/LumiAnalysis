@@ -12,10 +12,11 @@ FitResults::FitResults()
     calibration_intercept(0.0) {}
 
 FitResults::FitResults(const TF1& fit,
-                       const LumiCurrentPlotOptions& plot_options)
+                       double x_scale,
+                       double y_scale)
   : FitResults()
 {
-  this->FromFit(fit, plot_options);
+  this->FromFit(fit, x_scale, y_scale);
 }
 
 FitResults::~FitResults() {}
@@ -35,7 +36,8 @@ FitResults& FitResults::operator=(const FitResults& rhs)
 }
 
 void FitResults::FromFit(const TF1& fit,
-                         const LumiCurrentPlotOptions& plot_options)
+                         double x_scale,
+                         double y_scale)
 {
   slope = fit.GetParameter(1);
   slope_err = fit.GetParError(1);
@@ -46,6 +48,6 @@ void FitResults::FromFit(const TF1& fit,
   // Convert to calibration used to get lumi = calib*current
   //   current*y_scale = m*lumi*x_scale + intercept
   //   lumi = 1 / (x_scale*m) * (current*y_scale + intercept)
-  calibration_slope = plot_options.y_scale() / (slope*plot_options.x_scale());
-  calibration_intercept = (-1) * intercept / (slope*plot_options.x_scale());
+  calibration_slope = y_scale / (slope*x_scale);
+  calibration_intercept = (-1) * intercept / (slope*x_scale);
 }
