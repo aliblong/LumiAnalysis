@@ -415,13 +415,16 @@ Expected<Void> Analysis::PrepareAnalysis()
     }
     else if (plot_type == "beamspot_AC") {
       retrieve_lumi_FCal_ = true;
+      retrieve_beamspot_ = true;
     }
     else if (plot_type == "beamspot_LAr-ofl") {
       retrieve_lumi_ofl_ = true;
       retrieve_lumi_FCal_ = true;
+      retrieve_beamspot_ = true;
     }
   }
 
+  if (use_beamspot_corr_) retrieve_beamspot_ = true;
   if (do_benedetto_) {
     retrieve_lumi_FCal_ = true;
     //TODO: remove this
@@ -549,7 +552,7 @@ Error::Expected<Void> Analysis::ReadParams()
   }
 
   use_beamspot_corr_ = parameter_file.get<bool>("beamspot_correction.use");
-  beamspot_corr_params_ = parameter_file.get_vector<Float_t>("beamspot_correction.params");
+  if (use_beamspot_corr_) beamspot_corr_params_ = parameter_file.get_vector<Float_t>("beamspot_correction.params");
 
   use_start_of_fill_pedestals_ = parameter_file.get<bool>("use_start_of_fill_pedestals");
   use_baseline_subtraction_from_fit_ = parameter_file.get<bool>("use_baseline_subtraction_from_fit");

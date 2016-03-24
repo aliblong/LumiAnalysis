@@ -287,7 +287,6 @@ Expected<Void> SingleRunData::ReadTree()
   this_tree->SetBranchAddress("StartOfRun", &timestamp_);
   this_tree->SetBranchAddress("NLB", &nLB_);
   this_tree->SetBranchAddress("ncoll", &nCollisions_);
-  this_tree->SetBranchAddress("beamspot_z_avg", &avg_beamspot_z_);
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work (I think))
@@ -313,7 +312,12 @@ Expected<Void> SingleRunData::ReadTree()
   Float_t beamspot_z[gMaxNumLB];
   this_tree->SetBranchAddress("quality", &RFP_flag_arr);
   this_tree->SetBranchAddress("mode", &beam_mode);
-  this_tree->SetBranchAddress("beamspot_z", &beamspot_z);
+
+  if (analysis_->retrieve_beamspot()) {
+    this_tree->SetBranchAddress("beamspot_z", &beamspot_z);
+    this_tree->SetBranchAddress("beamspot_z_avg", &avg_beamspot_z_);
+    beamspot_z_ = CArrayToVec<Float_t>(beamspot_z_arr, nLB_);
+  }
 
   // Populate those variables which have been set to branches
   this_tree->GetEntry(0);
@@ -322,7 +326,6 @@ Expected<Void> SingleRunData::ReadTree()
   HardcodenLBIfMissingFromTree();
 
   RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, nLB_);
-  beamspot_z_ = CArrayToVec<Float_t>(beamspot_z_arr, nLB_);
 
   auto LB_bounds = GetLBBounds();
   RETURN_IF_ERR( LB_bounds )
