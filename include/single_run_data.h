@@ -29,7 +29,7 @@ class SingleRunData {
 
   auto timestamp() const { return timestamp_; }
   auto run_name() const { return run_name_; }
-  auto nCollisions() const { return nCollisions_; }
+  auto nBunches() const { return nBunches_; }
   auto nLB() const { return nLB_; }
   auto LB_stability_offset() const { return LB_stability_offset_; }
   float avg_beamspot_z() const { return avg_beamspot_z_; }
@@ -52,14 +52,14 @@ class SingleRunData {
   Error::Expected<Void> ReadTree();
   Error::Expected<std::array<Int_t,2>> GetLBBounds() const;
   void InitCurrentsMap();
-  void HardcodenLBIfMissingFromTree();
+  void HardcodenBunchesIfMissingFromTree();
 
   std::string run_name_;
   // This allows access to analysis-wide parameters such as output directories.
   const Analysis* analysis_;
 
   Int_t nLB_= 0; // Number of lumi blocks
-  Int_t nCollisions_ = 0; // Number of colliding bunches
+  Int_t nBunches_ = 0; // Number of colliding bunches
   Int_t timestamp_ = 0;
 
   Int_t LB_stability_offset_ = 0; // First ready-for-physics (RFP) LB number

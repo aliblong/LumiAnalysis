@@ -286,7 +286,7 @@ Expected<Void> SingleRunData::ReadTree()
 
   this_tree->SetBranchAddress("StartOfRun", &timestamp_);
   this_tree->SetBranchAddress("NLB", &nLB_);
-  this_tree->SetBranchAddress("ncoll", &nCollisions_);
+  this_tree->SetBranchAddress("ncoll", &nBunches_);
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work (I think))
@@ -323,7 +323,7 @@ Expected<Void> SingleRunData::ReadTree()
   this_tree->GetEntry(0);
   this_file->Close();
 
-  HardcodenLBIfMissingFromTree();
+  HardcodenBunchesIfMissingFromTree();
 
   RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, nLB_);
 
@@ -473,7 +473,7 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
 
     //auto mu_A = mu_FCal_A_.at(iLB);
     //auto mu_C = mu_FCal_C_.at(iLB);
-    //Float_t conversion_factor = analysis_->x_sec() / (nCollisions_ * analysis_->f_rev());
+    //Float_t conversion_factor = analysis_->x_sec() / (nBunches_ * analysis_->f_rev());
     //auto mu_ofl = lumi_ofl_.at(iLB) * conversion_factor;
     //output_file << (iLB + LB_stability_offset_) << ' '
     //            << std::setw(5) << std::setfill('0') << std::left << std::noshowpos << mu_ofl << ' '
@@ -482,7 +482,7 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
     //            << std::setw(5) << std::setfill('0') << std::left << std::showpos << 100*((mu_A + mu_C)/2 - mu_ofl) / mu_ofl << ' '
     //            << std::setw(5) << std::setfill('0') << std::left << 100*(mu_A - mu_C)/mu_A << std::endl;
 
-    //output_file << (iLB + LB_stability_offset_) << ' ' << lumi_ofl_.at(iLB)/nCollisions_ << std::endl;
+    //output_file << (iLB + LB_stability_offset_) << ' ' << lumi_ofl_.at(iLB)/nBunches_ << std::endl;
     //auto mu_A = mu_FCal_A_.at(iLB);
     //auto mu_C = mu_FCal_C_.at(iLB);
     //output_file << std::showpos << std::setw(3) << (iLB + LB_stability_offset_) << "   " << 100*(mu_A - mu_C)/(mu_A + mu_C) << std::endl;
@@ -490,7 +490,7 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
   return Void();
 }
 
-const std::vector<std::pair<string, Int_t>> MISSING_nLB {
+const std::vector<std::pair<string, Int_t>> MISSING_nBunches {
     {"203169", 471},
     {"203256", 1331},
     {"203605", 1377},
@@ -514,17 +514,18 @@ const std::vector<std::pair<string, Int_t>> MISSING_nLB {
     {"300279", 589},
     {"300600", 1812},
 };
-void SingleRunData::HardcodenLBIfMissingFromTree()
+
+void SingleRunData::HardcodenBunchesIfMissingFromTree()
 {
-  auto run_ptr = std::find_if(MISSING_nLB.begin(), MISSING_nLB.end(),
+  auto run_ptr = std::find_if(MISSING_nBunches.begin(), MISSING_nBunches.end(),
                               [this](const auto& run) {
                                 return run_name_ == run.first;
                               });
-  if (run_ptr != MISSING_nLB.end()) {
+  if (run_ptr != MISSING_nBunches.end()) {
     if (analysis_->verbose()) {
       cout << "Manually setting nColl for run " << run_name_ << endl;
     }
-    nCollisions_ = run_ptr->second;
+    nBunches_ = run_ptr->second;
   }
 }
 
@@ -633,12 +634,12 @@ Expected<Void> SingleRunData::CalcFCalMu()
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
   // Checks that value for number of collisions is nonzero
-  if (nCollisions_ == 0) {
+  if (nBunches_ == 0) {
     auto err_msg = "num_collisions == 0";
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
-  Float_t conversion_factor = analysis_->x_sec() / (nCollisions_ * analysis_->f_rev());
+  Float_t conversion_factor = analysis_->x_sec() / (nBunches_ * analysis_->f_rev());
 
   // Calculates <mu> for each lumi block
   auto nLB_stable = lumi_ofl_.size();
