@@ -510,7 +510,9 @@ const std::vector<std::pair<string, Int_t>> MISSING_nLB {
     {"206955", 1368},
     {"208642", 465},
     {"211620", 801},
-    {"276790", 446}
+    {"276790", 446},
+    {"300279", 589},
+    {"300600", 1812},
 };
 void SingleRunData::HardcodenLBIfMissingFromTree()
 {
