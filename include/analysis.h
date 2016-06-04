@@ -72,6 +72,7 @@ class Analysis {
 
   const auto& channel_calibrations() const { return channel_calibrations_; }
   const auto& custom_LB_bounds() const { return custom_LB_bounds_; }
+  const auto& nBunches() const { return nBunches_; }
 
  private:
   Detector::Name detector_ = Detector::Name::FCal;
@@ -112,6 +113,7 @@ class Analysis {
 
   boost::container::flat_map<std::string, ChannelCalibration> channel_calibrations_;
   boost::container::flat_map<std::string, std::vector<int>> custom_LB_bounds_;
+  boost::container::flat_map<std::string, int> nBunches_;
 };
 
 #endif

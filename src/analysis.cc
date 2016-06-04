@@ -39,6 +39,8 @@ using Error::Expected;
 
 namespace {
 
+string NBUNCHES_FILEPATH = "params/nBunches/all.json";
+
 Expected<Void> VerifyLBBounds(map<string, vector<int>> bounds)
 {
   auto this_func_name = "VerifyLBBounds";
@@ -517,7 +519,7 @@ Expected<Void> Analysis::ReadChannels()
 //   variables
 Error::Expected<Void> Analysis::ReadParams()
 {
-  JSONReader parameter_file(params_filepath_);
+  auto parameter_file = JSONReader(params_filepath_);
 
   auto detector = Detector::FromString(parameter_file.get<string>("detector"));
   RETURN_IF_ERR( detector )
@@ -567,6 +569,9 @@ Error::Expected<Void> Analysis::ReadParams()
   do_benedetto_ = parameter_file.get<bool>("do_benedetto");
   benedetto_output_dir_ = parameter_file.get<string>("output_dirs.base") +
                           parameter_file.get<string>("output_dirs.benedetto");
+
+  auto nBunches_file = JSONReader(NBUNCHES_FILEPATH);
+  nBunches_ = nBunches_file.get_map<int>("");
 
   return Void();
 }

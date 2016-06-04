@@ -52,7 +52,7 @@ class SingleRunData {
   Error::Expected<Void> ReadTree();
   Error::Expected<std::array<Int_t,2>> GetLBBounds() const;
   void InitCurrentsMap();
-  void HardcodenBunchesIfMissingFromTree();
+  void GetExternalNBunches();
 
   std::string run_name_;
   // This allows access to analysis-wide parameters such as output directories.

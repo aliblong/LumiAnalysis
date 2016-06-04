@@ -323,7 +323,7 @@ Expected<Void> SingleRunData::ReadTree()
   this_tree->GetEntry(0);
   this_file->Close();
 
-  HardcodenBunchesIfMissingFromTree();
+  GetExternalNBunches();
 
   RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, nLB_);
 
@@ -490,42 +490,16 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
   return Void();
 }
 
-const std::vector<std::pair<string, Int_t>> MISSING_nBunches {
-    {"203169", 471},
-    {"203256", 1331},
-    {"203605", 1377},
-    {"204707", 1377},
-    {"205012", 1377},
-    {"205113", 1368},
-    {"207214", 16}, //no, this isn't a typo
-    {"207528", 1368},
-    {"207530", 1368},
-    {"207929", 1368},
-    {"209353", 1368},
-    {"209644", 1368},
-    {"209909", 1368},
-    {"211902", 1224},
-    {"212103", 1368},
-    {"212809", 1368},
-    {"206955", 1368},
-    {"208642", 465},
-    {"211620", 801},
-    {"276790", 446},
-    {"300279", 589},
-    {"300600", 1812},
-};
-
-void SingleRunData::HardcodenBunchesIfMissingFromTree()
+void SingleRunData::GetExternalNBunches()
 {
-  auto run_ptr = std::find_if(MISSING_nBunches.begin(), MISSING_nBunches.end(),
-                              [this](const auto& run) {
-                                return run_name_ == run.first;
-                              });
-  if (run_ptr != MISSING_nBunches.end()) {
+  auto& nBunches = analysis_->nBunches();
+  auto res = nBunches.find(run_name_);
+  if (res != nBunches.end()) {
     if (analysis_->verbose()) {
-      cout << "Manually setting nColl for run " << run_name_ << endl;
+      if (nBunches_) cout << "Warning: overriding non-negative nBunches" << endl;
+      cout << "Manually setting nBunches for run " << run_name_ << endl;
     }
-    nBunches_ = run_ptr->second;
+    nBunches_ = res->second;
   }
 }
 
