@@ -331,8 +331,7 @@ Expected<Void> SingleRunData::ReadTree()
   RETURN_IF_ERR( LB_bounds )
   auto lower_LB_bound = LB_bounds->at(0);
   auto upper_LB_bound = LB_bounds->at(1);
-  // LB indexing starts at 1 within ATLAS, I think
-  // This is for use in creating Benedetto files
+  // LB indexing starts at 1 within ATLAS
   LB_stability_offset_ = lower_LB_bound + 1;
 
   if (analysis_->use_start_of_fill_pedestals()) {
@@ -422,15 +421,17 @@ Expected<Void> SingleRunData::ReadTree()
 
 Expected<std::array<Int_t,2>> SingleRunData::GetLBBounds() const
 {
-  // Use quality (ready for physics) flag instead of stable beams flag
-  //auto LB_bounds = FindStableLBBounds(beam_mode);
   std::array<Int_t, 2> LB_bounds;
   const auto& custom_LB_bounds = analysis_->custom_LB_bounds();
   const auto target_LB_bounds = custom_LB_bounds.find(run_name_);
   if (target_LB_bounds != custom_LB_bounds.end()) {
     // LB number is 1-indexed, but we use 0-indexing to store it in memory
+    // Negative value set by user is a placeholder for no desired bound to set
+    // i.e. [-1,567] means use 567 as the upper bound and whatever the first RFP
+    // LB is for the lower bound
     auto lower_bound =  target_LB_bounds->second.at(0) - 1;
     auto upper_bound =  target_LB_bounds->second.at(1) - 1;
+    // i.e. unless we've specified a custom upper AND lower bound in config
     if (lower_bound < 0 || upper_bound < lower_bound) {
       auto RFP_LB_bounds = FindReadyForPhysicsLBBounds(RFP_flag_);
       RETURN_IF_ERR( RFP_LB_bounds )
