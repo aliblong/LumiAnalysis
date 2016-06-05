@@ -12,10 +12,10 @@
 #include "error.h"
 #include "void.h"
 
-class SingleRunData {
+class Run {
  public:
-  SingleRunData(std::string run_name, const Analysis* analysis);
-  ~SingleRunData() {}
+  Run(std::string run_name, const Analysis* analysis);
+  ~Run() {}
 
   Error::Expected<Void> Init();
 

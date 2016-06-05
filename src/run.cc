@@ -22,7 +22,7 @@
 #include "plotter.h"
 #include "point.h"
 #include "util.h"
-#include "single_run_data.h"
+#include "run.h"
 
 using std::string;
 using std::vector;
@@ -42,7 +42,7 @@ using Error::Expected;
 
 namespace {
 
-void DumpFCalAndOflLumiComparison(const SingleRunData& run)
+void DumpFCalAndOflLumiComparison(const Run& run)
 {
   const auto& lumi_ofl = run.lumi_ofl();
   const auto& lumi_FCal_A = run.lumi_FCal_A();
@@ -192,7 +192,7 @@ float CalculateAvgBeamspotZ(const vector<float>& beamspot_z)
   float sum = 0;
   int n = 0;
   for (auto this_beamspot_z: beamspot_z) {
-    if (this_beamspot_z == SingleRunData::BeamspotPlaceholderVal()) {
+    if (this_beamspot_z == Run::BeamspotPlaceholderVal()) {
       continue;
     }
     else {
@@ -202,7 +202,7 @@ float CalculateAvgBeamspotZ(const vector<float>& beamspot_z)
   }
 
   if (n == 0) {
-    return SingleRunData::BeamspotPlaceholderVal();
+    return Run::BeamspotPlaceholderVal();
   }
   else {
     return sum/n;
@@ -211,12 +211,12 @@ float CalculateAvgBeamspotZ(const vector<float>& beamspot_z)
 
 }
 
-SingleRunData::SingleRunData(std::string run_name, const Analysis* analysis)
+Run::Run(std::string run_name, const Analysis* analysis)
   : run_name_(std::move(run_name)),
     analysis_(analysis)
 {}
 
-Expected<Void> SingleRunData::Init()
+Expected<Void> Run::Init()
 {
   if (!analysis_->use_start_of_fill_pedestals()){
     TRY( ReadPedestals() )
@@ -231,9 +231,9 @@ Expected<Void> SingleRunData::Init()
 }
 
 // Reads in pedestal values for each of the channels specified in analysis_
-Expected<Void> SingleRunData::ReadPedestals()
+Expected<Void> Run::ReadPedestals()
 {
-  auto this_func_name = "SingleRunData::ReadPedestals";
+  auto this_func_name = "Run::ReadPedestals";
 
   auto pedestals_filepath = analysis_->pedestals_dir() + run_name_ + ".dat";
   std::ifstream pedestals_file(pedestals_filepath);
@@ -265,9 +265,9 @@ Expected<Void> SingleRunData::ReadPedestals()
 
 // Reads relevant data in from the file {analysis_->trees_dir()}/{run_name_}.root
 //   and copies it to member variables.
-Expected<Void> SingleRunData::ReadTree()
+Expected<Void> Run::ReadTree()
 {
-  auto this_func_name = "SingleRunData::ReadTree";
+  auto this_func_name = "Run::ReadTree";
 
   if (analysis_->verbose()) cout << "Analysing sample " << run_name_ << endl;
 
@@ -419,7 +419,7 @@ Expected<Void> SingleRunData::ReadTree()
   return Void();
 }
 
-Expected<std::array<Int_t,2>> SingleRunData::GetLBBounds() const
+Expected<std::array<Int_t,2>> Run::GetLBBounds() const
 {
   std::array<Int_t, 2> LB_bounds;
   const auto& custom_LB_bounds = analysis_->custom_LB_bounds();
@@ -453,9 +453,9 @@ Expected<std::array<Int_t,2>> SingleRunData::GetLBBounds() const
   return LB_bounds;
 }
 
-Expected<Void> SingleRunData::CreateBenedettoOutput() const
+Expected<Void> Run::CreateBenedettoOutput() const
 {
-  auto this_func_name = "SingleRunData::CreateBenedettoOutput";
+  auto this_func_name = "Run::CreateBenedettoOutput";
 
   auto output_dir = analysis_->benedetto_output_dir();
   TRY( Util::mkdir(output_dir) )
@@ -491,7 +491,7 @@ Expected<Void> SingleRunData::CreateBenedettoOutput() const
   return Void();
 }
 
-void SingleRunData::GetExternalNBunches()
+void Run::GetExternalNBunches()
 {
   auto& nBunches = analysis_->nBunches();
   auto res = nBunches.find(run_name_);
@@ -505,9 +505,9 @@ void SingleRunData::GetExternalNBunches()
 }
 
 // Calculates FCal luminosity from currents data for a run
-Expected<Void> SingleRunData::CalcFCalLumi()
+Expected<Void> Run::CalcFCalLumi()
 {
-  auto this_func_name = "SingleRunData::CalcFCalLumi";
+  auto this_func_name = "Run::CalcFCalLumi";
   //if (analysis_->verbose()) cout << "Calculating FCal luminosity" << endl;
 
   // Checks that these values were not previously calculated
@@ -592,9 +592,9 @@ Expected<Void> SingleRunData::CalcFCalLumi()
 }
 
 // Calculates <mu> from FCal luminosity for a run
-Expected<Void> SingleRunData::CalcFCalMu()
+Expected<Void> Run::CalcFCalMu()
 {
-  auto this_func_name = "SingleRunData::CalcFCalMu";
+  auto this_func_name = "Run::CalcFCalMu";
 
   //if (analysis_->verbose()) cout << "Calculating FCal <mu>" << endl;
 
@@ -633,9 +633,9 @@ Expected<Void> SingleRunData::CalcFCalMu()
   return Void();
 }
 
-Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
+Expected<Void> Run::CreateLumiCurrentPlots() const
 {
-  auto this_func_name = "SingleRunData::CreateLumiCurrentPlots";
+  auto this_func_name = "Run::CreateLumiCurrentPlots";
   if (analysis_->verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
 
   LumiCurrentPlotOptions plot_options(analysis_->params_filepath());
@@ -747,7 +747,7 @@ Expected<Void> SingleRunData::CreateLumiCurrentPlots() const
 }
 
 // Creates those plots which use data from only a single sample
-Expected<Void> SingleRunData::CreateSingleRunPlots() const
+Expected<Void> Run::CreateSingleRunPlots() const
 {
   for (const auto &plot_type: analysis_->plot_types()) {
     if (plot_type == "lumi_current") {

@@ -11,7 +11,7 @@
 #include "fit_results.h"
 #include "void.h"
 
-class SingleRunData;
+class Run;
 
 // Contains analysis-wide parameters and methods which constitute the control
 //   flow of the analysis
@@ -25,7 +25,7 @@ class Analysis {
     Float_t intercept;
   };
 
-  void CreateAllRunPlots(const boost::container::flat_map<std::string, SingleRunData> &runs_data);
+  void CreateAllRunPlots(const boost::container::flat_map<std::string, Run> &runs_data);
   Error::Expected<Void> PrepareAnalysis();
   static Error::Expected<Void> ReadCalibrations(
       boost::container::flat_map<std::string, ChannelCalibration>* channel_calibrations,

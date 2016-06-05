@@ -19,7 +19,7 @@
 #include "point.h"
 #include "lumi_current_plot_options.h"
 #include "mu_stab_plot_options.h"
-#include "single_run_data.h"
+#include "run.h"
 
 using std::string;
 using std::vector;
@@ -91,7 +91,7 @@ bool IsZeroes(const vector<Float_t> &vec) {
 */
 
 VectorP<Float_t> GenerateMuRatioVsMuPoints(
-    const map<string, SingleRunData> &runs_data,
+    const map<string, Run> &runs_data,
     double x_scale,
     double y_scale)
 {
@@ -127,7 +127,7 @@ VectorP<Float_t> GenerateMuRatioVsMuPoints(
 }
 
 VectorP<Float_t> GenerateMuRatioVsLumiPoints(
-    const map<string, SingleRunData> &runs_data,
+    const map<string, Run> &runs_data,
     double x_scale,
     double y_scale)
 {
@@ -163,7 +163,7 @@ VectorP<Float_t> GenerateMuRatioVsLumiPoints(
 }
 
 VectorP<Float_t> GenerateAvgMuRatioVsLumiPoints(
-    const map<string, SingleRunData> &runs_data,
+    const map<string, Run> &runs_data,
     double x_scale,
     double y_scale)
 {
@@ -212,7 +212,7 @@ VectorP<Float_t> GenerateAvgMuRatioVsLumiPoints(
 }
 
 VectorP<Float_t> GenerateAvgMuRatioVsBeamspotZPoints(
-    const map<string, SingleRunData> &runs_data,
+    const map<string, Run> &runs_data,
     double x_scale,
     double y_scale)
 {
@@ -261,7 +261,7 @@ VectorP<Float_t> GenerateAvgMuRatioVsBeamspotZPoints(
 }
 
 VectorP<Float_t> GenerateACRatioVsBeamspotZPoints(
-    const map<string, SingleRunData> &runs_data,
+    const map<string, Run> &runs_data,
     double x_scale,
     double y_scale)
 {
@@ -295,7 +295,7 @@ VectorP<Float_t> GenerateACRatioVsBeamspotZPoints(
 }
 
 VectorP<Float_t> GenerateLumiVsCurrentPoints(
-    const map<string, SingleRunData> &runs_data,
+    const map<string, Run> &runs_data,
     const string& channel_name)
 {
   VectorP<Float_t> points;
@@ -323,7 +323,7 @@ Analysis::Analysis(string&& params_filepath)
   TRY_THROW( PrepareAnalysis() )
 }
 
-void Analysis::CreateAllRunPlots(const map<string, SingleRunData> &runs_data)
+void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
 {
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "mu_stability") {
@@ -583,10 +583,10 @@ Expected<Void> Analysis::RunAnalysis()
   RETURN_IF_ERR( run_names_vec )
 
   // Iterate over samples
-  map<string, SingleRunData> runs_data;
+  map<string, Run> runs_data;
 
   for (const auto &run_name: *run_names_vec) {
-    auto this_run = SingleRunData(run_name, this);
+    auto this_run = Run(run_name, this);
     TRY_CONTINUE( this_run.Init() )
 
     TRY_CONTINUE( this_run.CreateSingleRunPlots() )

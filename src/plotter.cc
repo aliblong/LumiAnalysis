@@ -214,7 +214,7 @@ vector<FCalRegionData> InitRegionsData(const MuStabPlotOptions& plot_options)
 // Fills the TProfile for a given side using run data
 Expected<Void> PopulateTProfile(
     FCalRegion::ZSide side,
-    const map<string, SingleRunData>& runs_data,
+    const map<string, Run>& runs_data,
     TProfile *profile)
 {
   auto this_func_name = "PopulateTProfile";
@@ -683,7 +683,7 @@ Expected<Void> Plotter::WriteCalibrationToText(
 // Plots TProfiles of <mu> time stability for select FCal regions (A-side,
 //   C-side, average between them, etc.) all on the same canvas.
 Expected<Void> Plotter::PlotMuStability(
-    const map<string, SingleRunData> &runs_data,
+    const map<string, Run> &runs_data,
     const MuStabPlotOptions &options)
 {
   TCanvas canvas;

@@ -14,7 +14,7 @@
 #include "lumi_current_plot_options.h"
 #include "mu_lumi_dep_plot_options.h"
 #include "mu_stab_plot_options.h"
-#include "single_run_data.h"
+#include "run.h"
 #include "void.h"
 
 namespace Plotter {
@@ -31,7 +31,7 @@ namespace Plotter {
       const MuLumiDepPlotOptions& options);
 
   Error::Expected<Void> PlotMuStability(
-      const boost::container::flat_map<std::string, SingleRunData>& runs_data,
+      const boost::container::flat_map<std::string, Run>& runs_data,
       const MuStabPlotOptions& plot_options);
 
   Error::Expected<Void> WriteFitResultsToTree(
