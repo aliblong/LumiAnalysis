@@ -5,6 +5,8 @@
 
 #include "Rtypes.h"
 
+#include "json_reader.h"
+
 class ScatterPlotOptions {
  public:
   virtual ~ScatterPlotOptions() {};

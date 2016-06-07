@@ -45,7 +45,7 @@ class Analysis {
   auto corr_C() const { return corr_C_; }
   auto corr_Avg() const { return corr_Avg_; }
 
-  const auto& params_filepath() const { return params_filepath_; }
+  const auto& params() const { return params_; }
   const auto& primary_calibrations_filepath() const { return primary_calibrations_filepath_; }
   const auto& calibrations_dir() const { return calibrations_dir_; }
   const auto& channels_list_filepath() const { return channels_list_filepath_; }
@@ -76,6 +76,7 @@ class Analysis {
 
  private:
   Detector::Name detector_ = Detector::Name::FCal;
+  JSONReader params_;
   bool verbose_ = false;
 
   double f_rev_ = 0.0;
@@ -86,7 +87,6 @@ class Analysis {
   double corr_C_ = 0.0;
   double corr_Avg_ = 0.0;
 
-  std::string params_filepath_;
   std::string primary_calibrations_filepath_;
   std::string calibrations_dir_;
   std::string channels_list_filepath_;

@@ -5,9 +5,11 @@
 
 #include "Rtypes.h"
 
+#include "json_reader.h"
+
 class MuStabPlotOptions {
  public:
-  MuStabPlotOptions(std::string params_filepath);
+  MuStabPlotOptions(const JSONReader& params);
   ~MuStabPlotOptions(){};
 
   const auto& base_output_dir() const { return base_output_dir_; }

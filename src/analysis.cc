@@ -317,9 +317,9 @@ VectorP<Float_t> GenerateLumiVsCurrentPoints(
 } // Anonymous namespace
 
 // Initializes various quantities required to run the analysis
-Analysis::Analysis(string&& params_filepath)
+Analysis::Analysis(string&& params_filepath) :
+  params_(params_filepath)
 {
-  params_filepath_ = params_filepath;
   TRY_THROW( PrepareAnalysis() )
 }
 
@@ -328,14 +328,14 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "mu_stability") {
       if (verbose_) cout << "Making mu stability plot" << endl;
-      MuStabPlotOptions plot_options(params_filepath_);
+      MuStabPlotOptions plot_options(params_);
       LOG_IF_ERR( Plotter::PlotMuStability(runs_data, plot_options) );
     }
     else if (plot_type == "mu_lumi_dependence") {
       if (verbose_) cout << "Making mu and lumi dependence plots" << endl;
       {
         auto node = "plot_options.mu_dependence.";
-        MuLumiDepPlotOptions plot_options(params_filepath_, node);
+        MuLumiDepPlotOptions plot_options(params_, node);
         auto points = GenerateMuRatioVsMuPoints(
             runs_data,
             plot_options.x_scale(),
@@ -344,7 +344,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       }
       {
         auto node = "plot_options.lumi_dependence.";
-        MuLumiDepPlotOptions plot_options(params_filepath_, node);
+        MuLumiDepPlotOptions plot_options(params_, node);
         auto points = GenerateMuRatioVsLumiPoints(
             runs_data,
             plot_options.x_scale(),
@@ -353,7 +353,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       }
       {
         auto node = "plot_options.avg_lumi_dependence.";
-        MuLumiDepPlotOptions plot_options(params_filepath_, node);
+        MuLumiDepPlotOptions plot_options(params_, node);
         auto points = GenerateAvgMuRatioVsLumiPoints(
             runs_data,
             plot_options.x_scale(),
@@ -363,7 +363,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
     }
     else if (plot_type == "lumi_current_multirun") {
       if (verbose_) cout << "Making current vs. luminosity plot for multiple runs" << endl;
-      LumiCurrentPlotOptions lumi_current_plot_options(params_filepath_);
+      LumiCurrentPlotOptions lumi_current_plot_options(params_);
       lumi_current_plot_options.run_name("multirun");
       for (const auto& channel: channel_calibrations_) {
         auto channel_name = channel.first;
@@ -376,7 +376,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
     else if (plot_type == "beamspot_AC") {
       if (verbose_) cout << "Making beamspot Z-position vs. A/C ratio plot" << endl;
       auto node = "plot_options.beamspot_AC.";
-      MuLumiDepPlotOptions plot_options(params_filepath_, node);
+      MuLumiDepPlotOptions plot_options(params_, node);
       auto points = GenerateACRatioVsBeamspotZPoints(
           runs_data,
           plot_options.x_scale(),
@@ -386,7 +386,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
     else if (plot_type == "beamspot_LAr-ofl") {
       if (verbose_) cout << "Making beamspot Z-position vs. LAr/ofl ratio plot" << endl;
       auto node = "plot_options.beamspot_LAr-ofl.";
-      MuLumiDepPlotOptions plot_options(params_filepath_, node);
+      MuLumiDepPlotOptions plot_options(params_, node);
       auto points = GenerateAvgMuRatioVsBeamspotZPoints(
           runs_data,
           plot_options.x_scale(),
@@ -519,56 +519,54 @@ Expected<Void> Analysis::ReadChannels()
 //   variables
 Error::Expected<Void> Analysis::ReadParams()
 {
-  auto parameter_file = JSONReader(params_filepath_);
-
-  auto detector = Detector::FromString(parameter_file.get<string>("detector"));
+  auto detector = Detector::FromString(params_.get<string>("detector"));
   RETURN_IF_ERR( detector )
   detector_ = *detector;
 
-  verbose_ = parameter_file.get<bool>("verbose");
+  verbose_ = params_.get<bool>("verbose");
 
   // Used to calculate FCal luminosity
   //   Bunch crossing frequency
-  f_rev_ = parameter_file.get<double>("lumi_calculation.f_rev");
+  f_rev_ = params_.get<double>("lumi_calculation.f_rev");
   //   Cross-section for pp interaction @ 7 TeV
-  x_sec_ = parameter_file.get<double>("lumi_calculation.x_sec");
+  x_sec_ = params_.get<double>("lumi_calculation.x_sec");
 
   // Value of 0 for reference run means set no corrections
-  ref_run_number_ = parameter_file.get<int>("ref_run_number");
+  ref_run_number_ = params_.get<int>("ref_run_number");
   string ref_run_str = std::to_string(ref_run_number_);
-  corr_A_ = parameter_file.get<double>("corrections."+ref_run_str+".A");
-  corr_C_ = parameter_file.get<double>("corrections."+ref_run_str+".C");
-  corr_Avg_ = parameter_file.get<double>("corrections."+ref_run_str+".Avg");
+  corr_A_ = params_.get<double>("corrections."+ref_run_str+".A");
+  corr_C_ = params_.get<double>("corrections."+ref_run_str+".C");
+  corr_Avg_ = params_.get<double>("corrections."+ref_run_str+".Avg");
 
-  primary_calibrations_filepath_ = parameter_file.get<string>("input_filepaths.primary_calibrations");
-  calibrations_dir_ = parameter_file.get<string>("input_filepaths.calibrations_dir");
+  primary_calibrations_filepath_ = params_.get<string>("input_filepaths.primary_calibrations");
+  calibrations_dir_ = params_.get<string>("input_filepaths.calibrations_dir");
   channels_list_filepath_ =
-    parameter_file.get<string>("input_filepaths.channels_list");
-  pedestals_dir_ = parameter_file.get<string>("input_filepaths.pedestals");
-  trees_dir_ = parameter_file.get<string>("input_filepaths.trees");
-  run_list_dir_ = parameter_file.get<string>("input_filepaths.run_list");
+    params_.get<string>("input_filepaths.channels_list");
+  pedestals_dir_ = params_.get<string>("input_filepaths.pedestals");
+  trees_dir_ = params_.get<string>("input_filepaths.trees");
+  run_list_dir_ = params_.get<string>("input_filepaths.run_list");
 
-  auto plot_types_map = parameter_file.get_map<bool>("plot_types");
+  auto plot_types_map = params_.get_map<bool>("plot_types");
   for (const auto &plot_type: plot_types_map) {
     if (plot_type.second == true) plot_types_.push_back(plot_type.first);
   }
 
-  use_beamspot_corr_ = parameter_file.get<bool>("beamspot_correction.use");
-  if (use_beamspot_corr_) beamspot_corr_params_ = parameter_file.get_vector<Float_t>("beamspot_correction.params");
+  use_beamspot_corr_ = params_.get<bool>("beamspot_correction.use");
+  if (use_beamspot_corr_) beamspot_corr_params_ = params_.get_vector<Float_t>("beamspot_correction.params");
 
-  use_start_of_fill_pedestals_ = parameter_file.get<bool>("use_start_of_fill_pedestals");
-  use_baseline_subtraction_from_fit_ = parameter_file.get<bool>("use_baseline_subtraction_from_fit");
+  use_start_of_fill_pedestals_ = params_.get<bool>("use_start_of_fill_pedestals");
+  use_baseline_subtraction_from_fit_ = params_.get<bool>("use_baseline_subtraction_from_fit");
 
-  JSONReader LB_bounds_file(parameter_file.get<string>("input_filepaths.custom_LB_bounds"));
+  JSONReader LB_bounds_file(params_.get<string>("input_filepaths.custom_LB_bounds"));
   auto custom_LB_bounds = LB_bounds_file.get_map_of_vectors<int>("");
 
   TRY( VerifyLBBounds(custom_LB_bounds) )
   custom_LB_bounds_ = custom_LB_bounds;
 
   // Text output file for Benedetto
-  do_benedetto_ = parameter_file.get<bool>("do_benedetto");
-  benedetto_output_dir_ = parameter_file.get<string>("output_dirs.base") +
-                          parameter_file.get<string>("output_dirs.benedetto");
+  do_benedetto_ = params_.get<bool>("do_benedetto");
+  benedetto_output_dir_ = params_.get<string>("output_dirs.base") +
+                          params_.get<string>("output_dirs.benedetto");
 
   auto nBunches_file = JSONReader(NBUNCHES_FILEPATH);
   nBunches_ = nBunches_file.get_map<int>("");
