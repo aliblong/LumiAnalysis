@@ -9,7 +9,7 @@
 
 class MuStabPlotOptions {
  public:
-  MuStabPlotOptions(const JSONReader& params);
+  MuStabPlotOptions(const JSONReader& params, const std::string& node);
   ~MuStabPlotOptions(){};
 
   const auto& base_output_dir() const { return base_output_dir_; }

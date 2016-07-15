@@ -1,5 +1,5 @@
-#ifndef LUMIANALYSIS_INCLUDE_SCATTER_PLOT_PLOTOPTIONS_H_
-#define LUMIANALYSIS_INCLUDE_SCATTER_PLOT_PLOTOPTIONS_H_
+#ifndef LUMIANALYSIS_INCLUDE_SCATTER_PLOT_OPTIONS_H_
+#define LUMIANALYSIS_INCLUDE_SCATTER_PLOT_OPTIONS_H_
 
 #include <string>
 
@@ -7,31 +7,58 @@
 
 #include "json_reader.h"
 
+class AxisOptions {
+  friend class ScatterPlotOptions;
+ public:
+  AxisOptions(const JSONReader& params, const std::string& node);
+  auto scale() const { return scale_; }
+  auto rel_error() const { return rel_error_; }
+  auto auto_range() const { return auto_range_; }
+  auto min() const { return min_; }
+  auto max() const { return max_; }
+  const auto& title() const { return title_; }
+
+ private:
+  Float_t scale_;
+  Float_t rel_error_;
+  bool auto_range_;
+  Float_t min_;
+  Float_t max_;
+  std::string title_;
+};
+
 class ScatterPlotOptions {
  public:
+  ScatterPlotOptions(const JSONReader& params, const std::string& node);
   virtual ~ScatterPlotOptions() {};
 
-  virtual const std::string& draw_options() const = 0;
+  const auto& output_dir() const { return output_dir_; }
 
-  virtual const std::string& title() const = 0;
+  const auto& draw_options() const { return draw_options_; }
+  auto& title(std::string&& title) { title_ = title; return *this; }
+  const auto& title() const { return title_; }
 
-  virtual int marker_color() const = 0;
-  virtual Float_t marker_size() const = 0;
-  virtual int marker_style() const = 0;
+  auto& x() { return x_; }
+  auto& y() { return y_; }
+  const auto& x() const { return x_; }
+  const auto& y() const { return y_; }
 
-  virtual Float_t x_scale() const = 0;
-  virtual Float_t x_rel_error() const = 0;
-  virtual bool x_auto_range() const = 0;
-  virtual Float_t x_min() const = 0;
-  virtual Float_t x_max() const = 0;
-  virtual const std::string& x_title() const = 0;
+  const auto& marker_colors() const { return marker_colors_; }
+  const auto& marker_sizes() const { return marker_sizes_; }
+  const auto& marker_styles() const { return marker_styles_; }
 
-  virtual Float_t y_scale() const = 0;
-  virtual Float_t y_rel_error() const = 0;
-  virtual bool y_auto_range() const = 0;
-  virtual Float_t y_min() const = 0;
-  virtual Float_t y_max() const = 0;
-  virtual const std::string& y_title() const = 0;
+ private:
+  std::string output_dir_;
+
+  std::string draw_options_;
+  std::string title_;
+
+  AxisOptions x_;
+  AxisOptions y_;
+
+  std::vector<Int_t> marker_colors_;
+  std::vector<Float_t> marker_sizes_;
+  std::vector<Int_t> marker_styles_;
 };
 
 #endif
