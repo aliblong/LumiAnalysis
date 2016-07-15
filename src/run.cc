@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -411,8 +412,25 @@ Expected<Void> Run::ReadTree()
   if (analysis_->retrieve_lumi_ofl()) {
     assert(lumi_ofl_.size() == 0);
 
-    for (int iLB = lower_LB_bound; iLB <= upper_LB_bound; ++iLB) {
-      lumi_ofl_.push_back( lumi_ofl_temp[iLB] );
+    // Mu-dependence correction evaluated by Vincent Hedberg and shown in this presentation by
+    // Benedetto Giacobbe:
+    // https://indico.cern.ch/event/435624/contributions/2209977/attachments/1293235/1927107/LTF_16062016.pdf
+    auto apply_LUCID_mu_corr = analysis_->params().get<bool>("apply_LUCID_mu_corr");
+    if (apply_LUCID_mu_corr) {
+      auto conversion_factor = analysis_->x_sec() / (nBunches_ * analysis_->f_rev());
+      for (int iLB = lower_LB_bound; iLB <= upper_LB_bound; ++iLB) {
+        auto lumi = lumi_ofl_temp[iLB];
+        // have to convert to mu, apply the correction, then convert back to lumi
+        auto mu = lumi*conversion_factor;
+        auto mu_corr = -0.002*mu*mu + 1.008*mu; // this is the correction
+        auto lumi_corr = mu_corr/conversion_factor;
+        lumi_ofl_.push_back( lumi_corr );
+      }
+    }
+    else {
+      for (int iLB = lower_LB_bound; iLB <= upper_LB_bound; ++iLB) {
+        lumi_ofl_.push_back( lumi_ofl_temp[iLB] );
+      }
     }
   }
 
@@ -542,6 +560,10 @@ Expected<Void> Run::CalcFCalLumi()
     cout << beamspot_corr_C << '\t' << beamspot_corr_A << endl;
   }
 
+  // Correction for luminosity-dependent effect seen in FCal (banana plot)
+  auto apply_FCal_lumi_dep_corr = analysis_->params().get<bool>("apply_FCal_lumi_dep_corr");
+  auto FCal_lumi_dep_corr = 1.0;
+
   // Averages lumi measurement from all channels for each side and for each
   //   lumi block
   for (unsigned iLB = 0; iLB < nLB_stable; ++iLB) {
@@ -578,13 +600,21 @@ Expected<Void> Run::CalcFCalLumi()
       lumi_FCal_A_.push_back(0.0);
     }
     else {
-      lumi_FCal_A_.push_back(analysis_->corr_A()*beamspot_corr_A*lumi_A_temp / num_channels_A);
+      auto lumi_FCal_A_this_LB = analysis_->corr_A()*beamspot_corr_A*lumi_A_temp / num_channels_A;
+      if (apply_FCal_lumi_dep_corr) {
+        FCal_lumi_dep_corr = 0.99552064 + 0.12015841*std::exp(-1.04597906*lumi_FCal_A_this_LB/1000);
+      }
+      lumi_FCal_A_.push_back(lumi_FCal_A_this_LB/FCal_lumi_dep_corr);
     }
     if (num_channels_C == 0) {
       lumi_FCal_C_.push_back(0.0);
     }
     else {
-      lumi_FCal_C_.push_back(analysis_->corr_C()*beamspot_corr_C*lumi_C_temp / num_channels_C);
+      auto lumi_FCal_C_this_LB = analysis_->corr_C()*beamspot_corr_C*lumi_C_temp / num_channels_C;
+      if (apply_FCal_lumi_dep_corr) {
+        FCal_lumi_dep_corr = 0.99552064 + 0.12015841*std::exp(-1.04597906*lumi_FCal_C_this_LB/1000);
+      }
+      lumi_FCal_C_.push_back(lumi_FCal_C_this_LB/FCal_lumi_dep_corr);
     }
   }
 
@@ -638,7 +668,7 @@ Expected<Void> Run::CreateLumiCurrentPlots() const
   auto this_func_name = "Run::CreateLumiCurrentPlots";
   if (analysis_->verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
 
-  LumiCurrentPlotOptions plot_options(analysis_->params());
+  LumiCurrentPlotOptions plot_options(analysis_->params(), "plot_options.lumi_current.");
   plot_options.run_name(string(run_name_));
   map<string, FitResults> fit_results;
 
@@ -658,8 +688,8 @@ Expected<Void> Run::CreateLumiCurrentPlots() const
 
       auto points_filtered = *lumi_current_points;
       for (auto& point: points_filtered) {
-        point[0] *= plot_options.x_scale();
-        point[1] *= plot_options.y_scale();
+        point[0] *= plot_options.x().scale();
+        point[1] *= plot_options.y().scale();
       }
 
       points_filtered.erase(

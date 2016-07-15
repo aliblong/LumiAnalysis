@@ -314,15 +314,15 @@ void FormatLegend(TPaveText& fit_legend, const FitResults& fit_results)
 void ApplyLCPlotOptionsToGraph(TGraphErrors& graph,
                                const LumiCurrentPlotOptions& plot_options)
 {
-  graph.SetMarkerColor(plot_options.marker_color());
-  graph.SetMarkerStyle(plot_options.marker_style());
-  graph.SetMarkerSize(plot_options.marker_size());
+  graph.SetMarkerColor(plot_options.marker_colors().at(0));
+  graph.SetMarkerStyle(plot_options.marker_styles().at(0));
+  graph.SetMarkerSize(plot_options.marker_sizes().at(0));
 
-  graph.GetXaxis()->SetRangeUser(plot_options.x_min(), plot_options.x_max());
-  graph.GetYaxis()->SetRangeUser(plot_options.y_min(), plot_options.y_max());
+  graph.GetXaxis()->SetRangeUser(plot_options.x().min(), plot_options.x().max());
+  graph.GetYaxis()->SetRangeUser(plot_options.y().min(), plot_options.y().max());
 
-  graph.GetXaxis()->SetTitle(plot_options.x_title().c_str());
-  graph.GetYaxis()->SetTitle(plot_options.y_title().c_str());
+  graph.GetXaxis()->SetTitle(plot_options.x().title().c_str());
+  graph.GetYaxis()->SetTitle(plot_options.y().title().c_str());
 }
 
 TLatex DrawATLASLabel(const ATLASLabelOptions& options)
@@ -450,20 +450,20 @@ void ApplyScatterPlotOptions(
 {
   if (graph == nullptr) return;
 
-  SetErrors(*graph, options->x_rel_error(), options->y_rel_error());
+  SetErrors(*graph, options->x().rel_error(), options->y().rel_error());
 
-  graph->SetMarkerColor(options->marker_color());
-  graph->SetMarkerStyle(options->marker_style());
-  graph->SetMarkerSize(options->marker_size());
+  graph->SetMarkerColor(options->marker_colors().at(0));
+  graph->SetMarkerStyle(options->marker_styles().at(0));
+  graph->SetMarkerSize(options->marker_sizes().at(0));
 
-  graph->GetXaxis()->SetRangeUser(options->x_min(), options->x_max());
-  graph->GetYaxis()->SetRangeUser(options->y_min(), options->y_max());
+  graph->GetXaxis()->SetRangeUser(options->x().min(), options->x().max());
+  graph->GetYaxis()->SetRangeUser(options->y().min(), options->y().max());
 
   graph->SetTitle(options->title().c_str());
-  graph->GetXaxis()->SetTitle(options->x_title().c_str());
-  graph->GetYaxis()->SetTitle(options->y_title().c_str());
-  if (options->x_auto_range()) SetAxisAutoRange(graph->GetXaxis());
-  if (options->y_auto_range()) SetAxisAutoRange(graph->GetYaxis());
+  graph->GetXaxis()->SetTitle(options->x().title().c_str());
+  graph->GetYaxis()->SetTitle(options->y().title().c_str());
+  if (options->x().auto_range()) SetAxisAutoRange(graph->GetXaxis());
+  if (options->y().auto_range()) SetAxisAutoRange(graph->GetYaxis());
 }
 
 }
@@ -493,7 +493,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
 
     //RecursiveFilterOutliers(graph, fit, options);
 
-    fit_results.FromFit(fit, options.x_scale(), options.y_scale());
+    fit_results.FromFit(fit, options.x().scale(), options.y().scale());
 
     if (options.fit_show_legend()) {
       FormatLegend(fit_legend, fit_results);
@@ -525,17 +525,26 @@ Expected<Void> Plotter::PlotMuLumiDependence(
   FitResults fit_results;
 
   if (options.do_fit()) {
+    // hack in an exponential fit for the FCal lumi-dependent effect (banana plot)
+    //TF1 fit("f1", "[0]+[1]*exp([2]*x)", graph.GetXaxis()->GetXmin(), graph.GetXaxis()->GetXmax());
+    //TF1 fit("f1", "[0]+[1]*x**2)", graph.GetXaxis()->GetXmin(), graph.GetXaxis()->GetXmax());
     TF1 fit("f1", "[0]+[1]*x", graph.GetXaxis()->GetXmin(), graph.GetXaxis()->GetXmax());
 
-    if (options.fit_fix_intercept()) fit.FixParameter(0, 0.0);
+    //if (options.fit_fix_intercept()) fit.FixParameter(0, 0.0);
     fit.SetLineColor(options.fit_line_color());
     fit.SetLineWidth(options.fit_line_width());
+    //fit.SetParameter(0, 0.1);
+    //fit.SetParameter(1, 8);
+    //fit.SetParameter(2, -1);
 
     graph.Fit(&fit, (options.fit_options()+"B").c_str());
 
+    //cout << fit.GetParameter(0) << endl;
+    //cout << fit.GetParameter(1) << endl;
+    //cout << fit.GetParameter(2) << endl;
     //RecursiveFilterOutliers(graph, fit, options);
 
-    fit_results.FromFit(fit, options.x_scale(), options.y_scale());
+    fit_results.FromFit(fit, options.x().scale(), options.y().scale());
 
     if (options.fit_show_legend()) {
       FormatLegend(fit_legend, fit_results);
@@ -549,9 +558,9 @@ Expected<Void> Plotter::PlotMuLumiDependence(
   DrawATLASLabel(ATLASLabelOptions{"Internal"});
 
   canvas.Update();
-  auto write_dir = options.plots_dir();
-  TRY( Util::mkdir(write_dir) )
+  TRY( Util::mkdir(options.output_dir()) )
 
+  auto write_dir = options.output_dir();
   canvas.Print( (write_dir+options.file_name()+".pdf").c_str() );
   return Void();
 }

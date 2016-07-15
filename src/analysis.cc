@@ -207,6 +207,7 @@ VectorP<Float_t> GenerateAvgMuRatioVsLumiPoints(
     auto avg_lumi_ofl_this_run = lumi_ofl_sum_this_run / nLB_with_nonzero_lumi;
     auto avg_lumi_ratio_this_run = lumi_ratio_sum_this_run / nLB_with_nonzero_lumi;
     points.push_back({avg_lumi_ofl_this_run*x_scale, avg_lumi_ratio_this_run*y_scale});
+    cout << avg_lumi_ofl_this_run*x_scale << '\t' << (avg_lumi_ratio_this_run/100 + 1) << endl;
   }
   return points;
 }
@@ -308,6 +309,7 @@ VectorP<Float_t> GenerateLumiVsCurrentPoints(
     const auto& lumi_ofl = run_data.lumi_ofl();
     auto num_points = lumi_ofl.size();
     for (auto i = 0; i < num_points; ++i) {
+      if (current[i] < 0) cout << "Negative current in run " << run.first << endl;
       points.push_back(Point<Float_t>{lumi_ofl[i], current[i]});
     }
   }
@@ -328,7 +330,8 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
   for (const auto &plot_type: plot_types_) {
     if (plot_type == "mu_stability") {
       if (verbose_) cout << "Making mu stability plot" << endl;
-      MuStabPlotOptions plot_options(params_);
+      auto node = "plot_options.mu_stability.";
+      MuStabPlotOptions plot_options(params_, node);
       LOG_IF_ERR( Plotter::PlotMuStability(runs_data, plot_options) );
     }
     else if (plot_type == "mu_lumi_dependence") {
@@ -338,8 +341,8 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
         MuLumiDepPlotOptions plot_options(params_, node);
         auto points = GenerateMuRatioVsMuPoints(
             runs_data,
-            plot_options.x_scale(),
-            plot_options.y_scale());
+            plot_options.x().scale(),
+            plot_options.y().scale());
         LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
       }
       {
@@ -347,8 +350,8 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
         MuLumiDepPlotOptions plot_options(params_, node);
         auto points = GenerateMuRatioVsLumiPoints(
             runs_data,
-            plot_options.x_scale(),
-            plot_options.y_scale());
+            plot_options.x().scale(),
+            plot_options.y().scale());
         LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
       }
       {
@@ -356,22 +359,31 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
         MuLumiDepPlotOptions plot_options(params_, node);
         auto points = GenerateAvgMuRatioVsLumiPoints(
             runs_data,
-            plot_options.x_scale(),
-            plot_options.y_scale());
+            plot_options.x().scale(),
+            plot_options.y().scale());
         LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
       }
     }
     else if (plot_type == "lumi_current_multirun") {
       if (verbose_) cout << "Making current vs. luminosity plot for multiple runs" << endl;
-      LumiCurrentPlotOptions lumi_current_plot_options(params_);
-      lumi_current_plot_options.run_name("multirun");
+      auto node = "plot_options.lumi_current.";
+      LumiCurrentPlotOptions plot_options(params_, node);
+      plot_options.run_name("multirun");
+      map<string, FitResults> fit_results;
       for (const auto& channel: channel_calibrations_) {
-        auto channel_name = channel.first;
-        auto lumi_current_points = GenerateLumiVsCurrentPoints(runs_data, channel_name);
-        lumi_current_plot_options.channel_name(std::move(channel_name));
-        lumi_current_plot_options.title("Runs "+runs_data.begin()->first+" - "+runs_data.rbegin()->first+", Channel "+channel_name);
-        LOG_IF_ERR( Plotter::PlotLumiCurrent(lumi_current_points, lumi_current_plot_options) );
+        auto this_channel_name = channel.first;
+        auto lumi_current_points = GenerateLumiVsCurrentPoints(runs_data, this_channel_name);
+        plot_options.channel_name(std::move(this_channel_name));
+        plot_options.title("Runs "+runs_data.begin()->first+" - "+runs_data.rbegin()->first+", Channel "+this_channel_name);
+        auto this_channel_fit_results = Plotter::PlotLumiCurrent(lumi_current_points, plot_options);
+        CONTINUE_IF_ERR(this_channel_fit_results)
+
+        if (plot_options.do_fit()) {
+          fit_results.insert({{this_channel_name, *this_channel_fit_results}});
+        }
       }
+      LOG_IF_ERR( Plotter::WriteFitResultsToTree(fit_results, plot_options) )
+      LOG_IF_ERR( Plotter::WriteCalibrationToText(fit_results, plot_options) )
     }
     else if (plot_type == "beamspot_AC") {
       if (verbose_) cout << "Making beamspot Z-position vs. A/C ratio plot" << endl;
@@ -379,8 +391,8 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       MuLumiDepPlotOptions plot_options(params_, node);
       auto points = GenerateACRatioVsBeamspotZPoints(
           runs_data,
-          plot_options.x_scale(),
-          plot_options.y_scale());
+          plot_options.x().scale(),
+          plot_options.y().scale());
       LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
     }
     else if (plot_type == "beamspot_LAr-ofl") {
@@ -389,8 +401,8 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       MuLumiDepPlotOptions plot_options(params_, node);
       auto points = GenerateAvgMuRatioVsBeamspotZPoints(
           runs_data,
-          plot_options.x_scale(),
-          plot_options.y_scale());
+          plot_options.x().scale(),
+          plot_options.y().scale());
       LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
     }
   }
@@ -565,7 +577,7 @@ Error::Expected<Void> Analysis::ReadParams()
 
   // Text output file for Benedetto
   do_benedetto_ = params_.get<bool>("do_benedetto");
-  benedetto_output_dir_ = params_.get<string>("output_dirs.base") +
+  if (do_benedetto_) benedetto_output_dir_ = params_.get<string>("output_dirs.base") +
                           params_.get<string>("output_dirs.benedetto");
 
   auto nBunches_file = JSONReader(NBUNCHES_FILEPATH);
