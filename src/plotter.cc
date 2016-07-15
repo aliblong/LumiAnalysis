@@ -228,11 +228,11 @@ Expected<Void> PopulateTProfile(
     const auto& this_run_data = run.second;
     auto timestamp = this_run_data.timestamp();
     const auto& this_run_lumi_ofl = this_run_data.lumi_ofl();
-    const auto& this_run_lumi_FCal_A = this_run_data.lumi_FCal_A();
-    const auto& this_run_lumi_FCal_C = this_run_data.lumi_FCal_C();
+    const auto& this_run_lumi_LAr_A = this_run_data.lumi_LAr_A();
+    const auto& this_run_lumi_LAr_C = this_run_data.lumi_LAr_C();
 
-    assert(this_run_lumi_ofl.size() == this_run_lumi_FCal_A.size());
-    assert(this_run_lumi_FCal_A.size() == this_run_lumi_FCal_C.size());
+    assert(this_run_lumi_ofl.size() == this_run_lumi_LAr_A.size());
+    assert(this_run_lumi_LAr_A.size() == this_run_lumi_LAr_C.size());
 
     auto this_bin = profile->GetXaxis()->FindBin(timestamp);
     if (this_bin == last_bin) {
@@ -250,21 +250,21 @@ Expected<Void> PopulateTProfile(
       auto event_lumi_ofl = this_run_lumi_ofl[iEvent];
       if (event_lumi_ofl < gOflLumiCutoff) continue;
 
-      Float_t event_lumi_FCal = 0.0;
+      Float_t event_lumi_LAr = 0.0;
       if (side == ZSide::A) {
-        event_lumi_FCal = this_run_lumi_FCal_A[iEvent];
+        event_lumi_LAr = this_run_lumi_LAr_A[iEvent];
       }
       else if (side == ZSide::C) {
-        event_lumi_FCal = this_run_lumi_FCal_C[iEvent];
+        event_lumi_LAr = this_run_lumi_LAr_C[iEvent];
       }
       else { // (side == ZSide::Both) {
-        event_lumi_FCal = ( this_run_lumi_FCal_A[iEvent] +
-                            this_run_lumi_FCal_C[iEvent] ) / 2;
-        if (this_run_lumi_FCal_A[iEvent] < gFCalLumiCutoff ||
-            this_run_lumi_FCal_C[iEvent] < gFCalLumiCutoff) continue;
+        event_lumi_LAr = ( this_run_lumi_LAr_A[iEvent] +
+                            this_run_lumi_LAr_C[iEvent] ) / 2;
+        if (this_run_lumi_LAr_A[iEvent] < gLArLumiCutoff ||
+            this_run_lumi_LAr_C[iEvent] < gLArLumiCutoff) continue;
       }
-      if (event_lumi_FCal < gFCalLumiCutoff) continue;
-      Float_t this_event_diff = ((event_lumi_FCal/event_lumi_ofl) - 1)*100;
+      if (event_lumi_LAr < gLArLumiCutoff) continue;
+      Float_t this_event_diff = ((event_lumi_LAr/event_lumi_ofl) - 1)*100;
       //if (this_event_diff < gPercentDiffMin ||
       //    this_event_diff > gPercentDiffMax) continue;
 
@@ -613,8 +613,8 @@ Expected<Void> Plotter::GeometricAnalysisOfFitResults(
                                       options);
 }
 
-// Writes FCal current vs. offline preferred lumi fit parameters to a root file for a given
-//   run. These parameters are used to derive the FCal lumi calibration.
+// Writes LAr current vs. offline preferred lumi fit parameters to a root file for a given
+//   run. These parameters are used to derive the LAr lumi calibration.
 Expected<Void> Plotter::WriteFitResultsToTree(
     const FitResultsMap& fit_results,
     const LumiCurrentPlotOptions& options)
@@ -656,7 +656,7 @@ Expected<Void> Plotter::WriteFitResultsToTree(
   return Void();
 }
 
-// Writes the FCal lumi calibration data space-delimited in a plaintext file:
+// Writes the LAr lumi calibration data space-delimited in a plaintext file:
 //
 //     ChannelName slope intercept
 Expected<Void> Plotter::WriteCalibrationToText(
@@ -689,7 +689,7 @@ Expected<Void> Plotter::WriteCalibrationToText(
   return Void();
 }
 
-// Plots TProfiles of <mu> time stability for select FCal regions (A-side,
+// Plots TProfiles of <mu> time stability for select LAr regions (A-side,
 //   C-side, average between them, etc.) all on the same canvas.
 Expected<Void> Plotter::PlotMuStability(
     const map<string, Run> &runs_data,
@@ -887,8 +887,8 @@ int Plotter::PlotLumiTotalCurrent(const VectorF &lumi_arg,
 
 int Plotter::GeometricAnalysisFromFitResultsTree(string run_name,
                                                  string output_dir) {
-// Writes FCal current vs. ofl lumi fit parameters to a root file for a given
-//   run. These parameters are used to derive the FCal lumi calibration.
+// Writes LAr current vs. ofl lumi fit parameters to a root file for a given
+//   run. These parameters are used to derive the LAr lumi calibration.
 
   string read_dir = output_dir+"fit_results/";
   int err = system( ("mkdir -p "+read_dir).c_str() );

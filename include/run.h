@@ -24,10 +24,10 @@ class Run {
   // Current vs. some luminosity algorithm from which we can derive a calibration for 
   //   current->luminosity
   Error::Expected<Void> CreateLumiCurrentPlots() const;
-  // FCal luminosity and mu values are calculated by applying a derived calibration to the current
+  // LAr luminosity and mu values are calculated by applying a derived calibration to the current
   //   values
-  Error::Expected<Void> CalcFCalLumi();
-  Error::Expected<Void> CalcFCalMu();
+  Error::Expected<Void> CalcLArLumi();
+  Error::Expected<Void> CalcLArMu();
   // Benedetto output, aka BG files, list for each lumi block on a new line the lumi block, A-side
   //   mu, and C-side mu
   Error::Expected<Void> CreateBenedettoOutput() const;
@@ -50,11 +50,11 @@ class Run {
   // Vectors containing a value for each LB
   const auto& currents() const { return currents_; }
   const auto& lumi_ofl() const { return lumi_ofl_; }
-  const auto& lumi_FCal_A() const { return lumi_FCal_A_; }
-  const auto& lumi_FCal_C() const { return lumi_FCal_C_; }
+  const auto& lumi_LAr_A() const { return lumi_LAr_A_; }
+  const auto& lumi_LAr_C() const { return lumi_LAr_C_; }
   const auto& mu_ofl() const { return mu_ofl_; }
-  const auto& mu_FCal_A() const { return mu_FCal_A_; }
-  const auto& mu_FCal_C() const { return mu_FCal_C_; }
+  const auto& mu_LAr_A() const { return mu_LAr_A_; }
+  const auto& mu_LAr_C() const { return mu_LAr_C_; }
   const auto& beamspot_z() const { return beamspot_z_; }
 
   // Maps over channels
@@ -83,11 +83,11 @@ class Run {
   boost::container::flat_map<std::string, Float_t> pedestals_;
   boost::container::flat_map< std::string, std::vector<Float_t> > currents_;
   std::vector<Float_t> lumi_ofl_;
-  std::vector<Float_t> lumi_FCal_A_;
-  std::vector<Float_t> lumi_FCal_C_;
+  std::vector<Float_t> lumi_LAr_A_;
+  std::vector<Float_t> lumi_LAr_C_;
   std::vector<Float_t> mu_ofl_;
-  std::vector<Float_t> mu_FCal_A_;
-  std::vector<Float_t> mu_FCal_C_;
+  std::vector<Float_t> mu_LAr_A_;
+  std::vector<Float_t> mu_LAr_C_;
   std::vector<Int_t> RFP_flag_;
   std::vector<Float_t> beamspot_z_;
   Float_t avg_beamspot_z_ = -999.0;

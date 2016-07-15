@@ -43,18 +43,18 @@ using Error::Expected;
 
 namespace {
 
-void DumpFCalAndOflLumiComparison(const Run& run)
+void DumpLArAndOflLumiComparison(const Run& run)
 {
   const auto& lumi_ofl = run.lumi_ofl();
-  const auto& lumi_FCal_A = run.lumi_FCal_A();
-  const auto& lumi_FCal_C = run.lumi_FCal_C();
+  const auto& lumi_LAr_A = run.lumi_LAr_A();
+  const auto& lumi_LAr_C = run.lumi_LAr_C();
 
   cout << lumi_ofl.size() << endl;
-  cout << lumi_FCal_A.size() << endl;
-  cout << lumi_FCal_C.size() << endl;
+  cout << lumi_LAr_A.size() << endl;
+  cout << lumi_LAr_C.size() << endl;
 
-  assert(lumi_ofl.size() == lumi_FCal_A.size());
-  assert(lumi_ofl.size() == lumi_FCal_C.size());
+  assert(lumi_ofl.size() == lumi_LAr_A.size());
+  assert(lumi_ofl.size() == lumi_LAr_C.size());
 
   const auto nLB = lumi_ofl.size();
   double A_ratio_avg = 0.;
@@ -64,9 +64,9 @@ void DumpFCalAndOflLumiComparison(const Run& run)
 
   for (int i = 0; i < nLB; ++i) {
     auto this_LB_lumi_ofl = lumi_ofl.at(i);
-    auto A_diff = std::abs(lumi_FCal_A.at(i) - this_LB_lumi_ofl);
+    auto A_diff = std::abs(lumi_LAr_A.at(i) - this_LB_lumi_ofl);
     auto A_ratio = A_diff / this_LB_lumi_ofl * 100;
-    auto C_diff = std::abs(lumi_FCal_C.at(i) - this_LB_lumi_ofl);
+    auto C_diff = std::abs(lumi_LAr_C.at(i) - this_LB_lumi_ofl);
     auto C_ratio = C_diff / this_LB_lumi_ofl * 100;
     auto width = 8;
     cout << std::fixed << std::setw(4) << std::setprecision(0) << i+run.LB_stability_offset() << ' '
@@ -482,16 +482,16 @@ Expected<Void> Run::CreateBenedettoOutput() const
   if (!output_file.is_open()) {
     return make_unexpected(make_shared<Error::File>(output_filepath, this_func_name));
   }
-  cout << "        Writing FCal mu data to " << output_filepath << endl;
+  cout << "        Writing LAr mu data to " << output_filepath << endl;
 
-  auto num_points = mu_FCal_A_.size();
+  auto num_points = mu_LAr_A_.size();
   output_file.precision(4);
   for (unsigned iLB = 0; iLB < num_points; ++iLB) {
-    output_file << (iLB + LB_stability_offset_) << ' ' << mu_FCal_A_.at(iLB) << ' '
-                << mu_FCal_C_.at(iLB) << std::endl;
+    output_file << (iLB + LB_stability_offset_) << ' ' << mu_LAr_A_.at(iLB) << ' '
+                << mu_LAr_C_.at(iLB) << std::endl;
 
-    //auto mu_A = mu_FCal_A_.at(iLB);
-    //auto mu_C = mu_FCal_C_.at(iLB);
+    //auto mu_A = mu_LAr_A_.at(iLB);
+    //auto mu_C = mu_LAr_C_.at(iLB);
     //Float_t conversion_factor = analysis_->x_sec() / (nBunches_ * analysis_->f_rev());
     //auto mu_ofl = lumi_ofl_.at(iLB) * conversion_factor;
     //output_file << (iLB + LB_stability_offset_) << ' '
@@ -502,8 +502,8 @@ Expected<Void> Run::CreateBenedettoOutput() const
     //            << std::setw(5) << std::setfill('0') << std::left << 100*(mu_A - mu_C)/mu_A << std::endl;
 
     //output_file << (iLB + LB_stability_offset_) << ' ' << lumi_ofl_.at(iLB)/nBunches_ << std::endl;
-    //auto mu_A = mu_FCal_A_.at(iLB);
-    //auto mu_C = mu_FCal_C_.at(iLB);
+    //auto mu_A = mu_LAr_A_.at(iLB);
+    //auto mu_C = mu_LAr_C_.at(iLB);
     //output_file << std::showpos << std::setw(3) << (iLB + LB_stability_offset_) << "   " << 100*(mu_A - mu_C)/(mu_A + mu_C) << std::endl;
   }
   return Void();
@@ -522,15 +522,15 @@ void Run::GetExternalNBunches()
   }
 }
 
-// Calculates FCal luminosity from currents data for a run
-Expected<Void> Run::CalcFCalLumi()
+// Calculates LAr luminosity from currents data for a run
+Expected<Void> Run::CalcLArLumi()
 {
-  auto this_func_name = "Run::CalcFCalLumi";
-  //if (analysis_->verbose()) cout << "Calculating FCal luminosity" << endl;
+  auto this_func_name = "Run::CalcLArLumi";
+  //if (analysis_->verbose()) cout << "Calculating LAr luminosity" << endl;
 
   // Checks that these values were not previously calculated
-  if (lumi_FCal_A_.size() > 0 || lumi_FCal_C_.size() > 0) {
-    auto err_msg = "FCal lumi vector(s) already filled";
+  if (lumi_LAr_A_.size() > 0 || lumi_LAr_C_.size() > 0) {
+    auto err_msg = "LAr lumi vector(s) already filled";
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
@@ -579,7 +579,7 @@ Expected<Void> Run::CalcFCalLumi()
       auto current = this_channel_currents.second.at(iLB);
 
       // Skip channel if current is ~0
-      if (current < gFCalCurrentCutoff) continue;
+      if (current < gLArCurrentCutoff) continue;
 
       auto intercept = analysis_->channel_calibrations().at(channel_name).intercept;
       auto slope = analysis_->channel_calibrations().at(channel_name).slope;
@@ -597,45 +597,45 @@ Expected<Void> Run::CalcFCalLumi()
     // Computes the average lumi for this lumi block and adds to lumi vector.
     // Adds 0 if no channels had high enough current
     if (num_channels_A == 0) {
-      lumi_FCal_A_.push_back(0.0);
+      lumi_LAr_A_.push_back(0.0);
     }
     else {
-      auto lumi_FCal_A_this_LB = analysis_->corr_A()*beamspot_corr_A*lumi_A_temp / num_channels_A;
+      auto lumi_LAr_A_this_LB = analysis_->corr_A()*beamspot_corr_A*lumi_A_temp / num_channels_A;
       if (apply_FCal_lumi_dep_corr) {
-        FCal_lumi_dep_corr = 0.99552064 + 0.12015841*std::exp(-1.04597906*lumi_FCal_A_this_LB/1000);
+        FCal_lumi_dep_corr = 0.99552064 + 0.12015841*std::exp(-1.04597906*lumi_LAr_A_this_LB/1000);
       }
-      lumi_FCal_A_.push_back(lumi_FCal_A_this_LB/FCal_lumi_dep_corr);
+      lumi_LAr_A_.push_back(lumi_LAr_A_this_LB/FCal_lumi_dep_corr);
     }
     if (num_channels_C == 0) {
-      lumi_FCal_C_.push_back(0.0);
+      lumi_LAr_C_.push_back(0.0);
     }
     else {
-      auto lumi_FCal_C_this_LB = analysis_->corr_C()*beamspot_corr_C*lumi_C_temp / num_channels_C;
+      auto lumi_LAr_C_this_LB = analysis_->corr_C()*beamspot_corr_C*lumi_C_temp / num_channels_C;
       if (apply_FCal_lumi_dep_corr) {
-        FCal_lumi_dep_corr = 0.99552064 + 0.12015841*std::exp(-1.04597906*lumi_FCal_C_this_LB/1000);
+        FCal_lumi_dep_corr = 0.99552064 + 0.12015841*std::exp(-1.04597906*lumi_LAr_C_this_LB/1000);
       }
-      lumi_FCal_C_.push_back(lumi_FCal_C_this_LB/FCal_lumi_dep_corr);
+      lumi_LAr_C_.push_back(lumi_LAr_C_this_LB/FCal_lumi_dep_corr);
     }
   }
 
   return Void();
 }
 
-// Calculates <mu> from FCal luminosity for a run
-Expected<Void> Run::CalcFCalMu()
+// Calculates <mu> from LAr luminosity for a run
+Expected<Void> Run::CalcLArMu()
 {
-  auto this_func_name = "Run::CalcFCalMu";
+  auto this_func_name = "Run::CalcLArMu";
 
-  //if (analysis_->verbose()) cout << "Calculating FCal <mu>" << endl;
+  //if (analysis_->verbose()) cout << "Calculating LAr <mu>" << endl;
 
-  // Checks that FCal lumi data exists
-  if (lumi_FCal_A_.size() == 0 && lumi_FCal_C_.size() == 0) {
-    auto err_msg = "FCal lumi vector(s) have not been filled";
+  // Checks that LAr lumi data exists
+  if (lumi_LAr_A_.size() == 0 && lumi_LAr_C_.size() == 0) {
+    auto err_msg = "LAr lumi vector(s) have not been filled";
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
   // Checks that mu data has not already been calculated
-  if (mu_FCal_A_.size() > 0 || mu_FCal_C_.size() > 0) {
-    auto err_msg = "FCal mu vector(s) already filled";
+  if (mu_LAr_A_.size() > 0 || mu_LAr_C_.size() > 0) {
+    auto err_msg = "LAr mu vector(s) already filled";
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
   // Checks that value for number of collisions is nonzero
@@ -648,13 +648,13 @@ Expected<Void> Run::CalcFCalMu()
 
   // Calculates <mu> for each lumi block
   auto nLB_stable = lumi_ofl_.size();
-  mu_FCal_A_.reserve(nLB_stable);
-  for (auto lumi: lumi_FCal_A_) {
-    mu_FCal_A_.push_back(lumi*conversion_factor);
+  mu_LAr_A_.reserve(nLB_stable);
+  for (auto lumi: lumi_LAr_A_) {
+    mu_LAr_A_.push_back(lumi*conversion_factor);
   }
-  mu_FCal_C_.reserve(nLB_stable);
-  for (auto lumi: lumi_FCal_C_) {
-    mu_FCal_C_.push_back(lumi*conversion_factor);
+  mu_LAr_C_.reserve(nLB_stable);
+  for (auto lumi: lumi_LAr_C_) {
+    mu_LAr_C_.push_back(lumi*conversion_factor);
   }
   mu_ofl_.reserve(nLB_stable);
   for (auto lumi: lumi_ofl_) {
@@ -697,7 +697,7 @@ Expected<Void> Run::CreateLumiCurrentPlots() const
               points_filtered.begin(),
               points_filtered.end(),
               [] (auto point) {
-                return point[0] < gOflLumiCutoff || point[1] < gFCalCurrentCutoff;
+                return point[0] < gOflLumiCutoff || point[1] < gLArCurrentCutoff;
               }
               ),
           points_filtered.end());

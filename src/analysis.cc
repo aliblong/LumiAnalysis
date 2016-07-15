@@ -101,8 +101,8 @@ VectorP<Float_t> GenerateMuRatioVsMuPoints(
   points.reserve(num_points_to_reserve);
   for (const auto& run: runs_data) {
     const auto& run_data = run.second;
-    const auto& mu_A = run_data.mu_FCal_A();
-    const auto& mu_C = run_data.mu_FCal_C();
+    const auto& mu_A = run_data.mu_LAr_A();
+    const auto& mu_C = run_data.mu_LAr_C();
     const auto& mu_ofl = run_data.mu_ofl();
     auto num_points = mu_ofl.size();
     for (auto i = 0; i < num_points; ++i) {
@@ -137,25 +137,25 @@ VectorP<Float_t> GenerateMuRatioVsLumiPoints(
   points.reserve(num_points_to_reserve);
   for (const auto& run: runs_data) {
     const auto& run_data = run.second;
-    const auto& lumi_A = run_data.lumi_FCal_A();
-    const auto& lumi_C = run_data.lumi_FCal_C();
+    const auto& lumi_A = run_data.lumi_LAr_A();
+    const auto& lumi_C = run_data.lumi_LAr_C();
     const auto& lumi_ofl = run_data.lumi_ofl();
     auto num_points = lumi_ofl.size();
     for (auto i = 0; i < num_points; ++i) {
       auto lumi_A_this_LB = lumi_A[i];
       auto lumi_C_this_LB = lumi_C[i];
-      auto lumi_FCal_avg_this_LB = 0.0;
+      auto lumi_LAr_avg_this_LB = 0.0;
       if (lumi_A_this_LB < gEpsilon) {
-        lumi_FCal_avg_this_LB = lumi_C_this_LB;
+        lumi_LAr_avg_this_LB = lumi_C_this_LB;
       }
       else if (lumi_C_this_LB < gEpsilon) {
-        lumi_FCal_avg_this_LB = lumi_A_this_LB;
+        lumi_LAr_avg_this_LB = lumi_A_this_LB;
       }
       else {
-        lumi_FCal_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
+        lumi_LAr_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
       }
       auto lumi_ofl_this_LB = lumi_ofl[i];
-      auto lumi_ratio_this_LB = (lumi_FCal_avg_this_LB/lumi_ofl_this_LB - 1)*100;
+      auto lumi_ratio_this_LB = (lumi_LAr_avg_this_LB/lumi_ofl_this_LB - 1)*100;
       points.push_back(Point<Float_t>{lumi_ofl_this_LB, lumi_ratio_this_LB});
     }
   }
@@ -173,8 +173,8 @@ VectorP<Float_t> GenerateAvgMuRatioVsLumiPoints(
   points.reserve(num_points_to_reserve);
   for (const auto& run: runs_data) {
     const auto& run_data = run.second;
-    const auto& lumi_A = run_data.lumi_FCal_A();
-    const auto& lumi_C = run_data.lumi_FCal_C();
+    const auto& lumi_A = run_data.lumi_LAr_A();
+    const auto& lumi_C = run_data.lumi_LAr_C();
     const auto& lumi_ofl = run_data.lumi_ofl();
     auto num_points = lumi_ofl.size();
     auto lumi_ofl_sum_this_run = 0.0;
@@ -183,22 +183,22 @@ VectorP<Float_t> GenerateAvgMuRatioVsLumiPoints(
     for (auto i = 0; i < num_points; ++i) {
       auto lumi_A_this_LB = lumi_A[i];
       auto lumi_C_this_LB = lumi_C[i];
-      auto lumi_FCal_avg_this_LB = 0.0;
+      auto lumi_LAr_avg_this_LB = 0.0;
       auto lumi_ofl_this_LB = lumi_ofl[i];
       if (lumi_ofl_this_LB < gEpsilon) continue;
       if (lumi_A_this_LB < gEpsilon && lumi_C_this_LB < gEpsilon) {
         continue;
       }
       else if (lumi_A_this_LB < gEpsilon) {
-        lumi_FCal_avg_this_LB = lumi_C_this_LB;
+        lumi_LAr_avg_this_LB = lumi_C_this_LB;
       }
       else if (lumi_C_this_LB < gEpsilon) {
-        lumi_FCal_avg_this_LB = lumi_A_this_LB;
+        lumi_LAr_avg_this_LB = lumi_A_this_LB;
       }
       else {
-        lumi_FCal_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
+        lumi_LAr_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
       }
-      auto lumi_ratio_this_LB = (lumi_FCal_avg_this_LB/lumi_ofl_this_LB - 1)*100;
+      auto lumi_ratio_this_LB = (lumi_LAr_avg_this_LB/lumi_ofl_this_LB - 1)*100;
       lumi_ofl_sum_this_run += lumi_ofl_this_LB;
       lumi_ratio_sum_this_run += lumi_ratio_this_LB;
       ++nLB_with_nonzero_lumi;
@@ -223,8 +223,8 @@ VectorP<Float_t> GenerateAvgMuRatioVsBeamspotZPoints(
   points.reserve(num_points_to_reserve);
   for (const auto& run: runs_data) {
     const auto& run_data = run.second;
-    const auto& lumi_A = run_data.lumi_FCal_A();
-    const auto& lumi_C = run_data.lumi_FCal_C();
+    const auto& lumi_A = run_data.lumi_LAr_A();
+    const auto& lumi_C = run_data.lumi_LAr_C();
     const auto& lumi_ofl = run_data.lumi_ofl();
     auto num_points = lumi_ofl.size();
     auto lumi_ofl_sum_this_run = 0.0;
@@ -233,22 +233,22 @@ VectorP<Float_t> GenerateAvgMuRatioVsBeamspotZPoints(
     for (auto i = 0; i < num_points; ++i) {
       auto lumi_A_this_LB = lumi_A[i];
       auto lumi_C_this_LB = lumi_C[i];
-      auto lumi_FCal_avg_this_LB = 0.0;
+      auto lumi_LAr_avg_this_LB = 0.0;
       auto lumi_ofl_this_LB = lumi_ofl[i];
       if (lumi_ofl_this_LB < gEpsilon) continue;
       if (lumi_A_this_LB < gEpsilon && lumi_C_this_LB < gEpsilon) {
         continue;
       }
       else if (lumi_A_this_LB < gEpsilon) {
-        lumi_FCal_avg_this_LB = lumi_C_this_LB;
+        lumi_LAr_avg_this_LB = lumi_C_this_LB;
       }
       else if (lumi_C_this_LB < gEpsilon) {
-        lumi_FCal_avg_this_LB = lumi_A_this_LB;
+        lumi_LAr_avg_this_LB = lumi_A_this_LB;
       }
       else {
-        lumi_FCal_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
+        lumi_LAr_avg_this_LB = (lumi_A_this_LB + lumi_C_this_LB)/2;
       }
-      auto lumi_ratio_this_LB = (lumi_FCal_avg_this_LB/lumi_ofl_this_LB - 1)*100;
+      auto lumi_ratio_this_LB = (lumi_LAr_avg_this_LB/lumi_ofl_this_LB - 1)*100;
       lumi_ofl_sum_this_run += lumi_ofl_this_LB;
       lumi_ratio_sum_this_run += lumi_ratio_this_LB;
       ++nLB_with_nonzero_lumi;
@@ -271,8 +271,8 @@ VectorP<Float_t> GenerateACRatioVsBeamspotZPoints(
   points.reserve(num_points_to_reserve);
   for (const auto& run: runs_data) {
     const auto& run_data = run.second;
-    const auto& lumi_A = run_data.lumi_FCal_A();
-    const auto& lumi_C = run_data.lumi_FCal_C();
+    const auto& lumi_A = run_data.lumi_LAr_A();
+    const auto& lumi_C = run_data.lumi_LAr_C();
     auto num_points = lumi_A.size();
     auto AC_ratio_sum = 0.0;
     auto nLB_with_nonzero_A_and_C_lumi = 0;
@@ -421,36 +421,36 @@ Expected<Void> Analysis::PrepareAnalysis()
     else if (plot_type == "mu_stability") {
       retrieve_timestamps_ = true;
       retrieve_lumi_ofl_ = true;
-      retrieve_lumi_FCal_ = true;
+      retrieve_lumi_LAr_ = true;
     }
     else if (plot_type == "mu_lumi_dependence") {
       retrieve_lumi_ofl_ = true;
-      retrieve_lumi_FCal_ = true;
+      retrieve_lumi_LAr_ = true;
     }
     else if (plot_type == "beamspot_AC") {
-      retrieve_lumi_FCal_ = true;
+      retrieve_lumi_LAr_ = true;
       retrieve_beamspot_ = true;
     }
     else if (plot_type == "beamspot_LAr-ofl") {
       retrieve_lumi_ofl_ = true;
-      retrieve_lumi_FCal_ = true;
+      retrieve_lumi_LAr_ = true;
       retrieve_beamspot_ = true;
     }
   }
 
   if (use_beamspot_corr_) retrieve_beamspot_ = true;
   if (do_benedetto_) {
-    retrieve_lumi_FCal_ = true;
+    retrieve_lumi_LAr_ = true;
     //TODO: remove this
     retrieve_lumi_ofl_ = true;
   }
 
-  // FCal currents are required to calculate FCal lumi
-  if (retrieve_lumi_FCal_) retrieve_currents_ = true;
+  // LAr currents are required to calculate LAr lumi
+  if (retrieve_lumi_LAr_) retrieve_currents_ = true;
 
   TRY( ReadChannels() )
 
-  if (retrieve_lumi_FCal_) {
+  if (retrieve_lumi_LAr_) {
     TRY( ReadCalibrations(&channel_calibrations_, primary_calibrations_filepath_) )
     if (use_baseline_subtraction_from_fit_) {
       for (auto& channel: channel_calibrations_) {
@@ -537,7 +537,7 @@ Error::Expected<Void> Analysis::ReadParams()
 
   verbose_ = params_.get<bool>("verbose");
 
-  // Used to calculate FCal luminosity
+  // Used to calculate LAr luminosity
   //   Bunch crossing frequency
   f_rev_ = params_.get<double>("lumi_calculation.f_rev");
   //   Cross-section for pp interaction @ 7 TeV
@@ -600,9 +600,9 @@ Expected<Void> Analysis::RunAnalysis()
     TRY_CONTINUE( this_run.Init() )
 
     TRY_CONTINUE( this_run.CreateSingleRunPlots() )
-    if (retrieve_lumi_FCal_) {
-      TRY_CONTINUE( this_run.CalcFCalLumi() )
-      TRY_CONTINUE( this_run.CalcFCalMu() )
+    if (retrieve_lumi_LAr_) {
+      TRY_CONTINUE( this_run.CalcLArLumi() )
+      TRY_CONTINUE( this_run.CalcLArMu() )
     }
     if (do_benedetto_) {
       TRY_CONTINUE( this_run.CreateBenedettoOutput() )
