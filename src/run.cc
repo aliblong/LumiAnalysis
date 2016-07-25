@@ -56,13 +56,13 @@ void DumpLArAndOflLumiComparison(const Run& run)
   assert(lumi_ofl.size() == lumi_LAr_A.size());
   assert(lumi_ofl.size() == lumi_LAr_C.size());
 
-  const auto nLB = lumi_ofl.size();
+  const auto n_LB = lumi_ofl.size();
   double A_ratio_avg = 0.;
   double C_ratio_avg = 0.;
-  int num_LB_used_in_A_avg = 0;
-  int num_LB_used_in_C_avg = 0;
+  int n_LB_used_in_A_avg = 0;
+  int n_LB_used_in_C_avg = 0;
 
-  for (int i = 0; i < nLB; ++i) {
+  for (int i = 0; i < n_LB; ++i) {
     auto this_LB_lumi_ofl = lumi_ofl.at(i);
     auto A_diff = std::abs(lumi_LAr_A.at(i) - this_LB_lumi_ofl);
     auto A_ratio = A_diff / this_LB_lumi_ofl * 100;
@@ -75,17 +75,17 @@ void DumpLArAndOflLumiComparison(const Run& run)
                        << std::setw(width) << std::setprecision(4) << C_ratio << ' ' << endl;
     if (A_ratio < 5) {
       A_ratio_avg += A_ratio;
-      ++num_LB_used_in_A_avg;
+      ++n_LB_used_in_A_avg;
     }
     if (C_ratio < 5) {
       C_ratio_avg += C_ratio;
-      ++num_LB_used_in_C_avg;
+      ++n_LB_used_in_C_avg;
     }
   }
   cout << "A ratio average (excluding extreme outliers): "
-       << A_ratio_avg/num_LB_used_in_A_avg << endl;
+       << A_ratio_avg/n_LB_used_in_A_avg << endl;
   cout << "C ratio average (excluding extreme outliers): "
-       << C_ratio_avg/num_LB_used_in_C_avg << endl;
+       << C_ratio_avg/n_LB_used_in_C_avg << endl;
 }
 
 Expected<std::array<Int_t, 2>> FindStableLBBounds(const vector<string>* beam_mode)
@@ -286,8 +286,8 @@ Expected<Void> Run::ReadTree()
   }
 
   this_tree->SetBranchAddress("StartOfRun", &timestamp_);
-  this_tree->SetBranchAddress("NLB", &nLB_);
-  this_tree->SetBranchAddress("ncoll", &nBunches_);
+  this_tree->SetBranchAddress("NLB", &n_LB_);
+  this_tree->SetBranchAddress("ncoll", &n_bunches_);
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work (I think))
@@ -317,7 +317,7 @@ Expected<Void> Run::ReadTree()
   if (analysis_->retrieve_beamspot()) {
     this_tree->SetBranchAddress("beamspot_z", &beamspot_z);
     this_tree->SetBranchAddress("beamspot_z_avg", &avg_beamspot_z_);
-    beamspot_z_ = CArrayToVec<Float_t>(beamspot_z_arr, nLB_);
+    beamspot_z_ = CArrayToVec<Float_t>(beamspot_z_arr, n_LB_);
   }
 
   // Populate those variables which have been set to branches
@@ -326,7 +326,7 @@ Expected<Void> Run::ReadTree()
 
   GetExternalNBunches();
 
-  RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, nLB_);
+  RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, n_LB_);
 
   auto LB_bounds = GetLBBounds();
   RETURN_IF_ERR( LB_bounds )
@@ -350,14 +350,14 @@ Expected<Void> Run::ReadTree()
     pedestal_values.reserve(*start_of_adjust_LB);
     for (const auto& channel: analysis_->channel_calibrations()) {
       auto channel_name = channel.first;
-      for (Int_t iLB = 0; iLB < lower_LB_bound; ++iLB) {
-        //if (channel_name == "M80C0") cout << lumi_ofl_temp[iLB] << endl;
+      for (Int_t i_LB = 0; i_LB < lower_LB_bound; ++i_LB) {
+        //if (channel_name == "M80C0") cout << lumi_ofl_temp[i_LB] << endl;
         // We want LBs from the start of the fill before beam align
-        auto this_channel_LB_current = currents_temp[iChannel][iLB];
+        auto this_channel_LB_current = currents_temp[iChannel][i_LB];
 
         // Sometimes we get current of exactly 0 at the start of beam inject or
         // setup. ofl offline lumi should always be ~0 before beam adjust
-        if (lumi_ofl_temp[iLB] < gOflLumiCutoff &&
+        if (lumi_ofl_temp[i_LB] < gOflLumiCutoff &&
             this_channel_LB_current > gEpsilon) {
           pedestal_values.push_back(this_channel_LB_current);
         }
@@ -396,8 +396,8 @@ Expected<Void> Run::ReadTree()
         this_channel_pedestal -= channel_calibrations_.at(this_channel_name).intercept/channel_calibrations_.at(this_channel_name).slope;
       }
 
-      for (int iLB = lower_LB_bound; iLB <= upper_LB_bound; ++iLB) {
-        auto this_current = currents_temp[iChannel][iLB] -
+      for (int i_LB = lower_LB_bound; i_LB <= upper_LB_bound; ++i_LB) {
+        auto this_current = currents_temp[iChannel][i_LB] -
                             this_channel_pedestal;
         this_channel_currents.push_back(this_current);
       }
@@ -417,9 +417,9 @@ Expected<Void> Run::ReadTree()
     // https://indico.cern.ch/event/435624/contributions/2209977/attachments/1293235/1927107/LTF_16062016.pdf
     auto apply_LUCID_mu_corr = analysis_->params().get<bool>("apply_LUCID_mu_corr");
     if (apply_LUCID_mu_corr) {
-      auto conversion_factor = analysis_->x_sec() / (nBunches_ * analysis_->f_rev());
-      for (int iLB = lower_LB_bound; iLB <= upper_LB_bound; ++iLB) {
-        auto lumi = lumi_ofl_temp[iLB];
+      auto conversion_factor = analysis_->x_sec() / (n_bunches_ * analysis_->f_rev());
+      for (int i_LB = lower_LB_bound; i_LB <= upper_LB_bound; ++i_LB) {
+        auto lumi = lumi_ofl_temp[i_LB];
         // have to convert to mu, apply the correction, then convert back to lumi
         auto mu = lumi*conversion_factor;
         auto mu_corr = -0.002*mu*mu + 1.008*mu; // this is the correction
@@ -428,8 +428,8 @@ Expected<Void> Run::ReadTree()
       }
     }
     else {
-      for (int iLB = lower_LB_bound; iLB <= upper_LB_bound; ++iLB) {
-        lumi_ofl_.push_back( lumi_ofl_temp[iLB] );
+      for (int i_LB = lower_LB_bound; i_LB <= upper_LB_bound; ++i_LB) {
+        lumi_ofl_.push_back( lumi_ofl_temp[i_LB] );
       }
     }
   }
@@ -486,39 +486,39 @@ Expected<Void> Run::CreateBenedettoOutput() const
 
   auto num_points = mu_LAr_A_.size();
   output_file.precision(4);
-  for (unsigned iLB = 0; iLB < num_points; ++iLB) {
-    output_file << (iLB + LB_stability_offset_) << ' ' << mu_LAr_A_.at(iLB) << ' '
-                << mu_LAr_C_.at(iLB) << std::endl;
+  for (unsigned i_LB = 0; i_LB < num_points; ++i_LB) {
+    output_file << (i_LB + LB_stability_offset_) << ' ' << mu_LAr_A_.at(i_LB) << ' '
+                << mu_LAr_C_.at(i_LB) << std::endl;
 
-    //auto mu_A = mu_LAr_A_.at(iLB);
-    //auto mu_C = mu_LAr_C_.at(iLB);
-    //Float_t conversion_factor = analysis_->x_sec() / (nBunches_ * analysis_->f_rev());
-    //auto mu_ofl = lumi_ofl_.at(iLB) * conversion_factor;
-    //output_file << (iLB + LB_stability_offset_) << ' '
+    //auto mu_A = mu_LAr_A_.at(i_LB);
+    //auto mu_C = mu_LAr_C_.at(i_LB);
+    //Float_t conversion_factor = analysis_->x_sec() / (n_bunches_ * analysis_->f_rev());
+    //auto mu_ofl = lumi_ofl_.at(i_LB) * conversion_factor;
+    //output_file << (i_LB + LB_stability_offset_) << ' '
     //            << std::setw(5) << std::setfill('0') << std::left << std::noshowpos << mu_ofl << ' '
     //            << std::setw(5) << std::setfill('0') << std::left << mu_A << ' '
     //            << std::setw(5) << std::setfill('0') << std::left << mu_C << ' '
     //            << std::setw(5) << std::setfill('0') << std::left << std::showpos << 100*((mu_A + mu_C)/2 - mu_ofl) / mu_ofl << ' '
     //            << std::setw(5) << std::setfill('0') << std::left << 100*(mu_A - mu_C)/mu_A << std::endl;
 
-    //output_file << (iLB + LB_stability_offset_) << ' ' << lumi_ofl_.at(iLB)/nBunches_ << std::endl;
-    //auto mu_A = mu_LAr_A_.at(iLB);
-    //auto mu_C = mu_LAr_C_.at(iLB);
-    //output_file << std::showpos << std::setw(3) << (iLB + LB_stability_offset_) << "   " << 100*(mu_A - mu_C)/(mu_A + mu_C) << std::endl;
+    //output_file << (i_LB + LB_stability_offset_) << ' ' << lumi_ofl_.at(i_LB)/n_bunches_ << std::endl;
+    //auto mu_A = mu_LAr_A_.at(i_LB);
+    //auto mu_C = mu_LAr_C_.at(i_LB);
+    //output_file << std::showpos << std::setw(3) << (i_LB + LB_stability_offset_) << "   " << 100*(mu_A - mu_C)/(mu_A + mu_C) << std::endl;
   }
   return Void();
 }
 
 void Run::GetExternalNBunches()
 {
-  auto& nBunches = analysis_->nBunches();
-  auto res = nBunches.find(run_name_);
-  if (res != nBunches.end()) {
+  auto& n_bunches = analysis_->n_bunches();
+  auto res = n_bunches.find(run_name_);
+  if (res != n_bunches.end()) {
     if (analysis_->verbose()) {
-      if (nBunches_) cout << "Warning: overriding non-negative nBunches" << endl;
-      cout << "Manually setting nBunches for run " << run_name_ << endl;
+      if (n_bunches_) cout << "Warning: overriding non-negative n_bunches" << endl;
+      cout << "Manually setting n_bunches for run " << run_name_ << endl;
     }
-    nBunches_ = res->second;
+    n_bunches_ = res->second;
   }
 }
 
@@ -541,8 +541,8 @@ Expected<Void> Run::CalcLArLumi()
   }
 
   // All currents_ vectors should be the same size
-  unsigned nLB_stable = currents_.begin()->second.size();
-  if (nLB_stable == 0) {
+  unsigned n_LB_stable = currents_.begin()->second.size();
+  if (n_LB_stable == 0) {
     auto err_msg = "no stable lumi blocks";
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
@@ -566,7 +566,7 @@ Expected<Void> Run::CalcLArLumi()
 
   // Averages lumi measurement from all channels for each side and for each
   //   lumi block
-  for (unsigned iLB = 0; iLB < nLB_stable; ++iLB) {
+  for (unsigned i_LB = 0; i_LB < n_LB_stable; ++i_LB) {
     Float_t lumi_A_temp = 0.0;
     Float_t lumi_C_temp = 0.0;
     unsigned num_channels_A = 0;
@@ -576,7 +576,7 @@ Expected<Void> Run::CalcLArLumi()
     //   adds to running total
     for (const auto& this_channel_currents: currents_) {
       const auto& channel_name = this_channel_currents.first;
-      auto current = this_channel_currents.second.at(iLB);
+      auto current = this_channel_currents.second.at(i_LB);
 
       // Skip channel if current is ~0
       if (current < gLArCurrentCutoff) continue;
@@ -639,24 +639,24 @@ Expected<Void> Run::CalcLArMu()
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
   // Checks that value for number of collisions is nonzero
-  if (nBunches_ == 0) {
+  if (n_bunches_ == 0) {
     auto err_msg = "num_collisions == 0";
     return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
   }
 
-  Float_t conversion_factor = analysis_->x_sec() / (nBunches_ * analysis_->f_rev());
+  Float_t conversion_factor = analysis_->x_sec() / (n_bunches_ * analysis_->f_rev());
 
   // Calculates <mu> for each lumi block
-  auto nLB_stable = lumi_ofl_.size();
-  mu_LAr_A_.reserve(nLB_stable);
+  auto n_LB_stable = lumi_ofl_.size();
+  mu_LAr_A_.reserve(n_LB_stable);
   for (auto lumi: lumi_LAr_A_) {
     mu_LAr_A_.push_back(lumi*conversion_factor);
   }
-  mu_LAr_C_.reserve(nLB_stable);
+  mu_LAr_C_.reserve(n_LB_stable);
   for (auto lumi: lumi_LAr_C_) {
     mu_LAr_C_.push_back(lumi*conversion_factor);
   }
-  mu_ofl_.reserve(nLB_stable);
+  mu_ofl_.reserve(n_LB_stable);
   for (auto lumi: lumi_ofl_) {
     mu_ofl_.push_back(lumi*conversion_factor);
   }

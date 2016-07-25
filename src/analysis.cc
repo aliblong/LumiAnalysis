@@ -39,7 +39,7 @@ using Error::Expected;
 
 namespace {
 
-string NBUNCHES_FILEPATH = "params/nBunches/all.json";
+string NBUNCHES_FILEPATH = "params/n_bunches/all.json";
 
 Expected<Void> VerifyLBBounds(map<string, vector<int>> bounds)
 {
@@ -179,7 +179,7 @@ VectorP<Float_t> GenerateAvgMuRatioVsLumiPoints(
     auto num_points = lumi_ofl.size();
     auto lumi_ofl_sum_this_run = 0.0;
     auto lumi_ratio_sum_this_run = 0.0;
-    auto nLB_with_nonzero_lumi = 0;
+    auto n_LB_with_nonzero_lumi = 0;
     for (auto i = 0; i < num_points; ++i) {
       auto lumi_A_this_LB = lumi_A[i];
       auto lumi_C_this_LB = lumi_C[i];
@@ -201,11 +201,11 @@ VectorP<Float_t> GenerateAvgMuRatioVsLumiPoints(
       auto lumi_ratio_this_LB = (lumi_LAr_avg_this_LB/lumi_ofl_this_LB - 1)*100;
       lumi_ofl_sum_this_run += lumi_ofl_this_LB;
       lumi_ratio_sum_this_run += lumi_ratio_this_LB;
-      ++nLB_with_nonzero_lumi;
+      ++n_LB_with_nonzero_lumi;
     }
-    if (nLB_with_nonzero_lumi == 0) continue;
-    auto avg_lumi_ofl_this_run = lumi_ofl_sum_this_run / nLB_with_nonzero_lumi;
-    auto avg_lumi_ratio_this_run = lumi_ratio_sum_this_run / nLB_with_nonzero_lumi;
+    if (n_LB_with_nonzero_lumi == 0) continue;
+    auto avg_lumi_ofl_this_run = lumi_ofl_sum_this_run / n_LB_with_nonzero_lumi;
+    auto avg_lumi_ratio_this_run = lumi_ratio_sum_this_run / n_LB_with_nonzero_lumi;
     points.push_back({avg_lumi_ofl_this_run*x_scale, avg_lumi_ratio_this_run*y_scale});
     cout << avg_lumi_ofl_this_run*x_scale << '\t' << (avg_lumi_ratio_this_run/100 + 1) << endl;
   }
@@ -229,7 +229,7 @@ VectorP<Float_t> GenerateAvgMuRatioVsBeamspotZPoints(
     auto num_points = lumi_ofl.size();
     auto lumi_ofl_sum_this_run = 0.0;
     auto lumi_ratio_sum_this_run = 0.0;
-    auto nLB_with_nonzero_lumi = 0;
+    auto n_LB_with_nonzero_lumi = 0;
     for (auto i = 0; i < num_points; ++i) {
       auto lumi_A_this_LB = lumi_A[i];
       auto lumi_C_this_LB = lumi_C[i];
@@ -251,11 +251,11 @@ VectorP<Float_t> GenerateAvgMuRatioVsBeamspotZPoints(
       auto lumi_ratio_this_LB = (lumi_LAr_avg_this_LB/lumi_ofl_this_LB - 1)*100;
       lumi_ofl_sum_this_run += lumi_ofl_this_LB;
       lumi_ratio_sum_this_run += lumi_ratio_this_LB;
-      ++nLB_with_nonzero_lumi;
+      ++n_LB_with_nonzero_lumi;
     }
-    if (nLB_with_nonzero_lumi == 0) continue;
-    auto avg_lumi_ofl_this_run = lumi_ofl_sum_this_run / nLB_with_nonzero_lumi;
-    auto avg_lumi_ratio_this_run = lumi_ratio_sum_this_run / nLB_with_nonzero_lumi;
+    if (n_LB_with_nonzero_lumi == 0) continue;
+    auto avg_lumi_ofl_this_run = lumi_ofl_sum_this_run / n_LB_with_nonzero_lumi;
+    auto avg_lumi_ratio_this_run = lumi_ratio_sum_this_run / n_LB_with_nonzero_lumi;
     points.push_back({run_data.avg_beamspot_z()*x_scale, avg_lumi_ratio_this_run*y_scale});
   }
   return points;
@@ -275,7 +275,7 @@ VectorP<Float_t> GenerateACRatioVsBeamspotZPoints(
     const auto& lumi_C = run_data.lumi_LAr_C();
     auto num_points = lumi_A.size();
     auto AC_ratio_sum = 0.0;
-    auto nLB_with_nonzero_A_and_C_lumi = 0;
+    auto n_LB_with_nonzero_A_and_C_lumi = 0;
     for (auto i = 0; i < num_points; ++i) {
       auto lumi_A_this_LB = lumi_A[i];
       auto lumi_C_this_LB = lumi_C[i];
@@ -284,11 +284,11 @@ VectorP<Float_t> GenerateACRatioVsBeamspotZPoints(
         continue;
       }
       AC_ratio_sum +=  lumi_A_this_LB / lumi_C_this_LB;
-      ++nLB_with_nonzero_A_and_C_lumi;
+      ++n_LB_with_nonzero_A_and_C_lumi;
     }
-    //cout << nLB_with_nonzero_A_and_C_lumi << endl;
-    if (nLB_with_nonzero_A_and_C_lumi == 0) continue;
-    auto avg_AC_ratio_percent_diff = (AC_ratio_sum / nLB_with_nonzero_A_and_C_lumi - 1)*100;
+    //cout << n_LB_with_nonzero_A_and_C_lumi << endl;
+    if (n_LB_with_nonzero_A_and_C_lumi == 0) continue;
+    auto avg_AC_ratio_percent_diff = (AC_ratio_sum / n_LB_with_nonzero_A_and_C_lumi - 1)*100;
     cout << run_data.avg_beamspot_z() << '\t' << avg_AC_ratio_percent_diff << endl;
     points.push_back({run_data.avg_beamspot_z()*x_scale, avg_AC_ratio_percent_diff*y_scale});
   }
@@ -580,8 +580,8 @@ Error::Expected<Void> Analysis::ReadParams()
   if (do_benedetto_) benedetto_output_dir_ = params_.get<string>("output_dirs.base") +
                           params_.get<string>("output_dirs.benedetto");
 
-  auto nBunches_file = JSONReader(NBUNCHES_FILEPATH);
-  nBunches_ = nBunches_file.get_map<int>("");
+  auto n_bunches_file = JSONReader(NBUNCHES_FILEPATH);
+  n_bunches_ = n_bunches_file.get_map<int>("");
 
   return Void();
 }

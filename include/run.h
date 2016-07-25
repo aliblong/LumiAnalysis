@@ -37,9 +37,9 @@ class Run {
   // I.e. run number
   auto run_name() const { return run_name_; }
   // Number of colliding bunches in the LHC
-  auto nBunches() const { return nBunches_; }
+  auto n_bunches() const { return n_bunches_; }
   // Number of luminosity blocks - arbitrary divisions of time typically equal to 1 min
-  auto nLB() const { return nLB_; }
+  auto n_LB() const { return n_LB_; }
   // First ready-for-physics (RFP) LB number
   auto LB_stability_offset() const { return LB_stability_offset_; }
   // Beamspot z position averaged over the entire run
@@ -66,7 +66,7 @@ class Run {
   Error::Expected<Void> ReadTree();
   // Determine which LB range to use based on user input first then RFP flag
   Error::Expected<std::array<Int_t,2>> GetLBBounds() const;
-  // Read in nBunches from an external file; this value is normally retrieved and stored during
+  // Read in n_bunches from an external file; this value is normally retrieved and stored during
   //   tree creation, but a bug results in the retrieved value being 0 in ~10% of runs
   void GetExternalNBunches();
 
@@ -74,8 +74,8 @@ class Run {
   // This allows access to analysis-wide parameters e.g. output directories.
   const Analysis* analysis_;
 
-  Int_t nLB_= 0;
-  Int_t nBunches_ = 0;
+  Int_t n_LB_= 0;
+  Int_t n_bunches_ = 0;
   Int_t timestamp_ = 0;
 
   Int_t LB_stability_offset_ = 0;
