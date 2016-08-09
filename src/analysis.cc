@@ -373,6 +373,15 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       for (const auto& channel: channel_calibrations_) {
         auto this_channel_name = channel.first;
         auto lumi_current_points = GenerateLumiVsCurrentPoints(runs_data, this_channel_name);
+        lumi_current_points.erase(
+            std::remove_if(
+                lumi_current_points.begin(),
+                lumi_current_points.end(),
+                [] (auto point) {
+                  return point[0] < gOflLumiCutoff || point[1] < gLArCurrentCutoff;
+                }
+                ),
+            lumi_current_points.end());
         plot_options.channel_name(std::move(this_channel_name));
         plot_options.title("Runs "+runs_data.begin()->first+" - "+runs_data.rbegin()->first+", Channel "+this_channel_name);
         auto this_channel_fit_results = Plotter::PlotLumiCurrent(lumi_current_points, plot_options);
@@ -556,12 +565,15 @@ Error::Expected<Void> Analysis::ReadParams()
     params_.get<string>("input_filepaths.channels_list");
   pedestals_dir_ = params_.get<string>("input_filepaths.pedestals");
   trees_dir_ = params_.get<string>("input_filepaths.trees");
+  currents_dir_ = params_.get<string>("input_filepaths.currents");
   run_list_dir_ = params_.get<string>("input_filepaths.run_list");
 
   auto plot_types_map = params_.get_map<bool>("plot_types");
   for (const auto &plot_type: plot_types_map) {
     if (plot_type.second == true) plot_types_.push_back(plot_type.first);
   }
+
+  reference_lumi_algo_ = params_.get<string>("reference_lumi_algo");
 
   use_beamspot_corr_ = params_.get<bool>("beamspot_correction.use");
   if (use_beamspot_corr_) beamspot_corr_params_ = params_.get_vector<Float_t>("beamspot_correction.params");

@@ -51,9 +51,12 @@ class Analysis {
   const auto& channels_list_filepath() const { return channels_list_filepath_; }
   const auto& pedestals_dir() const { return pedestals_dir_; }
   const auto& trees_dir() const { return trees_dir_; }
+  const auto& currents_dir() const { return currents_dir_; }
   const auto& run_list_dir() const { return run_list_dir_; }
 
   const auto& plot_types() const { return plot_types_; }
+
+  const auto& reference_lumi_algo() const { return reference_lumi_algo_; }
 
   auto use_beamspot_corr() const { return use_beamspot_corr_; }
   const auto& beamspot_corr_params() const { return beamspot_corr_params_; }
@@ -92,9 +95,12 @@ class Analysis {
   std::string channels_list_filepath_;
   std::string pedestals_dir_;
   std::string trees_dir_;
+  std::string currents_dir_;
   std::string run_list_dir_;
 
   std::vector<std::string> plot_types_;
+
+  std::string reference_lumi_algo_;
 
   bool use_beamspot_corr_;
   std::vector<Float_t> beamspot_corr_params_;

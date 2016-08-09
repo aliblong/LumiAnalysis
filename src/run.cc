@@ -272,6 +272,195 @@ Expected<Void> Run::ReadTree()
 
   if (analysis_->verbose()) cout << "Analysing sample " << run_name_ << endl;
 
+  string luminosity_file_path = analysis_->trees_dir()+run_name_+".root";
+  TFile *luminosity_file = TFile::Open(luminosity_file_path.c_str());
+  if (!luminosity_file) {
+    return make_unexpected(make_shared<Error::File>(luminosity_file_path, this_func_name));
+  }
+
+  string tree_name = "t_"+run_name_;
+  TTree *luminosity_tree = static_cast<TTree*>( luminosity_file->Get(tree_name.c_str()) );
+  if (!luminosity_tree) {
+    auto err_msg = "tree `"+tree_name+"` not found in file `"+luminosity_file_path+"`";
+    return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+  }
+
+  luminosity_tree->SetBranchAddress("start_of_run", &timestamp_);
+  luminosity_tree->SetBranchAddress("n_LB", &n_LB_);
+  luminosity_tree->SetBranchAddress("n_bunches", &n_bunches_);
+
+  // Allocate buffers big enough to hold the data (can't use dynamic memory
+  //   because of how TTrees work (I think))
+  Float_t currents_temp[gMaxNumChannels][gMaxNumLB];
+  Float_t lumi_ofl_temp[gMaxNumLB];
+  if (analysis_->retrieve_currents()) {
+    string current_file_path = analysis_->currents_dir()+run_name_+".root";
+    TFile *current_file = TFile::Open(current_file_path.c_str());
+    if (!current_file) {
+      return make_unexpected(make_shared<Error::File>(current_file_path, this_func_name));
+    }
+
+    string tree_name = "t_run_"+run_name_+"_currents";
+    TTree *current_tree = static_cast<TTree*>( current_file->Get(tree_name.c_str()) );
+    if (!current_tree) {
+      auto err_msg = "tree `"+tree_name+"` not found in file `"+current_file_path+"`";
+      return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+    }
+    for (auto i_LB = 0; i_LB < current_tree->GetEntries(); ++i_LB) {
+      unsigned iChannel = 0;
+      for (const auto &channel: analysis_->channel_calibrations()) {
+        auto branch_name = channel.first;
+        current_tree->SetBranchAddress((branch_name).c_str(), &currents_temp[iChannel][i_LB]);
+        ++iChannel;
+      }
+      current_tree->GetEntry(i_LB);
+    }
+    current_file->Close();
+  }
+  if (analysis_->retrieve_lumi_ofl()) {
+    luminosity_tree->SetBranchAddress(analysis_->reference_lumi_algo().c_str(), &lumi_ofl_temp);
+  }
+
+  // Ready for physics flag state for each LB
+  Int_t RFP_flag_arr[gMaxNumLB];
+  Float_t beamspot_z_arr[gMaxNumLB];
+  // Ramp, Stable, etc.
+  vector<string> *beam_mode = nullptr;
+  Float_t beamspot_z[gMaxNumLB];
+  luminosity_tree->SetBranchAddress("LB_quality", &RFP_flag_arr);
+  luminosity_tree->SetBranchAddress("beam_mode", &beam_mode);
+
+  if (analysis_->retrieve_beamspot()) {
+    luminosity_tree->SetBranchAddress("beamspot_z", &beamspot_z);
+    luminosity_tree->SetBranchAddress("beamspot_z_avg", &avg_beamspot_z_);
+    beamspot_z_ = CArrayToVec<Float_t>(beamspot_z_arr, n_LB_);
+  }
+
+  // Populate those variables which have been set to branches
+  luminosity_tree->GetEntry(0);
+  luminosity_file->Close();
+
+  GetExternalNBunches();
+
+  RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, n_LB_);
+
+  auto LB_bounds = GetLBBounds();
+  RETURN_IF_ERR( LB_bounds )
+  auto lower_LB_bound = LB_bounds->at(0);
+  auto upper_LB_bound = LB_bounds->at(1);
+  // LB indexing starts at 1 within ATLAS
+  LB_stability_offset_ = lower_LB_bound + 1;
+
+  if (analysis_->use_start_of_fill_pedestals()) {
+    assert(pedestals_.size() == 0);
+
+    auto start_of_adjust_LB = FindStartOfAdjustLB(beam_mode);
+
+    RETURN_IF_ERR( start_of_adjust_LB )
+
+    auto iChannel = 0;
+    // Avoid reallocations by reusing the same vector
+    // I could do this sans vector, but idc about the memory usage of a < 100-
+    //   element vector
+    vector<Float_t> pedestal_values;
+    pedestal_values.reserve(*start_of_adjust_LB);
+    for (const auto& channel: analysis_->channel_calibrations()) {
+      auto channel_name = channel.first;
+      for (Int_t i_LB = 0; i_LB < lower_LB_bound; ++i_LB) {
+        //if (channel_name == "M80C0") cout << lumi_ofl_temp[i_LB] << endl;
+        // We want LBs from the start of the fill before beam align
+        auto this_channel_LB_current = currents_temp[iChannel][i_LB];
+
+        // Sometimes we get current of exactly 0 at the start of beam inject or
+        // setup. ofl offline lumi should always be ~0 before beam adjust
+        if (lumi_ofl_temp[i_LB] < gOflLumiCutoff &&
+            this_channel_LB_current > gEpsilon) {
+          pedestal_values.push_back(this_channel_LB_current);
+        }
+      }
+      // Arbitrary restriction on how many good pedestal readings there must be
+      const auto min_pedestal_values = 3;
+      if (pedestal_values.size() < min_pedestal_values) {
+        auto err_msg = "insufficient currents (< " +
+                       std::to_string(min_pedestal_values) +
+                       ") in channel " + channel_name +
+                       " to form the avg pedestal calculation";
+        return make_unexpected(make_shared<Error::Runtime>(err_msg, this_func_name));
+      }
+
+      auto pedestal_sum = std::accumulate(pedestal_values.begin(),
+                                          pedestal_values.end(),
+                                          0.0);
+      auto pedestal_avg = pedestal_sum / pedestal_values.size();
+      pedestals_.insert({{channel_name, pedestal_avg}});
+
+      ++iChannel;
+      pedestal_values.clear();
+    }
+  }
+
+  if (analysis_->retrieve_currents()) {
+    assert(currents_.size() == 0);
+
+    auto iChannel = 0;
+    auto this_channel_currents = vector<Float_t>();
+    this_channel_currents.reserve(upper_LB_bound - lower_LB_bound + 1);
+    for (const auto& channel: pedestals_) {
+      auto this_channel_name = channel.first;
+      auto this_channel_pedestal = channel.second;
+      if (analysis_->use_baseline_subtraction_from_fit()) {
+        this_channel_pedestal -= channel_calibrations_.at(this_channel_name).intercept/channel_calibrations_.at(this_channel_name).slope;
+      }
+
+      for (int i_LB = lower_LB_bound; i_LB <= upper_LB_bound; ++i_LB) {
+        auto this_current = currents_temp[iChannel][i_LB] -
+                            this_channel_pedestal;
+        this_channel_currents.push_back(this_current);
+      }
+
+      currents_.insert({{std::move(this_channel_name),
+                         std::move(this_channel_currents)}});
+      ++iChannel;
+      this_channel_currents.clear();
+    }
+  }
+
+  if (analysis_->retrieve_lumi_ofl()) {
+    assert(lumi_ofl_.size() == 0);
+
+    // Mu-dependence correction evaluated by Vincent Hedberg and shown in this presentation by
+    // Benedetto Giacobbe:
+    // https://indico.cern.ch/event/435624/contributions/2209977/attachments/1293235/1927107/LTF_16062016.pdf
+    auto apply_LUCID_mu_corr = analysis_->params().get<bool>("apply_LUCID_mu_corr");
+    if (apply_LUCID_mu_corr) {
+      auto conversion_factor = analysis_->x_sec() / (n_bunches_ * analysis_->f_rev());
+      for (int i_LB = lower_LB_bound; i_LB <= upper_LB_bound; ++i_LB) {
+        auto lumi = lumi_ofl_temp[i_LB];
+        // have to convert to mu, apply the correction, then convert back to lumi
+        auto mu = lumi*conversion_factor;
+        auto mu_corr = -0.002*mu*mu + 1.008*mu; // this is the correction
+        auto lumi_corr = mu_corr/conversion_factor;
+        lumi_ofl_.push_back( lumi_corr );
+      }
+    }
+    else {
+      for (int i_LB = lower_LB_bound; i_LB <= upper_LB_bound; ++i_LB) {
+        lumi_ofl_.push_back( lumi_ofl_temp[i_LB] );
+      }
+    }
+  }
+
+  return Void();
+}
+
+// Reads relevant data in from the file {analysis_->trees_dir()}/{run_name_}.root
+//   and copies it to member variables.
+Expected<Void> Run::ReadTreeLegacy()
+{
+  auto this_func_name = "Run::ReadTree";
+
+  if (analysis_->verbose()) cout << "Analysing sample " << run_name_ << endl;
+
   string filepath = analysis_->trees_dir()+run_name_+".root";
   TFile *this_file = TFile::Open(filepath.c_str());
   if (!this_file) {

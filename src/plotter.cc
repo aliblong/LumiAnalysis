@@ -263,6 +263,7 @@ Expected<Void> PopulateTProfile(
         if (this_run_lumi_LAr_A[iEvent] < gLArLumiCutoff ||
             this_run_lumi_LAr_C[iEvent] < gLArLumiCutoff) continue;
       }
+      //cout << event_lumi_LAr << endl;
       if (event_lumi_LAr < gLArLumiCutoff) continue;
       Float_t this_event_diff = ((event_lumi_LAr/event_lumi_ofl) - 1)*100;
       //if (this_event_diff < gPercentDiffMin ||

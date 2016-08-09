@@ -64,6 +64,7 @@ class Run {
  private:
   Error::Expected<Void> ReadPedestals();
   Error::Expected<Void> ReadTree();
+  Error::Expected<Void> ReadTreeLegacy();
   // Determine which LB range to use based on user input first then RFP flag
   Error::Expected<std::array<Int_t,2>> GetLBBounds() const;
   // Read in n_bunches from an external file; this value is normally retrieved and stored during
