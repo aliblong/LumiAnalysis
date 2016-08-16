@@ -528,8 +528,11 @@ Expected<Void> Analysis::ReadChannels()
       if (verbose_) cout << "Skipping channel " << channel_name << endl;
       continue;
     }
-    channel_calibrations_.emplace_hint(end(channel_calibrations_),
-                          std::move(channel_name), ChannelCalibration{0.0, 0.0});
+    channel_calibrations_.emplace_hint(
+        end(channel_calibrations_),
+        channel_name,
+        ChannelCalibration{0.0, 0.0}
+    );
   }
   channels_list_file.close();
 
