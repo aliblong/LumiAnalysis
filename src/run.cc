@@ -212,7 +212,7 @@ float CalculateAvgBeamspotZ(const vector<float>& beamspot_z)
 
 }
 
-Run::Run(std::string run_name, const Analysis* analysis)
+Run::Run(std::string run_name, Analysis* analysis)
   : run_name_(std::move(run_name)),
     analysis_(analysis)
 {}
@@ -287,7 +287,7 @@ Expected<Void> Run::ReadTree()
 
   luminosity_tree->SetBranchAddress("start_of_run", &timestamp_);
   luminosity_tree->SetBranchAddress("n_LB", &n_LB_);
-  luminosity_tree->SetBranchAddress("n_bunches", &n_bunches_);
+  if (analysis_->retrieve_mu_LAr()) luminosity_tree->SetBranchAddress("n_bunches", &n_bunches_);
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work (I think))
@@ -340,7 +340,7 @@ Expected<Void> Run::ReadTree()
   luminosity_tree->GetEntry(0);
   luminosity_file->Close();
 
-  GetExternalNBunches();
+  if (analysis_->retrieve_mu_LAr() && !analysis_->n_bunches().empty()) GetExternalNBunches();
 
   RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, n_LB_);
 
@@ -708,6 +708,14 @@ void Run::GetExternalNBunches()
       cout << "Manually setting n_bunches for run " << run_name_ << endl;
     }
     n_bunches_ = res->second;
+  }
+  else {
+    if (!n_bunches_) {
+      if (analysis_->verbose()) {
+        cout << "n_bunches = 0 for run " << run_name_ << 
+          " and no value present in external file" << endl;
+      }
+    }
   }
 }
 

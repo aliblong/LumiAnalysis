@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "boost/container/flat_map.hpp"
+#include "boost/optional.hpp"
 
 #include "detector.h"
 #include "error.h"
@@ -65,6 +66,7 @@ class Analysis {
   auto retrieve_currents() const { return retrieve_currents_; }
   auto retrieve_lumi_ofl() const { return retrieve_lumi_ofl_; }
   auto retrieve_lumi_LAr() const { return retrieve_lumi_LAr_; }
+  auto retrieve_mu_LAr() const { return retrieve_mu_LAr_; }
   auto retrieve_beamspot() const { return retrieve_beamspot_; }
 
   auto use_start_of_fill_pedestals() const { return use_start_of_fill_pedestals_; }
@@ -75,7 +77,8 @@ class Analysis {
 
   const auto& channel_calibrations() const { return channel_calibrations_; }
   const auto& custom_LB_bounds() const { return custom_LB_bounds_; }
-  const auto& n_bunches() const { return n_bunches_; }
+
+  const boost::container::flat_map<std::string, int>& n_bunches();
 
  private:
   Detector::Name detector_ = Detector::Name::FCal;
@@ -109,6 +112,7 @@ class Analysis {
   bool retrieve_currents_ = false;
   bool retrieve_lumi_ofl_ = false;
   bool retrieve_lumi_LAr_ = false;
+  bool retrieve_mu_LAr_ = false;
   bool retrieve_beamspot_ = false;
 
   bool use_start_of_fill_pedestals_ = false;
@@ -119,7 +123,7 @@ class Analysis {
 
   boost::container::flat_map<std::string, ChannelCalibration> channel_calibrations_;
   boost::container::flat_map<std::string, std::vector<int>> custom_LB_bounds_;
-  boost::container::flat_map<std::string, int> n_bunches_;
+  boost::optional<boost::container::flat_map<std::string, int>> n_bunches_;
 };
 
 #endif

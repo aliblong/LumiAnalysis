@@ -14,7 +14,7 @@
 
 class Run {
  public:
-  Run(std::string run_name, const Analysis* analysis);
+  Run(std::string run_name, Analysis* analysis);
   ~Run() {}
 
   Error::Expected<Void> Init();
@@ -73,7 +73,7 @@ class Run {
 
   std::string run_name_;
   // This allows access to analysis-wide parameters e.g. output directories.
-  const Analysis* analysis_;
+  Analysis* analysis_;
 
   Int_t n_LB_= 0;
   Int_t n_bunches_ = 0;

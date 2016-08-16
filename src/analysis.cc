@@ -39,8 +39,6 @@ using Error::Expected;
 
 namespace {
 
-string NBUNCHES_FILEPATH = "params/n_bunches/all.json";
-
 Expected<Void> VerifyLBBounds(map<string, vector<int>> bounds)
 {
   auto this_func_name = "VerifyLBBounds";
@@ -435,6 +433,7 @@ Expected<Void> Analysis::PrepareAnalysis()
     else if (plot_type == "mu_lumi_dependence") {
       retrieve_lumi_ofl_ = true;
       retrieve_lumi_LAr_ = true;
+      retrieve_mu_LAr_ = true;
     }
     else if (plot_type == "beamspot_AC") {
       retrieve_lumi_LAr_ = true;
@@ -595,9 +594,6 @@ Error::Expected<Void> Analysis::ReadParams()
   if (do_benedetto_) benedetto_output_dir_ = params_.get<string>("output_dirs.base") +
                           params_.get<string>("output_dirs.benedetto");
 
-  auto n_bunches_file = JSONReader(NBUNCHES_FILEPATH);
-  n_bunches_ = n_bunches_file.get_map<int>("");
-
   return Void();
 }
 
@@ -617,6 +613,8 @@ Expected<Void> Analysis::RunAnalysis()
     TRY_CONTINUE( this_run.CreateSingleRunPlots() )
     if (retrieve_lumi_LAr_) {
       TRY_CONTINUE( this_run.CalcLArLumi() )
+    }
+    if (retrieve_mu_LAr_) {
       TRY_CONTINUE( this_run.CalcLArMu() )
     }
     if (do_benedetto_) {
@@ -630,4 +628,23 @@ Expected<Void> Analysis::RunAnalysis()
   CreateAllRunPlots(runs_data);
 
   return Void();
+}
+
+const boost::container::flat_map<std::string, int>& Analysis::n_bunches()
+{ 
+    if (!n_bunches_) {
+      auto n_bunches_file_path_node = "input_filepaths.n_bunches";
+      auto n_bunches_file_path = params_.get<std::string>(n_bunches_file_path_node, ""); //params/n_bunches/all.json
+      if (n_bunches_file_path.empty()) {
+        if (verbose_) {
+          cout << "Warning: no parameter set for " << n_bunches_file_path_node << endl; //TODO: make a macro for param warnings
+        }
+        n_bunches_ = boost::container::flat_map<std::string, int>();
+      }
+      else {
+        auto n_bunches_file = JSONReader(n_bunches_file_path);
+        n_bunches_ = n_bunches_file.get_map<int>("");
+      }
+    }
+    return *n_bunches_;
 }
