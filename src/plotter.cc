@@ -509,6 +509,7 @@ Expected<FitResults> Plotter::PlotLumiCurrent(
   auto write_dir = options.plots_dir()+options.run_name()+"/";
   TRY( Util::mkdir(write_dir) )
 
+  cout << write_dir << options.channel_name() << ".pdf" << endl;
   if (options.print_plots()) canvas.Print( (write_dir+options.channel_name()+".pdf").c_str() );
   return fit_results;
 }

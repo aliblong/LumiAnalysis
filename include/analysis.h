@@ -33,34 +33,47 @@ class Analysis {
       std::string primary_calibrations_filepath
   );
   Error::Expected<Void> ReadChannels();
-  Error::Expected<Void> ReadParams();
   Error::Expected<Void> RunAnalysis();
 
-  auto detector() const { return detector_; }
-  auto verbose() const { return verbose_; }
+  Detector::Name detector();
+  bool verbose();
 
-  auto f_rev() const { return f_rev_; }
-  auto x_sec() const { return x_sec_; }
-  auto ref_run_number() const { return ref_run_number_; }
-  auto corr_A() const { return corr_A_; }
-  auto corr_C() const { return corr_C_; }
-  auto corr_Avg() const { return corr_Avg_; }
+  double f_rev();
+  double x_sec();
+
+  int ref_run_number();
+  double corr_A();
+  double corr_C();
+  double corr_Avg();
+
+  std::string primary_calibrations_filepath();
+  std::string calibrations_dir();
+  std::string channels_list_filepath();
+  std::string pedestals_dir();
+  std::string trees_dir();
+  std::string currents_dir();
+  std::string run_list_dir();
+
+  std::vector<std::string> plot_types();
+
+  std::string reference_lumi_algo();
+
+  bool apply_LUCID_mu_corr();
+
+  bool use_beamspot_corr();
+  std::vector<Float_t> beamspot_corr_params();
+
+  bool use_start_of_fill_pedestals();
+  bool use_baseline_subtraction_from_fit();
+  bool do_benedetto();
+  std::string benedetto_output_dir();
+
+  const auto& channel_calibrations() const { return channel_calibrations_; }
+
+  const boost::container::flat_map<std::string, int>& n_bunches();
+  const boost::container::flat_map<std::string, std::vector<int>>& custom_LB_bounds();
 
   const auto& params() const { return params_; }
-  const auto& primary_calibrations_filepath() const { return primary_calibrations_filepath_; }
-  const auto& calibrations_dir() const { return calibrations_dir_; }
-  const auto& channels_list_filepath() const { return channels_list_filepath_; }
-  const auto& pedestals_dir() const { return pedestals_dir_; }
-  const auto& trees_dir() const { return trees_dir_; }
-  const auto& currents_dir() const { return currents_dir_; }
-  const auto& run_list_dir() const { return run_list_dir_; }
-
-  const auto& plot_types() const { return plot_types_; }
-
-  const auto& reference_lumi_algo() const { return reference_lumi_algo_; }
-
-  auto use_beamspot_corr() const { return use_beamspot_corr_; }
-  const auto& beamspot_corr_params() const { return beamspot_corr_params_; }
 
   auto retrieve_timestamps() const { return retrieve_timestamps_; }
   auto retrieve_currents() const { return retrieve_currents_; }
@@ -69,44 +82,36 @@ class Analysis {
   auto retrieve_mu_LAr() const { return retrieve_mu_LAr_; }
   auto retrieve_beamspot() const { return retrieve_beamspot_; }
 
-  auto use_start_of_fill_pedestals() const { return use_start_of_fill_pedestals_; }
-  auto use_baseline_subtraction_from_fit() const { return use_baseline_subtraction_from_fit_; }
-
-  auto do_benedetto() const { return do_benedetto_; }
-  const auto& benedetto_output_dir() const { return benedetto_output_dir_; }
-
-  const auto& channel_calibrations() const { return channel_calibrations_; }
-  const auto& custom_LB_bounds() const { return custom_LB_bounds_; }
-
-  const boost::container::flat_map<std::string, int>& n_bunches();
-
  private:
-  Detector::Name detector_ = Detector::Name::FCal;
   JSONReader params_;
-  bool verbose_ = false;
 
-  double f_rev_ = 0.0;
-  double x_sec_ = 0.0;
+  boost::optional<Detector::Name> detector_;
+  boost::optional<bool> verbose_;
 
-  int ref_run_number_ = 0;
-  double corr_A_ = 0.0;
-  double corr_C_ = 0.0;
-  double corr_Avg_ = 0.0;
+  boost::optional<double> f_rev_;
+  boost::optional<double> x_sec_;
 
-  std::string primary_calibrations_filepath_;
-  std::string calibrations_dir_;
-  std::string channels_list_filepath_;
-  std::string pedestals_dir_;
-  std::string trees_dir_;
-  std::string currents_dir_;
-  std::string run_list_dir_;
+  boost::optional<int> ref_run_number_;
+  boost::optional<double> corr_A_;
+  boost::optional<double> corr_C_;
+  boost::optional<double> corr_Avg_;
 
-  std::vector<std::string> plot_types_;
+  boost::optional<std::string> primary_calibrations_filepath_;
+  boost::optional<std::string> calibrations_dir_;
+  boost::optional<std::string> channels_list_filepath_;
+  boost::optional<std::string> pedestals_dir_;
+  boost::optional<std::string> trees_dir_;
+  boost::optional<std::string> currents_dir_;
+  boost::optional<std::string> run_list_dir_;
 
-  std::string reference_lumi_algo_;
+  boost::optional<std::vector<std::string>> plot_types_;
 
-  bool use_beamspot_corr_;
-  std::vector<Float_t> beamspot_corr_params_;
+  boost::optional<std::string> reference_lumi_algo_;
+
+  boost::optional<bool> apply_LUCID_mu_corr_;
+
+  boost::optional<bool> use_beamspot_corr_;
+  boost::optional<std::vector<Float_t>> beamspot_corr_params_;
 
   bool retrieve_timestamps_ = false;
   bool retrieve_currents_ = false;
@@ -115,14 +120,14 @@ class Analysis {
   bool retrieve_mu_LAr_ = false;
   bool retrieve_beamspot_ = false;
 
-  bool use_start_of_fill_pedestals_ = false;
-  bool use_baseline_subtraction_from_fit_ = false;
+  boost::optional<bool> use_start_of_fill_pedestals_;
+  boost::optional<bool> use_baseline_subtraction_from_fit_;
 
-  bool do_benedetto_ = false;
-  std::string benedetto_output_dir_;
+  boost::optional<bool> do_benedetto_;
+  boost::optional<std::string> benedetto_output_dir_;
 
   boost::container::flat_map<std::string, ChannelCalibration> channel_calibrations_;
-  boost::container::flat_map<std::string, std::vector<int>> custom_LB_bounds_;
+  boost::optional<boost::container::flat_map<std::string, std::vector<int>>> custom_LB_bounds_;
   boost::optional<boost::container::flat_map<std::string, int>> n_bunches_;
 };
 

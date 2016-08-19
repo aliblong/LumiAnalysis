@@ -10,7 +10,7 @@
 class AxisOptions {
   friend class ScatterPlotOptions;
  public:
-  AxisOptions(const JSONReader& params, const std::string& node);
+  AxisOptions(const JSONReader& params, const std::string& node, bool verbose);
   auto scale() const { return scale_; }
   auto rel_error() const { return rel_error_; }
   auto auto_range() const { return auto_range_; }
@@ -29,7 +29,7 @@ class AxisOptions {
 
 class ScatterPlotOptions {
  public:
-  ScatterPlotOptions(const JSONReader& params, const std::string& node);
+  ScatterPlotOptions(const JSONReader& params, const std::string& node, bool verbose);
   virtual ~ScatterPlotOptions() {};
 
   const auto& output_dir() const { return output_dir_; }

@@ -287,7 +287,9 @@ Expected<Void> Run::ReadTree()
 
   luminosity_tree->SetBranchAddress("start_of_run", &timestamp_);
   luminosity_tree->SetBranchAddress("n_LB", &n_LB_);
-  if (analysis_->retrieve_mu_LAr()) luminosity_tree->SetBranchAddress("n_bunches", &n_bunches_);
+
+  Int_t n_bunches_tmp;
+  luminosity_tree->SetBranchAddress("n_bunches", &n_bunches_tmp);
 
   // Allocate buffers big enough to hold the data (can't use dynamic memory
   //   because of how TTrees work (I think))
@@ -340,7 +342,9 @@ Expected<Void> Run::ReadTree()
   luminosity_tree->GetEntry(0);
   luminosity_file->Close();
 
-  if (analysis_->retrieve_mu_LAr() && !analysis_->n_bunches().empty()) GetExternalNBunches();
+  n_bunches_ = n_bunches_tmp;
+
+  if (analysis_->retrieve_mu_LAr() && !analysis_->n_bunches().empty()) GetExternalNBunches(); // TODO rename analysis.n_bunches to n_bunches_map
 
   RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, n_LB_);
 
@@ -431,9 +435,8 @@ Expected<Void> Run::ReadTree()
     // Mu-dependence correction evaluated by Vincent Hedberg and shown in this presentation by
     // Benedetto Giacobbe:
     // https://indico.cern.ch/event/435624/contributions/2209977/attachments/1293235/1927107/LTF_16062016.pdf
-    auto apply_LUCID_mu_corr = analysis_->params().get<bool>("apply_LUCID_mu_corr");
-    if (apply_LUCID_mu_corr) {
-      auto conversion_factor = analysis_->x_sec() / (n_bunches_ * analysis_->f_rev());
+    if (analysis_->apply_LUCID_mu_corr()) {
+      auto conversion_factor = analysis_->x_sec() / (n_bunches() * analysis_->f_rev());
       for (int i_LB = lower_LB_bound; i_LB <= upper_LB_bound; ++i_LB) {
         auto lumi = lumi_ofl_temp[i_LB];
         // have to convert to mu, apply the correction, then convert back to lumi
@@ -865,7 +868,7 @@ Expected<Void> Run::CreateLumiCurrentPlots() const
   auto this_func_name = "Run::CreateLumiCurrentPlots";
   if (analysis_->verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
 
-  LumiCurrentPlotOptions plot_options(analysis_->params(), "plot_options.lumi_current.");
+  LumiCurrentPlotOptions plot_options(analysis_->params(), "plot_options.lumi_current.", analysis_->verbose());
   plot_options.run_name(string(run_name_));
   map<string, FitResults> fit_results;
 

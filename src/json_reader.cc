@@ -16,6 +16,7 @@ JSONReader::JSONReader(const string& filename) {
   boost::property_tree::json_parser::read_json(filename, pt);
 }
 
+/*
 template<>
 bool JSONReader::get<bool>(const string& key) const {
   string val = pt.get<string>(key);
@@ -32,3 +33,4 @@ bool JSONReader::get<bool>(const string& key) const {
     return false;
   }
 }
+*/

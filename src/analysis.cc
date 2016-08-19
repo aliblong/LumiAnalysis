@@ -205,7 +205,6 @@ VectorP<Float_t> GenerateAvgMuRatioVsLumiPoints(
     auto avg_lumi_ofl_this_run = lumi_ofl_sum_this_run / n_LB_with_nonzero_lumi;
     auto avg_lumi_ratio_this_run = lumi_ratio_sum_this_run / n_LB_with_nonzero_lumi;
     points.push_back({avg_lumi_ofl_this_run*x_scale, avg_lumi_ratio_this_run*y_scale});
-    cout << avg_lumi_ofl_this_run*x_scale << '\t' << (avg_lumi_ratio_this_run/100 + 1) << endl;
   }
   return points;
 }
@@ -325,18 +324,18 @@ Analysis::Analysis(string&& params_filepath) :
 
 void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
 {
-  for (const auto &plot_type: plot_types_) {
+  for (const auto &plot_type: plot_types()) {
     if (plot_type == "mu_stability") {
-      if (verbose_) cout << "Making mu stability plot" << endl;
+      if (verbose()) cout << "Making mu stability plot" << endl;
       auto node = "plot_options.mu_stability.";
-      MuStabPlotOptions plot_options(params_, node);
+      MuStabPlotOptions plot_options(params_, node, verbose());
       LOG_IF_ERR( Plotter::PlotMuStability(runs_data, plot_options) );
     }
     else if (plot_type == "mu_lumi_dependence") {
-      if (verbose_) cout << "Making mu and lumi dependence plots" << endl;
+      if (verbose()) cout << "Making mu and lumi dependence plots" << endl;
       {
         auto node = "plot_options.mu_dependence.";
-        MuLumiDepPlotOptions plot_options(params_, node);
+        MuLumiDepPlotOptions plot_options(params_, node, verbose());
         auto points = GenerateMuRatioVsMuPoints(
             runs_data,
             plot_options.x().scale(),
@@ -345,7 +344,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       }
       {
         auto node = "plot_options.lumi_dependence.";
-        MuLumiDepPlotOptions plot_options(params_, node);
+        MuLumiDepPlotOptions plot_options(params_, node, verbose());
         auto points = GenerateMuRatioVsLumiPoints(
             runs_data,
             plot_options.x().scale(),
@@ -354,7 +353,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       }
       {
         auto node = "plot_options.avg_lumi_dependence.";
-        MuLumiDepPlotOptions plot_options(params_, node);
+        MuLumiDepPlotOptions plot_options(params_, node, verbose());
         auto points = GenerateAvgMuRatioVsLumiPoints(
             runs_data,
             plot_options.x().scale(),
@@ -363,12 +362,12 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       }
     }
     else if (plot_type == "lumi_current_multirun") {
-      if (verbose_) cout << "Making current vs. luminosity plot for multiple runs" << endl;
+      if (verbose()) cout << "Making current vs. luminosity plot for multiple runs" << endl;
       auto node = "plot_options.lumi_current.";
-      LumiCurrentPlotOptions plot_options(params_, node);
+      LumiCurrentPlotOptions plot_options(params_, node, verbose());
       plot_options.run_name("multirun");
       map<string, FitResults> fit_results;
-      for (const auto& channel: channel_calibrations_) {
+      for (const auto& channel: channel_calibrations()) {
         auto this_channel_name = channel.first;
         auto lumi_current_points = GenerateLumiVsCurrentPoints(runs_data, this_channel_name);
         lumi_current_points.erase(
@@ -393,9 +392,9 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       LOG_IF_ERR( Plotter::WriteCalibrationToText(fit_results, plot_options) )
     }
     else if (plot_type == "beamspot_AC") {
-      if (verbose_) cout << "Making beamspot Z-position vs. A/C ratio plot" << endl;
+      if (verbose()) cout << "Making beamspot Z-position vs. A/C ratio plot" << endl;
       auto node = "plot_options.beamspot_AC.";
-      MuLumiDepPlotOptions plot_options(params_, node);
+      MuLumiDepPlotOptions plot_options(params_, node, verbose());
       auto points = GenerateACRatioVsBeamspotZPoints(
           runs_data,
           plot_options.x().scale(),
@@ -403,9 +402,9 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
     }
     else if (plot_type == "beamspot_LAr-ofl") {
-      if (verbose_) cout << "Making beamspot Z-position vs. LAr/ofl ratio plot" << endl;
+      if (verbose()) cout << "Making beamspot Z-position vs. LAr/ofl ratio plot" << endl;
       auto node = "plot_options.beamspot_LAr-ofl.";
-      MuLumiDepPlotOptions plot_options(params_, node);
+      MuLumiDepPlotOptions plot_options(params_, node, verbose());
       auto points = GenerateAvgMuRatioVsBeamspotZPoints(
           runs_data,
           plot_options.x().scale(),
@@ -419,8 +418,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
 // Sets flags for which data to retrieve based on which plots to produce.
 Expected<Void> Analysis::PrepareAnalysis()
 {
-  TRY( ReadParams() )
-  for (const auto &plot_type: plot_types_) {
+  for (const auto &plot_type: plot_types()) {
     if (plot_type == "lumi_current" || plot_type == "lumi_current_multirun") {
       retrieve_currents_ = true;
       retrieve_lumi_ofl_ = true;
@@ -446,8 +444,8 @@ Expected<Void> Analysis::PrepareAnalysis()
     }
   }
 
-  if (use_beamspot_corr_) retrieve_beamspot_ = true;
-  if (do_benedetto_) {
+  if (use_beamspot_corr()) retrieve_beamspot_ = true;
+  if (do_benedetto()) {
     retrieve_lumi_LAr_ = true;
     //TODO: remove this
     retrieve_lumi_ofl_ = true;
@@ -459,8 +457,8 @@ Expected<Void> Analysis::PrepareAnalysis()
   TRY( ReadChannels() )
 
   if (retrieve_lumi_LAr_) {
-    TRY( ReadCalibrations(&channel_calibrations_, primary_calibrations_filepath_) )
-    if (use_baseline_subtraction_from_fit_) {
+    TRY( ReadCalibrations(&channel_calibrations_, primary_calibrations_filepath()) )
+    if (use_baseline_subtraction_from_fit()) {
       for (auto& channel: channel_calibrations_) {
         channel.second.intercept = 0.0;
       }
@@ -516,15 +514,15 @@ Expected<Void> Analysis::ReadChannels()
 {
   auto this_func_name = "Analysis::ReadChannels";
 
-  std::ifstream channels_list_file(channels_list_filepath_);
+  std::ifstream channels_list_file(channels_list_filepath());
   if (!channels_list_file) {
-    return make_unexpected(make_shared<Error::File>(channels_list_filepath_, this_func_name));
+    return make_unexpected(make_shared<Error::File>(channels_list_filepath(), this_func_name));
   }
 
   string channel_name;
   while ( getline(channels_list_file, channel_name) ) {
     if (channel_name[0] == '#') {
-      if (verbose_) cout << "Skipping channel " << channel_name << endl;
+      if (verbose()) cout << "Skipping channel " << channel_name << endl;
       continue;
     }
     channel_calibrations_.emplace_hint(
@@ -538,69 +536,10 @@ Expected<Void> Analysis::ReadChannels()
   return Void();
 }
 
-// Reads in parameters from json file and assigns their values to member
-//   variables
-Error::Expected<Void> Analysis::ReadParams()
-{
-  auto detector = Detector::FromString(params_.get<string>("detector"));
-  RETURN_IF_ERR( detector )
-  detector_ = *detector;
-
-  verbose_ = params_.get<bool>("verbose");
-
-  // Used to calculate LAr luminosity
-  //   Bunch crossing frequency
-  f_rev_ = params_.get<double>("lumi_calculation.f_rev");
-  //   Cross-section for pp interaction @ 7 TeV
-  x_sec_ = params_.get<double>("lumi_calculation.x_sec");
-
-  // Value of 0 for reference run means set no corrections
-  ref_run_number_ = params_.get<int>("ref_run_number");
-  string ref_run_str = std::to_string(ref_run_number_);
-  corr_A_ = params_.get<double>("corrections."+ref_run_str+".A");
-  corr_C_ = params_.get<double>("corrections."+ref_run_str+".C");
-  corr_Avg_ = params_.get<double>("corrections."+ref_run_str+".Avg");
-
-  primary_calibrations_filepath_ = params_.get<string>("input_filepaths.primary_calibrations");
-  calibrations_dir_ = params_.get<string>("input_filepaths.calibrations_dir");
-  channels_list_filepath_ =
-    params_.get<string>("input_filepaths.channels_list");
-  pedestals_dir_ = params_.get<string>("input_filepaths.pedestals");
-  trees_dir_ = params_.get<string>("input_filepaths.trees");
-  currents_dir_ = params_.get<string>("input_filepaths.currents");
-  run_list_dir_ = params_.get<string>("input_filepaths.run_list");
-
-  auto plot_types_map = params_.get_map<bool>("plot_types");
-  for (const auto &plot_type: plot_types_map) {
-    if (plot_type.second == true) plot_types_.push_back(plot_type.first);
-  }
-
-  reference_lumi_algo_ = params_.get<string>("reference_lumi_algo");
-
-  use_beamspot_corr_ = params_.get<bool>("beamspot_correction.use");
-  if (use_beamspot_corr_) beamspot_corr_params_ = params_.get_vector<Float_t>("beamspot_correction.params");
-
-  use_start_of_fill_pedestals_ = params_.get<bool>("use_start_of_fill_pedestals");
-  use_baseline_subtraction_from_fit_ = params_.get<bool>("use_baseline_subtraction_from_fit");
-
-  JSONReader LB_bounds_file(params_.get<string>("input_filepaths.custom_LB_bounds"));
-  auto custom_LB_bounds = LB_bounds_file.get_map_of_vectors<int>("");
-
-  TRY( VerifyLBBounds(custom_LB_bounds) )
-  custom_LB_bounds_ = custom_LB_bounds;
-
-  // Text output file for Benedetto
-  do_benedetto_ = params_.get<bool>("do_benedetto");
-  if (do_benedetto_) benedetto_output_dir_ = params_.get<string>("output_dirs.base") +
-                          params_.get<string>("output_dirs.benedetto");
-
-  return Void();
-}
-
 // Control flow for the analysis of samples and creation of plots
 Expected<Void> Analysis::RunAnalysis()
 {
-  auto run_names_vec = VectorFromFile(run_list_dir_);
+  auto run_names_vec = VectorFromFile(run_list_dir());
   RETURN_IF_ERR( run_names_vec )
 
   // Iterate over samples
@@ -617,7 +556,7 @@ Expected<Void> Analysis::RunAnalysis()
     if (retrieve_mu_LAr_) {
       TRY_CONTINUE( this_run.CalcLArMu() )
     }
-    if (do_benedetto_) {
+    if (do_benedetto()) {
       TRY_CONTINUE( this_run.CreateBenedettoOutput() )
     }
 
@@ -630,21 +569,155 @@ Expected<Void> Analysis::RunAnalysis()
   return Void();
 }
 
-const boost::container::flat_map<std::string, int>& Analysis::n_bunches()
+const map<string, int>& Analysis::n_bunches()
 { 
     if (!n_bunches_) {
       auto n_bunches_file_path_node = "input_filepaths.n_bunches";
-      auto n_bunches_file_path = params_.get<std::string>(n_bunches_file_path_node, ""); //params/n_bunches/all.json
+      auto n_bunches_file_path = params_.get<string>(n_bunches_file_path_node, "", true);
       if (n_bunches_file_path.empty()) {
-        if (verbose_) {
-          cout << "Warning: no parameter set for " << n_bunches_file_path_node << endl; //TODO: make a macro for param warnings
-        }
-        n_bunches_ = boost::container::flat_map<std::string, int>();
+        n_bunches_ = map<string, int>();
       }
       else {
         auto n_bunches_file = JSONReader(n_bunches_file_path);
-        n_bunches_ = n_bunches_file.get_map<int>("");
+        n_bunches_ = n_bunches_file.get_map<int>("", map<string, int>(), true);
       }
     }
     return *n_bunches_;
+}
+
+const map<string, vector<int>>& Analysis::custom_LB_bounds()
+{ 
+    if (!custom_LB_bounds_) {
+      auto custom_LB_bounds_file_path_node = "input_filepaths.custom_LB_bounds";
+      auto custom_LB_bounds_file_path = params_.get<string>(custom_LB_bounds_file_path_node, "", true);
+      if (custom_LB_bounds_file_path.empty()) {
+        custom_LB_bounds_ = map<string, vector<int>>();
+      }
+      else {
+        auto custom_LB_bounds_file = JSONReader(custom_LB_bounds_file_path);
+        custom_LB_bounds_ = custom_LB_bounds_file.get_map_of_vectors<int>("", map<string, vector<int>>(), true);
+        auto verified = VerifyLBBounds(*custom_LB_bounds_);
+        if (!verified.valid()) {
+          cout << "Error: one or more LB bounds settings are illegal" << endl;
+          custom_LB_bounds_ = map<string, vector<int>>();
+        }
+      }
+    }
+    return *custom_LB_bounds_;
+}
+
+Detector::Name Analysis::detector() {
+  if (!detector_) {
+    auto detector_node = "detector";
+    auto detector_str = params_.get<string>(detector_node, "FCal", verbose());
+    auto detector_name = Detector::FromString(std::move(detector_str));
+    if (!detector_name.valid()) {
+      cout << "Invalid detector name from param tree. Defaulting to FCal." << endl;
+      detector_ = Detector::Name::FCal;
+    }
+    else {
+      detector_ = *detector_name;
+    }
+  }
+  return *detector_;
+}
+
+#define LAZY_LOAD_AND_RETURN(member, type, node_name, default_val) \
+  if (!member) { \
+    member = params_.get<type>(node_name, default_val, verbose()); \
+  } \
+  return *member;
+
+bool Analysis::verbose() {
+  if (!verbose_) {
+    verbose_ = params_.get<bool>("verbose", true, true); 
+    // Have to pass in true for verbosity argument to avoid infinite recursion
+  }
+  return *verbose_;
+}
+
+double Analysis::f_rev() {
+  LAZY_LOAD_AND_RETURN(f_rev_, double, "lumi_calculation.f_rev", 11245.5)
+}
+double Analysis::x_sec() {
+  LAZY_LOAD_AND_RETURN(x_sec_, double, "lumi_calculation.x_sec", 80000.0)
+}
+
+int Analysis::ref_run_number() {
+  LAZY_LOAD_AND_RETURN(ref_run_number_, int, "ref_run_number", 0)
+}
+double Analysis::corr_A() {
+  LAZY_LOAD_AND_RETURN(corr_A_, double, "corrections."+std::to_string(ref_run_number())+".A", 1.0)
+}
+double Analysis::corr_C() {
+  LAZY_LOAD_AND_RETURN(corr_C_, double, "corrections."+std::to_string(ref_run_number())+".C", 1.0)
+}
+double Analysis::corr_Avg() {
+  LAZY_LOAD_AND_RETURN(corr_Avg_, double, "corrections."+std::to_string(ref_run_number())+".Avg", 1.0)
+}
+
+string INPUT_FILEPATHS_NODE = "input_filepaths.";
+
+string Analysis::primary_calibrations_filepath() {
+  LAZY_LOAD_AND_RETURN(primary_calibrations_filepath_, string, INPUT_FILEPATHS_NODE+"primary_calibrations", "params/calibrations/FCal/")
+}
+string Analysis::calibrations_dir() {
+  LAZY_LOAD_AND_RETURN(calibrations_dir_, string, INPUT_FILEPATHS_NODE+"calibrations_dir", "params/what_is_this_even")
+}
+string Analysis::channels_list_filepath() {
+  LAZY_LOAD_AND_RETURN(channels_list_filepath_, string, INPUT_FILEPATHS_NODE+"channels_list", "params/channels_list/FCal/all.dat")
+}
+string Analysis::pedestals_dir() {
+  LAZY_LOAD_AND_RETURN(pedestals_dir_, string, INPUT_FILEPATHS_NODE+"pedestals", "params/pedestals/FCal")
+}
+string Analysis::trees_dir() {
+  LAZY_LOAD_AND_RETURN(trees_dir_, string, INPUT_FILEPATHS_NODE+"trees", "params/trees/FCal/newstyle")
+}
+string Analysis::currents_dir() {
+  LAZY_LOAD_AND_RETURN(currents_dir_, string, INPUT_FILEPATHS_NODE+"currents", "params/currents/FCal")
+}
+string Analysis::run_list_dir() {
+  LAZY_LOAD_AND_RETURN(run_list_dir_, string, INPUT_FILEPATHS_NODE+"run_list", "params/run_lists/2016.dat")
+}
+
+vector<string> Analysis::plot_types() {
+  if (!plot_types_) {
+    plot_types_ = vector<string>();
+    auto plot_types_map = params_.get_map<bool>("plot_types", {}, verbose());
+    for (const auto &plot_type: plot_types_map) {
+      if (plot_type.second == true) plot_types_->push_back(plot_type.first);
+    }
+  }
+  return *plot_types_;
+}
+
+string Analysis::reference_lumi_algo() {
+  LAZY_LOAD_AND_RETURN(reference_lumi_algo_, string, "reference_lumi_algo", "ofl_pref")
+}
+
+bool Analysis::apply_LUCID_mu_corr() {
+  LAZY_LOAD_AND_RETURN(apply_LUCID_mu_corr_, bool, "apply_LUCID_mu_corr", false)
+}
+
+bool Analysis::use_beamspot_corr() {
+  LAZY_LOAD_AND_RETURN(use_beamspot_corr_, bool, "beamspot_correction.use", false)
+}
+vector<Float_t> Analysis::beamspot_corr_params() {
+  if (!beamspot_corr_params_) {
+    beamspot_corr_params_ = params_.get_vector<Float_t>("beamspot_correction.params", vector<Float_t>{0, 1}, verbose());
+  }
+  return *beamspot_corr_params_;
+}
+
+bool Analysis::use_start_of_fill_pedestals() {
+  LAZY_LOAD_AND_RETURN(use_start_of_fill_pedestals_, bool, "use_start_of_fill_pedestals", false)
+}
+bool Analysis::use_baseline_subtraction_from_fit() {
+  LAZY_LOAD_AND_RETURN(use_baseline_subtraction_from_fit_, bool, "use_baseline_subtraction_from_fit", false)
+}
+bool Analysis::do_benedetto() {
+  LAZY_LOAD_AND_RETURN(do_benedetto_, bool, "do_benedetto", false)
+}
+string Analysis::benedetto_output_dir() {
+  LAZY_LOAD_AND_RETURN(benedetto_output_dir_, string, "benedetto_output_dir", "output/benedetto/default")
 }
