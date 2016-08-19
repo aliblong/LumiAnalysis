@@ -42,9 +42,9 @@ class Analysis {
   double x_sec();
 
   int ref_run_number();
-  double corr_A();
-  double corr_C();
-  double corr_Avg();
+  double anchoring_factor_A();
+  double anchoring_factor_C();
+  double anchoring_factor_Avg();
 
   std::string primary_calibrations_filepath();
   std::string calibrations_dir();
@@ -92,9 +92,9 @@ class Analysis {
   boost::optional<double> x_sec_;
 
   boost::optional<int> ref_run_number_;
-  boost::optional<double> corr_A_;
-  boost::optional<double> corr_C_;
-  boost::optional<double> corr_Avg_;
+  boost::optional<double> anchoring_factor_A_;
+  boost::optional<double> anchoring_factor_C_;
+  boost::optional<double> anchoring_factor_Avg_;
 
   boost::optional<std::string> primary_calibrations_filepath_;
   boost::optional<std::string> calibrations_dir_;

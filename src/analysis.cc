@@ -646,14 +646,14 @@ double Analysis::x_sec() {
 int Analysis::ref_run_number() {
   LAZY_LOAD_AND_RETURN(ref_run_number_, int, "ref_run_number", 0)
 }
-double Analysis::corr_A() {
-  LAZY_LOAD_AND_RETURN(corr_A_, double, "corrections."+std::to_string(ref_run_number())+".A", 1.0)
+double Analysis::anchoring_factor_A() {
+  LAZY_LOAD_AND_RETURN(anchoring_factor_A_, double, "anchoring_factors."+std::to_string(ref_run_number())+".A", 1.0)
 }
-double Analysis::corr_C() {
-  LAZY_LOAD_AND_RETURN(corr_C_, double, "corrections."+std::to_string(ref_run_number())+".C", 1.0)
+double Analysis::anchoring_factor_C() {
+  LAZY_LOAD_AND_RETURN(anchoring_factor_C_, double, "anchoring_factors."+std::to_string(ref_run_number())+".C", 1.0)
 }
-double Analysis::corr_Avg() {
-  LAZY_LOAD_AND_RETURN(corr_Avg_, double, "corrections."+std::to_string(ref_run_number())+".Avg", 1.0)
+double Analysis::anchoring_factor_Avg() {
+  LAZY_LOAD_AND_RETURN(anchoring_factor_Avg_, double, "anchoring_factors."+std::to_string(ref_run_number())+".Avg", 1.0)
 }
 
 string INPUT_FILEPATHS_NODE = "input_filepaths.";

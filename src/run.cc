@@ -800,7 +800,7 @@ Expected<Void> Run::CalcLArLumi()
       lumi_LAr_A_.push_back(0.0);
     }
     else {
-      auto lumi_LAr_A_this_LB = analysis_->corr_A()*beamspot_corr_A*lumi_A_temp / num_channels_A;
+      auto lumi_LAr_A_this_LB = analysis_->anchoring_factor_A()*beamspot_corr_A*lumi_A_temp / num_channels_A;
       if (apply_FCal_lumi_dep_corr) {
         FCal_lumi_dep_corr = 0.99552064 + 0.12015841*std::exp(-1.04597906*lumi_LAr_A_this_LB/1000);
       }
@@ -810,7 +810,7 @@ Expected<Void> Run::CalcLArLumi()
       lumi_LAr_C_.push_back(0.0);
     }
     else {
-      auto lumi_LAr_C_this_LB = analysis_->corr_C()*beamspot_corr_C*lumi_C_temp / num_channels_C;
+      auto lumi_LAr_C_this_LB = analysis_->anchoring_factor_C()*beamspot_corr_C*lumi_C_temp / num_channels_C;
       if (apply_FCal_lumi_dep_corr) {
         FCal_lumi_dep_corr = 0.99552064 + 0.12015841*std::exp(-1.04597906*lumi_LAr_C_this_LB/1000);
       }
