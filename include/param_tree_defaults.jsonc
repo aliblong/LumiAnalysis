@@ -1,0 +1,263 @@
+STRINGIFY((
+{
+  //comment
+  "detector": "FCal",
+  "verbose": true,
+  "reference_lumi_algo": "ofl_lumi_pref",
+  "do_benedetto": false,
+  "benedetto_output_dir": "output/benedetto/2016/FCal/",
+  "apply_LUCID_mu_corr": false,
+  "apply_FCal_lumi_dep_corr": false,
+  "use_start_of_fill_pedestals": false,
+  "use_baseline_subtraction_from_fit": false,
+  "beamspot_correction": {
+    "use": false,
+    "params": [
+      0.08,
+      -0.095
+    ]
+  },
+  "input_filepaths": {
+    "primary_calibrations": "params/calibrations/FCal/multirun_2016.dat",
+    "calibrations_dir": "deprecated_feature/",
+    "channels_list": "params/channels_list/FCal/all.dat",
+    "pedestals": "params/pedestals/FCal/",
+    "trees": "params/trees/run2/",
+    "currents": "params/currents/FCal/",
+    "run_list": "params/run_lists/2016.dat",
+    "custom_LB_bounds": "params/custom_LB_bounds/2016.json",
+    "n_bunches": "params/n_bunches/all.json"
+  },
+  "lumi_calculation": {
+    "f_rev": 11245.5,
+    "x_sec": 80000.0
+  },
+  "ref_run_number": 0,
+  "anchoring_factors": {
+    "0": {
+      "A": 1.0,
+      "C": 1.0,
+      "Avg": 1.0
+    }
+  },
+  "plot_types": {
+    "lumi_current": false,
+    "mu_dependence": false,
+    "mu_stability": true
+  },
+  "base_output_dir": "output/",
+  "output_dirs": {
+    "base": "output/",
+    "lumi_current": "lumi_current/FCal/",
+    "mu_stability": "mu_stab/FCal/",
+    "benedetto": "benedetto/FCal/"
+  },
+  "plot_options": {
+    "mu_stability": {
+      "output_dirs": {
+        "base": "mu_stab/FCal/",
+        "rootfiles": "histo_files/"
+      },
+      "draw_options": "nostackP",
+      "marker": {
+        "A": {
+          "color": 797,
+          "size": 0.9,
+          "style": 22
+        },
+        "C": {
+          "color": 9,
+          "size": 0.9,
+          "style": 22
+        },
+        "Avg": {
+          "color": 20,
+          "size": 0.9,
+          "style": 22
+        }
+      },
+      "x": {
+        "auto_range": false,
+        "min": 1461318337,
+        "max": 1472700000,
+        "n_bins": 1340,
+        "title": "Date in 2016 (MM/DD)"
+      },
+      "y": {
+        "auto_range": false,
+        "min": -5,
+        "max": 5,
+        "title": "<#mu>_{FCal alg}/<#mu>_{Bi OrA - OflLumi-13TeV-003} -1 [%]"
+      }
+    },
+    "mu_dependence": {
+      "output_dirs": {
+        "base": "mu_dep/FCal/",
+        "plots": "plots/"
+      },
+      "draw_options": "APX",
+      "title": "FCal #mu ratio vs. #mu",
+      "file_name":"mu_dep",
+      "marker": {
+        "colors": [2],
+        "styles": [20],
+        "sizes": [0.3]
+      },
+      "x": {
+        "scale": 1.0,
+        "rel_error": 0.015,
+        "auto_range": true,
+        "min": 1.4,
+        "max": 7.0,
+        "title": "#mu_{ATL_PREF OflLumi-13TeV-001}"
+      },
+      "y": {
+        "scale": 1.0,
+        "rel_error": 0.004,
+        "auto_range": false,
+        "min": -10.0,
+        "max": 20.0,
+        "title": "#mu_{FCal alg}/#mu_{OflLumi-13TeV-001} -1 [%]"
+      },
+      "fit": {
+        "do": false,
+        "show": true,
+        "fix_intercept": true,
+        "options": "EMF",
+        "show_legend": true,
+        "verbose": 0,
+        "line_color": 1,
+        "line_width": 1.0
+      }
+    },
+    "lumi_dependence": {
+      "output_dirs": {
+        "base": "mu_dep/FCal/",
+        "plots": "plots/"
+      },
+      "draw_options": "APX",
+      "title": "FCal #mu ratio vs. luminosity",
+      "file_name":"lumi_dep",
+      "marker": {
+        "colors": [2],
+        "styles": [20],
+        "sizes": [0.3]
+      },
+      "x": {
+        "scale": 1.0,
+        "rel_error": 0.015,
+        "auto_range": false,
+        "min": 0,
+        "max": 5000,
+        "title": "L_{ATL_PREF OflLumi-13TeV-001} [10^{30} cm^{-2} s^{-1}]"
+      },
+      "y": {
+        "scale": 1.0,
+        "rel_error": 0.004,
+        "auto_range": false,
+        "min": -10.0,
+        "max": 20.0,
+        "title": "#mu_{FCal alg}/#mu_{ATL_PREF OflLumi-13TeV-001} -1 [%]"
+      },
+      "fit": {
+        "do": false,
+        "show": true,
+        "fix_intercept": true,
+        "options": "EMF",
+        "show_legend": true,
+        "verbose": 0,
+        "line_color": 1,
+        "line_width": 1.0
+      }
+    },
+    "avg_lumi_dependence": {
+      "output_dirs": {
+        "base": "mu_dep/FCal/",
+        "plots": "plots/"
+      },
+      "fit": {
+        "do": false,
+        "show": true,
+        "fix_intercept": false,
+        "options": "EMF",
+        "show_legend": true,
+        "verbose": 0,
+        "line_color": 1,
+        "line_width": 1.0
+      },
+      "draw_options": "APX",
+      "title": "FCal #mu ratio vs. luminosity",
+      "file_name":"lumi_dep_avg",
+      "marker": {
+        "colors": [2],
+        "styles": [20],
+        "sizes": [0.3]
+      },
+      "x": {
+        "scale": 0.001,
+        "rel_error": 0.02,
+        "auto_range": true,
+        "min": 1.4,
+        "max": 7.0,
+        "title": "L_{ATL_PREF OflLumi-13TeV-001} [10^{33} cm^{-2} s^{-1}]"
+      },
+      "y": {
+        "scale": 1.0,
+        "rel_error": 0.5,
+        "auto_range": true,
+        "min": -4.0,
+        "max": 4.0,
+        "title": "#mu_{FCal alg}/#mu_{ATL_PREF OflLumi-13TeV-001} -1 [%]"
+      }
+    },
+    "lumi_current": {
+      "print_plots": true,
+      "output_dirs": {
+        "plots": "plots/",
+        "base": "lumi_current/FCal/",
+        "fit_results": {
+          "base": "fit_results/",
+          "raw": "raw/",
+          "calibrations": "calibrations/",
+          "geometric": "geometric/"
+        }
+      },
+      "do_individual": true,
+      "do_sum": true,
+      "fit": {
+        "do": true,
+        "show": true,
+        "fix_intercept": true,
+        "options": "EMF",
+        "show_legend": true,
+        "verbose": 0,
+        "line_color": 1,
+        "line_width": 1.0
+      },
+      "draw_options": "APX",
+      "marker": {
+        "colors": [2],
+        "styles": [20],
+        "sizes": [0.3]
+      },
+      "x": {
+        "scale": 1.0,
+        "rel_error": 0.015,
+        "auto_range": true,
+        "min": 1.4,
+        "max": 7.0,
+        "title": "Instantaneous Luminosity [10^{30} cm^{-2} s^{-1}]"
+      },
+      "y": {
+        "scale": 1.0,
+        "rel_error": 0.004,
+        "auto_range": true,
+        "min": 5.0,
+        "max": 10.0,
+        "title": "Current [#mu A]"
+      }
+    }
+  }
+}
+))
+

@@ -7,7 +7,7 @@
 
 class MuLumiDepPlotOptions : public ScatterPlotOptions {
  public:
-  MuLumiDepPlotOptions(const JSONReader& params, const std::string& node, bool verbose);
+  MuLumiDepPlotOptions(const JSONReader& params, const std::string& node);
   ~MuLumiDepPlotOptions(){};
 
   const std::string& file_name() const { return file_name_; }

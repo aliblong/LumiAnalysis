@@ -868,7 +868,7 @@ Expected<Void> Run::CreateLumiCurrentPlots() const
   auto this_func_name = "Run::CreateLumiCurrentPlots";
   if (analysis_->verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
 
-  LumiCurrentPlotOptions plot_options(analysis_->params(), "plot_options.lumi_current.", analysis_->verbose());
+  LumiCurrentPlotOptions plot_options(analysis_->params(), "plot_options.lumi_current.");
   plot_options.run_name(string(run_name_));
   map<string, FitResults> fit_results;
 

@@ -7,7 +7,7 @@
 
 class LumiCurrentPlotOptions : public ScatterPlotOptions {
  public:
-  LumiCurrentPlotOptions(const JSONReader& params, const std::string& node, bool verbose);
+  LumiCurrentPlotOptions(const JSONReader& params, const std::string& node);
   ~LumiCurrentPlotOptions(){};
 
   auto& run_name(std::string&& run_name) { run_name_ = run_name; return *this; }
