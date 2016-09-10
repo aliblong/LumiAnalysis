@@ -8,8 +8,8 @@
 using std::string;
 
 MuStabPlotOptions::MuStabPlotOptions(const JSONReader& params, const string& node) {
-  base_output_dir_ = *params.get<string>("output_dirs.base") +
-                     *params.get<string>("output_dirs.mu_stability");
+  base_output_dir_ = *params.get<string>("base_output_dir") +
+                     *params.get<string>(node+"output_dirs.base");
 
   rootfiles_output_dir_ = base_output_dir_ +
                           *params.get<string>(
