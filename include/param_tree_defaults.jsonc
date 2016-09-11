@@ -1,15 +1,29 @@
 STRINGIFY((
 {
-  //comment
+  // NB: "ref" below refers to reference luminosity or mu.
+
+  // "FCal" or "EMEC"; not currently used
   "detector": "FCal",
+  // true - all warnings; false - no warnings
   "verbose": true,
+  // Name of the algo to be used as reference. Consult make_tree.py in treemaker
   "reference_lumi_algo": "ofl_lumi_pref",
+  // If true, produces BG files
   "do_benedetto": false,
   "benedetto_output_dir": "output/benedetto/2016/FCal/",
+  // Hardcoded correction to account for LUCID mu dependence in 2016
+  // Not needed in latest tag (as of 2016) since this correction is applied at tag-level
   "apply_LUCID_mu_corr": false,
+  // Hardcoded correction to account for banana effect of FCal/ref ratio at low luminosity
   "apply_FCal_lumi_dep_corr": false,
+  // Derive pedestals from the LB range [1,adjust), where adjust is the LB where beam mode ADJUST
+  // is reached. LB 1 is not actually the start of the fill. Frankly, don't use this functionality.
   "use_start_of_fill_pedestals": false,
+  // Another stupid idea which uses the y-intercept parameter of linear fit as a baseline
+  // subtraction. Don't use. I should delete these...
   "use_baseline_subtraction_from_fit": false,
+  // Linear correction corresponding to the correlation between beamspot z position and FCal A/C
+  // ratio seen in 2015. Essentially pulls A and C luminosities toward each other by equal amounts.
   "beamspot_correction": {
     "use": false,
     "params": [
@@ -17,6 +31,7 @@ STRINGIFY((
       -0.095
     ]
   },
+  // See main documentation for what (these files/files in these directories) represent
   "input_filepaths": {
     "primary_calibrations": "params/calibrations/FCal/multirun_2016.dat",
     "calibrations_dir": "deprecated_feature/",
@@ -28,10 +43,15 @@ STRINGIFY((
     "custom_LB_bounds": "params/custom_LB_bounds/2016.json",
     "n_bunches": "params/n_bunches/all.json"
   },
+  // Parameters used to translate luminosity to mu. f_rev is the revolution frequency of bunches in
+  // the LHC (roughly c/27km). x_sec is the pp cross section.
   "lumi_calculation": {
     "f_rev": 11245.5,
     "x_sec": 80000.0
   },
+  // Simple scaling factors applied to A- and C- side luminosities (and their average) to anchor
+  // them relative to some point on the FCal/ref ratio axis. Hass used this a lot but I don't use
+  // it at all. ref_run_number refers to which subtree of the anchoring_factors node below to use
   "ref_run_number": 0,
   "anchoring_factors": {
     "0": {
@@ -40,22 +60,25 @@ STRINGIFY((
       "Avg": 1.0
     }
   },
+  // Which analysis mode(s) to use. Each is described below.
+  // I made this a map so that I could keep the unused modes in every tree, and that way I wouldn't
+  // lose track of which plot_types were possible. Stupid idea. Will probably change to a list.
   "plot_types": {
-    "lumi_current": false,
-    "mu_dependence": false,
-    "mu_stability": true
+    "lumi_current": false, // current vs. ref for individual runs and for each channel
+    "lumi_current_multirun": false, // current vs. ref for all runs on one plot, for each channel
+    "mu_lumi_dependence": false, // LAr/ref ratio vs. ref lumi, LAr/ref ratio vs. ref mu.
+    "mu_stability": false, // LAr/ref ratio vs. datetime of run
+    "beamspot_AC": false, // A/C ratio vs. beamspot z
+    "beamspot_LAr-ofl": false // LAr/ref ratio vs. beamspot z
   },
+  // path to root directory for all output
   "base_output_dir": "output/",
-  "output_dirs": {
-    "base": "output/",
-    "lumi_current": "lumi_current/FCal/",
-    "mu_stability": "mu_stab/FCal/",
-    "benedetto": "benedetto/FCal/"
-  },
+  // Fits are pretty much always linear, with the option to fix the intercept parameter.
   "plot_options": {
     "mu_stability": {
       "output_dirs": {
         "base": "mu_stab/FCal/",
+        // Plot contents are also saved into .root files. Haven't used this feature in years.
         "rootfiles": "histo_files/"
       },
       "draw_options": "nostackP",
@@ -255,6 +278,86 @@ STRINGIFY((
         "min": 5.0,
         "max": 10.0,
         "title": "Current [#mu A]"
+      }
+    },
+    "beamspot_AC": {
+      "output_dirs": {
+        "base": "beamspot_AC/FCal/",
+        "plots": "plots/"
+      },
+      "fit": {
+        "do": true,
+        "show": false,
+        "fix_intercept": false,
+        "options": "EMF",
+        "show_legend": false,
+        "verbose": 0,
+        "line_color": 1,
+        "line_width": 0.5
+      },
+      "draw_options": "APX",
+      "title": "FCal A/C ratio vs. average beamspot z position",
+      "file_name":"beamspot_AC",
+      "marker": {
+        "colors": [2],
+        "styles": [20],
+        "sizes": [0.3]
+      },
+      "x": {
+        "scale": 1.0,
+        "rel_error": 0.02,
+        "auto_range": true,
+        "min": -30.0,
+        "max": 0.0,
+        "title": "Average beamspot Z position [mm]"
+      },
+      "y": {
+        "scale": 1.0,
+        "rel_error": 0.5,
+        "auto_range": true,
+        "min": -0.5,
+        "max": 3.5,
+        "title": "<#mu>_{FCal A}/<#mu>_{FCal C} -1 [%]"
+      }
+    },
+    "beamspot_LAr-ofl": {
+      "output_dirs": {
+        "base": "beamspot_LAr-ofl/FCal/",
+        "plots": "plots/"
+      },
+      "fit": {
+        "do": true,
+        "show": true,
+        "fix_intercept": false,
+        "options": "EMF",
+        "show_legend": true,
+        "verbose": 0,
+        "line_color": 1,
+        "line_width": 0.5
+      },
+      "draw_options": "APX",
+      "title": "FCal #mu ratio vs. average beamspot z position",
+      "file_name":"beamspot_LAr-ofl",
+      "marker": {
+        "colors": [2],
+        "styles": [20],
+        "sizes": [0.3]
+      },
+      "x": {
+        "scale": 1.0,
+        "rel_error": 0.02,
+        "auto_range": true,
+        "min": -30.0,
+        "max": 0.0,
+        "title": "Average beamspot z position [mm]"
+      },
+      "y": {
+        "scale": 1.0,
+        "rel_error": 0.5,
+        "auto_range": true,
+        "min": -2,
+        "max": 4,
+        "title": "<#mu>_{FCal alg}/<#mu>_{Bi ORA - OflLumi-13TeV-003} -1 [%]"
       }
     }
   }

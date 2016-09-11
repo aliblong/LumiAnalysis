@@ -45,6 +45,8 @@ class JSONReader {
 
   // T is the entire vector type; Subtypes are the subsequent nested types
   // e.g. for T = vector<vector<int>>, Subtypes are vector<int> and int (in that order!)
+  // Note: I couldn't figure out how to write the SFINAE part into the template parameters;
+  //   turns out it ain't easy: http://rleahy.ca/blog/programming-2/variadic-sfinae/
   template<typename T, typename... SubTypes>
   boost::optional<typename std::enable_if<is_vector<T>::value, T>::type>
   get(const std::string& key) const {
