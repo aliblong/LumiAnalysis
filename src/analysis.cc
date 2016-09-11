@@ -572,21 +572,20 @@ Expected<Void> Analysis::RunAnalysis()
   return Void();
 }
 
-const map<string, int>& Analysis::n_bunches()
+const map<string, int>& Analysis::n_bunches_from_file()
 { 
-    if (!n_bunches_) {
+    if (!n_bunches_from_file_) {
       string n_bunches_file_path_node = "input_filepaths.n_bunches";
       auto n_bunches_file_path = params_.get<string>(n_bunches_file_path_node);
       if (!n_bunches_file_path || n_bunches_file_path->empty()) {
-        n_bunches_ = map<string, int>();
+        n_bunches_from_file_ = map<string, int>();
       }
       else {
         auto n_bunches_file = JSONReader(*n_bunches_file_path);
-        //TODO: weird here
-        n_bunches_ = n_bunches_file.get<map<string, int>, int>("");
+        n_bunches_from_file_ = n_bunches_file.get<map<string, int>, int>("");
       }
     }
-    return *n_bunches_;
+    return *n_bunches_from_file_;
 }
 
 const map<string, vector<int>>& Analysis::custom_LB_bounds()

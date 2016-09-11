@@ -70,7 +70,7 @@ class Analysis {
 
   const auto& channel_calibrations() const { return channel_calibrations_; }
 
-  const boost::container::flat_map<std::string, int>& n_bunches();
+  const boost::container::flat_map<std::string, int>& n_bunches_from_file();
   const boost::container::flat_map<std::string, std::vector<int>>& custom_LB_bounds();
 
   const auto& params() const { return params_; }
@@ -128,7 +128,7 @@ class Analysis {
 
   boost::container::flat_map<std::string, ChannelCalibration> channel_calibrations_;
   boost::optional<boost::container::flat_map<std::string, std::vector<int>>> custom_LB_bounds_;
-  boost::optional<boost::container::flat_map<std::string, int>> n_bunches_;
+  boost::optional<boost::container::flat_map<std::string, int>> n_bunches_from_file_;
 };
 
 #endif

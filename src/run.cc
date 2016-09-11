@@ -344,7 +344,7 @@ Expected<Void> Run::ReadTree()
 
   n_bunches_ = n_bunches_tmp;
 
-  if (analysis_->retrieve_mu_LAr() && !analysis_->n_bunches().empty()) GetExternalNBunches(); // TODO rename analysis.n_bunches to n_bunches_map
+  if (analysis_->retrieve_mu_LAr() && !analysis_->n_bunches_from_file().empty()) GetExternalNBunches();
 
   RFP_flag_ = CArrayToVec<Int_t>(RFP_flag_arr, n_LB_);
 
@@ -703,7 +703,7 @@ Expected<Void> Run::CreateBenedettoOutput() const
 
 void Run::GetExternalNBunches()
 {
-  auto& n_bunches = analysis_->n_bunches();
+  auto& n_bunches = analysis_->n_bunches_from_file();
   auto res = n_bunches.find(run_name_);
   if (res != n_bunches.end()) {
     if (analysis_->verbose()) {
