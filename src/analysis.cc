@@ -695,7 +695,6 @@ vector<string> Analysis::plot_types() {
       for (const auto &plot_type: *plot_types_map) {
         if (plot_type.second == true) {
           plot_types_->push_back(plot_type.first);
-          cout << plot_type.first << endl;
         }
       }
     }
