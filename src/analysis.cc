@@ -307,7 +307,6 @@ VectorP<Float_t> GenerateLumiVsCurrentPoints(
     const auto& lumi_ofl = run_data.lumi_ofl();
     auto num_points = lumi_ofl.size();
     for (auto i = 0; i < num_points; ++i) {
-      if (current[i] < 0) cout << "Negative current in run " << run.first << endl;
       points.push_back(Point<Float_t>{lumi_ofl[i], current[i]});
     }
   }
@@ -372,12 +371,24 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       for (const auto& channel: channel_calibrations()) {
         auto this_channel_name = channel.first;
         auto lumi_current_points = GenerateLumiVsCurrentPoints(runs_data, this_channel_name);
+        auto is_verbose = verbose();
         lumi_current_points.erase(
             std::remove_if(
                 lumi_current_points.begin(),
                 lumi_current_points.end(),
-                [] (auto point) {
-                  return point[0] < gOflLumiCutoff || point[1] < gLArCurrentCutoff;
+                [is_verbose] (auto point) {
+                  auto lumi = point[0];
+                  auto current = point[1];
+                  if (is_verbose && current < 0) {
+                    // Placeholder current representing an absent value is -9999.0
+                    if (fabs(current + 9999.0) < 1.0) {
+                      cout << "No current for this LB" << endl;
+                    }
+                    else {
+                      cout << "Negative current. Current == " << current << ", lumi == " << lumi << endl;
+                    }
+                  }
+                  return lumi < gOflLumiCutoff || current < gLArCurrentCutoff;
                 }
                 ),
             lumi_current_points.end());
@@ -582,7 +593,8 @@ const map<string, int>& Analysis::n_bunches_from_file()
       }
       else {
         auto n_bunches_file = JSONReader(*n_bunches_file_path);
-        n_bunches_from_file_ = n_bunches_file.get<map<string, int>, int>("");
+        n_bunches_from_file_ = n_bunches_file.get<map<string, int>, int>("n_bunches");
+        if (!n_bunches_from_file_) n_bunches_from_file_ = map<string, int>();
       }
     }
     return *n_bunches_from_file_;
@@ -596,7 +608,7 @@ const map<string, vector<int>>& Analysis::custom_LB_bounds()
       auto custom_LB_bounds_file_path = params_.get<string>(custom_LB_bounds_file_path_node);
       if (custom_LB_bounds_file_path && !custom_LB_bounds_file_path->empty()) {
         auto custom_LB_bounds_file = JSONReader(*custom_LB_bounds_file_path);
-        auto custom_LB_bounds_from_file = custom_LB_bounds_file.get<map<string, vector<int>>, vector<int>, int>("");
+        auto custom_LB_bounds_from_file = custom_LB_bounds_file.get<map<string, vector<int>>, vector<int>, int>("custom_LB_bounds");
         if (custom_LB_bounds_from_file) {
           auto verified = VerifyLBBounds(*custom_LB_bounds_from_file);
           if (verified.valid()) {

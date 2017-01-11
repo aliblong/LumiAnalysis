@@ -234,6 +234,7 @@ STRINGIFY((
       }
     },
     "lumi_current": {
+      "title": "",
       "print_plots": true,
       "output_dirs": {
         "plots": "plots/",

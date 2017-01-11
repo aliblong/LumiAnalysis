@@ -57,12 +57,27 @@ class JSONReader {
     result = T();
     BOOST_FOREACH(const ptree::value_type &child, *node) {
       auto child_key = child.first;
-      auto child_val = get<SubTypes...>(key+"."+child_key);
-      if (!child_val) return boost::none;
-      result->push_back(*child_val);
+      // If child_key is empty, it's an array of values (suitable for vector) rather than a subtree
+      if (child_key == "") {
+        auto this_val = child.second.get_value<SubTypes...>(); //SubTypes should be one type only
+        result->push_back(this_val);
+      }
+      else {
+        auto child_val = get<SubTypes...>(key+"."+child_key);
+        if (!child_val) return boost::none;
+        result->push_back(*child_val);
+      }
     }
     return result;
   }
+
+  /*
+  template<typename FirstSubType, typename... RestOfSubTypes>
+  boost::optional<typename std::enable_if<
+      std::is_integral<FirstSubType>::value || std::is_floating_point<FirstSubType>::value || is_string<FirstSubType>::value,
+      FirstSubType
+    >::type>
+    */
 
   // T is the entire vector type; Subtypes are the subsequent nested types, noting that key type
   //   is always string
