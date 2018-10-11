@@ -868,7 +868,7 @@ Expected<Void> Run::CreateLumiCurrentPlots() const
   auto this_func_name = "Run::CreateLumiCurrentPlots";
   if (analysis_->verbose()) cout << "    " << "Making lumi vs. current plots" << endl;
 
-  LumiCurrentPlotOptions plot_options(analysis_->params(), "plot_options.lumi_current.");
+  LumiCurrentPlotOptions plot_options(analysis_->params(), "mode_options.lumi_current.");
   plot_options.run_name(string(run_name_));
   map<string, FitResults> fit_results;
 
@@ -979,8 +979,8 @@ Expected<Void> Run::CreateLumiCurrentPlots() const
 // Creates those plots which use data from only a single sample
 Expected<Void> Run::CreateSingleRunPlots() const
 {
-  for (const auto &plot_type: analysis_->plot_types()) {
-    if (plot_type == "lumi_current") {
+  for (const auto &mode: analysis_->modes()) {
+    if (mode == "lumi_current") {
       if (analysis_->verbose()) {
         cout << "Creating plots for sample " << run_name_ << endl;
       }

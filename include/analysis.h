@@ -54,7 +54,7 @@ class Analysis {
   std::string currents_dir();
   std::string run_list_dir();
 
-  std::vector<std::string> plot_types();
+  std::vector<std::string> modes();
 
   std::string reference_lumi_algo();
 
@@ -104,7 +104,7 @@ class Analysis {
   boost::optional<std::string> currents_dir_;
   boost::optional<std::string> run_list_dir_;
 
-  boost::optional<std::vector<std::string>> plot_types_;
+  boost::optional<std::vector<std::string>> modes_;
 
   boost::optional<std::string> reference_lumi_algo_;
 

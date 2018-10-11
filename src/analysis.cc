@@ -325,17 +325,17 @@ Analysis::Analysis(string&& params_filepath) :
 
 void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
 {
-  for (const auto &plot_type: plot_types()) {
-    if (plot_type == "mu_stability") {
+  for (const auto &mode: modes()) {
+    if (mode == "mu_stability") {
       VPRINT("Making mu stability plot")
-      auto node = "plot_options.mu_stability.";
+      auto node = "mode_options.mu_stability.";
       MuStabPlotOptions plot_options(params_, node);
       LOG_IF_ERR( Plotter::PlotMuStability(runs_data, plot_options) );
     }
-    else if (plot_type == "mu_lumi_dependence") {
+    else if (mode == "mu_lumi_dependence") {
       VPRINT("Making mu and lumi dependence plots")
       {
-        auto node = "plot_options.mu_dependence.";
+        auto node = "mode_options.mu_dependence.";
         MuLumiDepPlotOptions plot_options(params_, node);
         auto points = GenerateMuRatioVsMuPoints(
             runs_data,
@@ -344,7 +344,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
         LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
       }
       {
-        auto node = "plot_options.lumi_dependence.";
+        auto node = "mode_options.lumi_dependence.";
         MuLumiDepPlotOptions plot_options(params_, node);
         auto points = GenerateMuRatioVsLumiPoints(
             runs_data,
@@ -353,7 +353,7 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
         LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
       }
       {
-        auto node = "plot_options.avg_lumi_dependence.";
+        auto node = "mode_options.avg_lumi_dependence.";
         MuLumiDepPlotOptions plot_options(params_, node);
         auto points = GenerateAvgMuRatioVsLumiPoints(
             runs_data,
@@ -362,9 +362,9 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
         LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
       }
     }
-    else if (plot_type == "lumi_current_multirun") {
+    else if (mode == "lumi_current_multirun") {
       VPRINT("Making current vs. luminosity plot for multiple runs")
-      auto node = "plot_options.lumi_current.";
+      auto node = "mode_options.lumi_current.";
       LumiCurrentPlotOptions plot_options(params_, node);
       plot_options.run_name("multirun");
       map<string, FitResults> fit_results;
@@ -404,9 +404,9 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
       LOG_IF_ERR( Plotter::WriteFitResultsToTree(fit_results, plot_options) )
       LOG_IF_ERR( Plotter::WriteCalibrationToText(fit_results, plot_options) )
     }
-    else if (plot_type == "beamspot_AC") {
+    else if (mode == "beamspot_AC") {
       VPRINT("Making beamspot Z-position vs. A/C ratio plot")
-      auto node = "plot_options.beamspot_AC.";
+      auto node = "mode_options.beamspot_AC.";
       MuLumiDepPlotOptions plot_options(params_, node);
       auto points = GenerateACRatioVsBeamspotZPoints(
           runs_data,
@@ -414,9 +414,9 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
           plot_options.y().scale());
       LOG_IF_ERR( Plotter::PlotMuLumiDependence(points, plot_options) );
     }
-    else if (plot_type == "beamspot_LAr-ofl") {
+    else if (mode == "beamspot_LAr-ofl") {
       VPRINT("Making beamspot Z-position vs. LAr/ofl ratio plot")
-      auto node = "plot_options.beamspot_LAr-ofl.";
+      auto node = "mode_options.beamspot_LAr-ofl.";
       MuLumiDepPlotOptions plot_options(params_, node);
       auto points = GenerateAvgMuRatioVsBeamspotZPoints(
           runs_data,
@@ -431,39 +431,39 @@ void Analysis::CreateAllRunPlots(const map<string, Run> &runs_data)
 // Sets flags for which data to retrieve based on which plots to produce.
 Expected<Void> Analysis::PrepareAnalysis()
 {
-  for (const auto &plot_type: plot_types()) {
-    if (plot_type == "lumi_current" || plot_type == "lumi_current_multirun") {
+  for (const auto &mode: modes()) {
+    if (mode == "lumi_current" || mode == "lumi_current_multirun") {
       retrieve_currents_ = true;
       retrieve_lumi_ofl_ = true;
     }
-    else if (plot_type == "mu_stability") {
+    else if (mode == "mu_stability") {
       retrieve_timestamps_ = true;
       retrieve_lumi_ofl_ = true;
       retrieve_lumi_LAr_ = true;
     }
-    else if (plot_type == "mu_lumi_dependence") {
+    else if (mode == "mu_lumi_dependence") {
       retrieve_lumi_ofl_ = true;
       retrieve_lumi_LAr_ = true;
       retrieve_mu_LAr_ = true;
     }
-    else if (plot_type == "beamspot_AC") {
+    else if (mode == "beamspot_AC") {
       retrieve_lumi_LAr_ = true;
       retrieve_beamspot_ = true;
     }
-    else if (plot_type == "beamspot_LAr-ofl") {
+    else if (mode == "beamspot_LAr-ofl") {
       retrieve_lumi_ofl_ = true;
       retrieve_lumi_LAr_ = true;
       retrieve_beamspot_ = true;
     }
+    else if (mode == "benedetto") {
+      retrieve_lumi_LAr_ = true;
+      retrieve_mu_LAr_ = true;
+      //TODO: remove this
+      retrieve_lumi_ofl_ = true;
+    }
   }
 
   if (use_beamspot_corr()) retrieve_beamspot_ = true;
-  if (do_benedetto()) {
-    retrieve_lumi_LAr_ = true;
-    retrieve_mu_LAr_ = true;
-    //TODO: remove this
-    retrieve_lumi_ofl_ = true;
-  }
 
   // LAr currents are required to calculate LAr lumi
   if (retrieve_lumi_LAr_) retrieve_currents_ = true;
@@ -562,8 +562,8 @@ Expected<Void> Analysis::RunAnalysis()
   for (const auto &run_name: *run_names_vec) {
     auto this_run = Run(run_name, this);
     TRY_CONTINUE( this_run.Init() )
-
     TRY_CONTINUE( this_run.CreateSingleRunPlots() )
+
     if (retrieve_lumi_LAr_) {
       TRY_CONTINUE( this_run.CalcLArLumi() )
     }
@@ -576,6 +576,39 @@ Expected<Void> Analysis::RunAnalysis()
 
     runs_data.emplace_hint(end(runs_data),  //change this to cend in C++14
                            string(run_name), std::move(this_run));
+    // DELET THIS
+    auto node = "mode_options.lumi_current.";
+    LumiCurrentPlotOptions plot_options(params_, node);
+    plot_options.run_name(string("multi_to_")+run_name);
+    for (const auto& channel: channel_calibrations()) {
+      auto this_channel_name = channel.first;
+      auto lumi_current_points = GenerateLumiVsCurrentPoints(runs_data, this_channel_name);
+      auto is_verbose = verbose();
+      lumi_current_points.erase(
+          std::remove_if(
+              lumi_current_points.begin(),
+              lumi_current_points.end(),
+              [is_verbose] (auto point) {
+                auto lumi = point[0];
+                auto current = point[1];
+                if (is_verbose && current < 0) {
+                  // Placeholder current representing an absent value is -9999.0
+                  if (fabs(current + 9999.0) < 1.0) {
+                    cout << "No current for this LB" << endl;
+                  }
+                  else {
+                    cout << "Negative current. Current == " << current << ", lumi == " << lumi << endl;
+                  }
+                }
+                return lumi < gOflLumiCutoff || current < gLArCurrentCutoff;
+              }
+              ),
+          lumi_current_points.end());
+      plot_options.channel_name(std::move(this_channel_name));
+      plot_options.title("Runs "+runs_data.begin()->first+" - "+runs_data.rbegin()->first+", Channel "+this_channel_name);
+      auto this_channel_fit_results = Plotter::PlotLumiCurrent(lumi_current_points, plot_options);
+      CONTINUE_IF_ERR(this_channel_fit_results)
+    }
   }
 
   CreateAllRunPlots(runs_data);
@@ -698,19 +731,12 @@ string Analysis::run_list_dir() {
   LAZY_LOAD_AND_RETURN(run_list_dir_, string, INPUT_FILEPATHS_NODE+"run_list")
 }
 
-vector<string> Analysis::plot_types() {
-  if (!plot_types_) {
-    plot_types_ = vector<string>();
-    auto plot_types_map = params_.get<map<string, bool>, bool>("plot_types");
-    if (plot_types_map) {
-      for (const auto &plot_type: *plot_types_map) {
-        if (plot_type.second == true) {
-          plot_types_->push_back(plot_type.first);
-        }
-      }
-    }
+// Lazy load macro doesn't work here because get is taking two type parameters
+vector<string> Analysis::modes() {
+  if (!modes_) {
+    modes_ = params_.get<vector<string>, string>("modes");
   }
-  return *plot_types_;
+  return *modes_;
 }
 
 string Analysis::reference_lumi_algo() {
@@ -724,6 +750,8 @@ bool Analysis::apply_LUCID_mu_corr() {
 bool Analysis::use_beamspot_corr() {
   LAZY_LOAD_AND_RETURN(use_beamspot_corr_, bool, "beamspot_correction.use")
 }
+
+// Lazy load macro doesn't work here because get is taking two type parameters
 vector<Float_t> Analysis::beamspot_corr_params() {
   if (!beamspot_corr_params_) {
     beamspot_corr_params_ = params_.get<vector<Float_t>, Float_t>("beamspot_correction.params");
@@ -738,8 +766,17 @@ bool Analysis::use_baseline_subtraction_from_fit() {
   LAZY_LOAD_AND_RETURN(use_baseline_subtraction_from_fit_, bool, "use_baseline_subtraction_from_fit")
 }
 bool Analysis::do_benedetto() {
-  LAZY_LOAD_AND_RETURN(do_benedetto_, bool, "do_benedetto")
+  if (!do_benedetto_) {
+    const auto& modes_vec = modes();
+    do_benedetto_ = ( std::find(modes_vec.begin(), modes_vec.end(), "benedetto") != modes_vec.end() );
+  }
+  return *do_benedetto_;
 }
+
 string Analysis::benedetto_output_dir() {
-  LAZY_LOAD_AND_RETURN(benedetto_output_dir_, string, "benedetto_output_dir")
+  if (!benedetto_output_dir_) {
+    benedetto_output_dir_ = *params_.get<string>("base_output_dir") +
+      *params_.get<string>("mode_options.benedetto.output_dir");
+  }
+  return *benedetto_output_dir_;
 }

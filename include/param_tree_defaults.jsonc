@@ -8,9 +8,6 @@ STRINGIFY((
   "verbose": true,
   // Name of the algo to be used as reference. Consult make_tree.py in treemaker
   "reference_lumi_algo": "ofl_lumi_pref",
-  // If true, produces BG files
-  "do_benedetto": false,
-  "benedetto_output_dir": "output/benedetto/2016/FCal/",
   // Hardcoded correction to account for LUCID mu dependence in 2016
   // Not needed in latest tag (as of 2016) since this correction is applied at tag-level
   "apply_LUCID_mu_corr": false,
@@ -61,20 +58,23 @@ STRINGIFY((
     }
   },
   // Which analysis mode(s) to use. Each is described below.
-  // I made this a map so that I could keep the unused modes in every tree, and that way I wouldn't
-  // lose track of which plot_types were possible. Stupid idea. Will probably change to a list.
-  "plot_types": {
-    "lumi_current": false, // current vs. ref for individual runs and for each channel
-    "lumi_current_multirun": false, // current vs. ref for all runs on one plot, for each channel
-    "mu_lumi_dependence": false, // LAr/ref ratio vs. ref lumi, LAr/ref ratio vs. ref mu.
-    "mu_stability": false, // LAr/ref ratio vs. datetime of run
-    "beamspot_AC": false, // A/C ratio vs. beamspot z
-    "beamspot_LAr-ofl": false // LAr/ref ratio vs. beamspot z
-  },
+  "modes": [
+    // "benedetto", // Produce BG files which state the average value of mu for each LB, for side A and B of a detector
+    // "lumi_current", // Current vs. ref. lumi for individual runs and for each channel. Produces lumi vs. current plot for each channel for each run, and a set of calibrations for each run.
+    // "lumi_current_multirun", // Current vs. ref for all runs, for each channel. Produces aggregated lumi vs. current plot for each channel, and a single set of calibrations.
+    // "mu_lumi_dependence", // LAr/ref ratio vs. ref lumi, LAr/ref ratio vs. ref mu.
+    // "mu_stability", // LAr/ref ratio vs. datetime of run
+    // "beamspot_AC", // A/C ratio vs. beamspot z
+     // LAr/ref ratio vs. beamspot z
+    // "beamspot_LAr-ofl"
+  ],
   // path to root directory for all output
   "base_output_dir": "output/",
   // Fits are pretty much always linear, with the option to fix the intercept parameter.
-  "plot_options": {
+  "mode_options": {
+    "benedetto": {
+      "output_dir": "benedetto/"
+    },
     "mu_stability": {
       "output_dirs": {
         "base": "mu_stab/FCal/",
